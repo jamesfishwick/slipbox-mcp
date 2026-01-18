@@ -88,7 +88,8 @@ class NoteRepository(Repository[Note]):
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     note = self._parse_note_from_markdown(content)
-                    notes.append(note)
+                    if note:  # Skip files without IDs
+                        notes.append(note)
                 except Exception as e:
                     logger.error(f"Error processing file {file_path}: {e}")
             
@@ -96,7 +97,7 @@ class NoteRepository(Repository[Note]):
             for note in notes:
                 self._index_note(note)
     
-    def _parse_note_from_markdown(self, content: str) -> Note:
+    def _parse_note_from_markdown(self, content: str) -> Optional[Note]:
         """Parse a note from markdown content."""
         # Parse frontmatter
         post = frontmatter.loads(content)
@@ -105,7 +106,8 @@ class NoteRepository(Repository[Note]):
         # Extract ID from metadata or filename
         note_id = metadata.get("id")
         if not note_id:
-            raise ValueError("Note ID missing from frontmatter")
+            # Skip files without IDs (documentation, templates, etc.)
+            return None
         
         # Extract title from metadata or first heading
         title = metadata.get("title")
