@@ -8,6 +8,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from zettelkasten_mcp.config import config
 from zettelkasten_mcp.models.schema import LinkType, Note, NoteType, Tag
 from zettelkasten_mcp.services.search_service import SearchService
+from zettelkasten_mcp.services.cluster_service import ClusterService
 from zettelkasten_mcp.services.zettel_service import ZettelService
 
 logger = logging.getLogger(__name__)
@@ -17,12 +18,12 @@ class ZettelkastenMcpServer:
     def __init__(self):
         """Initialize the MCP server."""
         self.mcp = FastMCP(
-            config.server_name,
-            version=config.server_version
+            config.server_name
         )
         # Services
         self.zettel_service = ZettelService()
         self.search_service = SearchService(self.zettel_service)
+        self.cluster_service = ClusterService(self.zettel_service)
         # Initialize services
         self.initialize()
         # Register tools
@@ -73,12 +74,29 @@ class ZettelkastenMcpServer:
             note_type: str = "permanent",
             tags: Optional[str] = None
         ) -> str:
-            """Create a new Zettelkasten note.
+            """Create a new atomic Zettelkasten note.
+
+            Each note should contain exactly one idea. After creating, immediately
+            link to related notes using zk_create_link.
+
+            Note Types:
+            - fleeting: Quick captures, unprocessed thoughts (process within 24-48 hours)
+            - literature: Ideas extracted from sources (always include citation in content)
+            - permanent: Refined ideas in your own words (the core of your Zettelkasten)
+            - structure: Maps organizing 7-15 related notes on a topic
+            - hub: Entry points into major knowledge domains
+
+            Best Practices:
+            - Title should express the idea in brief (understandable without reading content)
+            - Content should be 3-7 paragraphs, enough to stand alone
+            - Use 2-5 specific tags; prefer existing tags when they fit
+            - Search first (zk_search_notes) to avoid duplicating existing notes
+
             Args:
-                title: The title of the note
-                content: The main content of the note
-                note_type: Type of note (fleeting, literature, permanent, structure, hub)
-                tags: Comma-separated list of tags (optional)
+                title: Concise title expressing the core idea
+                content: Full note content in markdown
+                note_type: One of fleeting/literature/permanent/structure/hub (default: permanent)
+                tags: Comma-separated tags, e.g. "poetry,revision,craft"
             """
             try:
                 # Convert note_type string to enum
@@ -107,8 +125,12 @@ class ZettelkastenMcpServer:
         @self.mcp.tool(name="zk_get_note")
         def zk_get_note(identifier: str) -> str:
             """Retrieve a note by ID or title.
+
+            Returns full note content including metadata, tags, and links.
+            Use this to read note contents before creating links or updates.
+
             Args:
-                identifier: The ID or title of the note
+                identifier: Either the note ID (e.g. "20251217T172432480464000") or exact title
             """
             try:
                 identifier = str(identifier)
@@ -144,12 +166,16 @@ class ZettelkastenMcpServer:
             tags: Optional[str] = None
         ) -> str:
             """Update an existing note.
+
+            Only provided fields are updated; omitted fields remain unchanged.
+            Pass empty string for tags to clear all tags.
+
             Args:
                 note_id: The ID of the note to update
                 title: New title (optional)
                 content: New content (optional)
-                note_type: New note type (optional)
-                tags: New comma-separated list of tags (optional)
+                note_type: New type: fleeting/literature/permanent/structure/hub (optional)
+                tags: New comma-separated tags, or empty string to clear (optional)
             """
             try:
                 # Get the note
@@ -185,7 +211,11 @@ class ZettelkastenMcpServer:
         # Delete a note
         @self.mcp.tool(name="zk_delete_note")
         def zk_delete_note(note_id: str) -> str:
-            """Delete a note.
+            """Delete a note permanently.
+
+            Warning: This also removes all links to and from this note.
+            Consider updating note_type to "fleeting" instead if uncertain.
+
             Args:
                 note_id: The ID of the note to delete
             """
@@ -210,13 +240,31 @@ class ZettelkastenMcpServer:
             description: Optional[str] = None,
             bidirectional: bool = False
         ) -> str:
-            """Create a link between two notes.
+            """Create a semantic link between two notes.
+
+            Links are directional: source -> target. Use bidirectional=true for
+            important relationships (automatically creates inverse link type).
+
+            Link Types:
+            - reference: Generic "see also" connection
+            - extends: Source builds upon target (inverse: extended_by)
+            - refines: Source clarifies or improves target (inverse: refined_by)
+            - contradicts: Source presents opposing view (inverse: contradicted_by)
+            - questions: Source raises questions about target (inverse: questioned_by)
+            - supports: Source provides evidence for target (inverse: supported_by)
+            - related: Loose thematic connection (symmetric)
+
+            Best Practices:
+            - Always add description explaining WHY notes are linked
+            - Use bidirectional=true for substantive relationships
+            - Create links immediately after creating notes
+
             Args:
-                source_id: ID of the source note
-                target_id: ID of the target note
-                link_type: Type of link (reference, extends, refines, contradicts, questions, supports, related)
-                description: Optional description of the link
-                bidirectional: Whether to create a link in both directions
+                source_id: ID of the source note (the note doing the linking)
+                target_id: ID of the target note (the note being linked to)
+                link_type: One of reference/extends/refines/contradicts/questions/supports/related
+                description: Brief explanation of the relationship
+                bidirectional: If true, creates inverse link from target to source
             """
             try:
                 # Convert link_type string to enum
@@ -253,10 +301,11 @@ class ZettelkastenMcpServer:
             bidirectional: bool = False
         ) -> str:
             """Remove a link between two notes.
+
             Args:
                 source_id: ID of the source note
                 target_id: ID of the target note
-                bidirectional: Whether to remove the link in both directions
+                bidirectional: If true, removes links in both directions
             """
             try:
                 # Remove the link
@@ -281,11 +330,20 @@ class ZettelkastenMcpServer:
             limit: int = 10
         ) -> str:
             """Search for notes by text, tags, or type.
+
+            Searches across titles and content. Combine parameters for precise filtering.
+
+            Examples:
+            - Search by topic: query="poetry revision"
+            - Filter by tag: tags="craft,poetry"
+            - Find structure notes: note_type="structure"
+            - Combined: query="metaphor" tags="poetry" limit=5
+
             Args:
-                query: Text to search for in titles and content
-                tags: Comma-separated list of tags to filter by
-                note_type: Type of note to filter by
-                limit: Maximum number of results to return
+                query: Text to search in titles and content (optional)
+                tags: Comma-separated tags to filter by, e.g. "poetry,craft" (optional)
+                note_type: Filter by type: fleeting/literature/permanent/structure/hub (optional)
+                limit: Maximum results to return (default: 10)
             """
             try:
                 # Convert tags string to list if provided
@@ -336,10 +394,18 @@ class ZettelkastenMcpServer:
             note_id: str,
             direction: str = "both"
         ) -> str:
-            """Get notes linked to/from a note.
+            """Get notes linked to or from a specific note.
+
+            Use this to explore the knowledge graph around a note.
+
+            Directions:
+            - outgoing: Notes this note links TO
+            - incoming: Notes that link TO this note
+            - both: All connected notes in either direction
+
             Args:
-                note_id: ID of the note
-                direction: Direction of links (outgoing, incoming, both)
+                note_id: ID of the note to explore from
+                direction: One of outgoing/incoming/both (default: both)
             """
             try:
                 if direction not in ["outgoing", "incoming", "both"]:
@@ -382,7 +448,12 @@ class ZettelkastenMcpServer:
         # Get all tags
         @self.mcp.tool(name="zk_get_all_tags")
         def zk_get_all_tags() -> str:
-            """Get all tags in the Zettelkasten."""
+            """Get all tags in the Zettelkasten.
+
+            Returns alphabetically sorted list of all tags.
+            Use this to find existing tags before creating new notes
+            to maintain tag consistency across your knowledge base.
+            """
             try:
                 tags = self.zettel_service.get_all_tags()
                 if not tags:
@@ -406,10 +477,14 @@ class ZettelkastenMcpServer:
             limit: int = 5
         ) -> str:
             """Find notes similar to a given note.
+
+            Similarity is based on shared tags, common links, and content overlap.
+            Useful for discovering connections you might have missed.
+
             Args:
                 note_id: ID of the reference note
-                threshold: Similarity threshold (0.0-1.0)
-                limit: Maximum number of results to return
+                threshold: Minimum similarity score 0.0-1.0 (default: 0.3)
+                limit: Maximum results (default: 5)
             """
             try:
                 # Get similar notes
@@ -438,13 +513,13 @@ class ZettelkastenMcpServer:
         # Find central notes
         @self.mcp.tool(name="zk_find_central_notes")
         def zk_find_central_notes(limit: int = 10) -> str:
-            """Find notes with the most connections (incoming + outgoing links).
-            Notes are ranked by their total number of connections, determining
-            their centrality in the knowledge network. Due to database constraints,
-            only one link of each type is counted between any pair of notes.
+            """Find the most connected notes in the Zettelkasten.
+
+            Central notes have the most incoming and outgoing links, making them
+            key hubs in your knowledge network. Good candidates for hub notes.
 
             Args:
-                limit: Maximum number of results to return (default: 10)
+                limit: Maximum results (default: 10)
             """
             try:
                 # Get central notes
@@ -471,7 +546,11 @@ class ZettelkastenMcpServer:
         # Find orphaned notes
         @self.mcp.tool(name="zk_find_orphaned_notes")
         def zk_find_orphaned_notes() -> str:
-            """Find notes with no connections to other notes."""
+            """Find notes with no connections to other notes.
+
+            Orphaned notes represent unintegrated knowledge. Review these periodically
+            to either link them to existing notes or identify candidates for deletion.
+            """
             try:
                 # Get orphaned notes
                 orphans = self.search_service.find_orphaned_notes()
@@ -501,12 +580,15 @@ class ZettelkastenMcpServer:
             use_updated: bool = False,
             limit: int = 10
         ) -> str:
-            """List notes created or updated within a date range.
+            """List notes by creation or update date.
+
+            Useful for reviewing recent work or finding notes from a specific period.
+
             Args:
-                start_date: Start date in ISO format (YYYY-MM-DD)
-                end_date: End date in ISO format (YYYY-MM-DD)
-                use_updated: Whether to use updated_at instead of created_at
-                limit: Maximum number of results to return
+                start_date: Start date in ISO format YYYY-MM-DD (optional)
+                end_date: End date in ISO format YYYY-MM-DD (optional)
+                use_updated: If true, filter by updated_at instead of created_at (default: false)
+                limit: Maximum results (default: 10)
             """
             try:
                 # Parse dates
@@ -570,7 +652,11 @@ class ZettelkastenMcpServer:
         # Rebuild the index
         @self.mcp.tool(name="zk_rebuild_index")
         def zk_rebuild_index() -> str:
-            """Rebuild the database index from files."""
+            """Rebuild the database index from markdown files.
+
+            Use this if notes were edited outside the MCP server or if the
+            database seems out of sync with the filesystem.
+            """
             try:
                 # Get count before rebuild
                 note_count_before = len(self.zettel_service.get_all_notes())
@@ -593,14 +679,314 @@ class ZettelkastenMcpServer:
                 return self.format_error_response(e)
 
     def _register_resources(self) -> None:
+
+        # Get cluster report
+        @self.mcp.tool(name="zk_get_cluster_report")
+        def zk_get_cluster_report(
+            min_score: float = 0.5,
+            limit: int = 5,
+            include_notes: bool = False,
+            refresh: bool = False
+        ) -> str:
+            """Get pending cluster analysis for structure note creation.
+
+            Clusters are groups of notes sharing tags but lacking a structure note.
+            High-scoring clusters are good candidates for new structure notes.
+
+            Uses cached analysis by default. Set refresh=true to regenerate.
+            Cluster analysis runs automatically via cron if configured.
+
+            Scoring factors:
+            - Note count (7-15 is ideal, >15 is overdue)
+            - Orphan ratio (more orphans = more urgent)
+            - Internal link density (fewer links = needs structure)
+            - Recency (recent activity = active domain)
+
+            Args:
+                min_score: Minimum cluster score 0.0-1.0 (default: 0.5)
+                limit: Maximum clusters to return (default: 5)
+                include_notes: Include full note list per cluster (default: false)
+                refresh: Force regeneration of cluster analysis (default: false)
+            """
+            try:
+                # Load or generate report
+                if refresh:
+                    report = self.cluster_service.detect_clusters()
+                    self.cluster_service.save_report(report)
+                else:
+                    report = self.cluster_service.load_report()
+                    if not report:
+                        report = self.cluster_service.detect_clusters()
+                        self.cluster_service.save_report(report)
+                
+                # Filter by score
+                clusters = [c for c in report.clusters if c.score >= min_score][:limit]
+                
+                if not clusters:
+                    return f"No clusters found with score >= {min_score}. Try lowering min_score or running with refresh=True."
+                
+                # Format output
+                output = f"Cluster Analysis (generated {report.generated_at.strftime('%Y-%m-%d %H:%M')})\n"
+                output += f"Stats: {report.stats['total_notes']} notes, {report.stats['total_orphans']} orphans, "
+                output += f"{report.stats['clusters_needing_structure']} clusters need structure notes\n\n"
+                
+                for i, cluster in enumerate(clusters, 1):
+                    output += f"{i}. {cluster.suggested_title}\n"
+                    output += f"   ID: {cluster.id}\n"
+                    output += f"   Score: {cluster.score} | Notes: {cluster.note_count} | Orphans: {cluster.orphan_count}\n"
+                    output += f"   Tags: {', '.join(cluster.tags)}\n"
+                    
+                    if include_notes:
+                        output += "   Notes:\n"
+                        for note in cluster.notes[:10]:
+                            output += f"     - {note['title']} ({note['id']})\n"
+                        if len(cluster.notes) > 10:
+                            output += f"     ... and {len(cluster.notes) - 10} more\n"
+                    output += "\n"
+                
+                return output
+            except Exception as e:
+                return self.format_error_response(e)
+
+        # Create structure note from cluster
+        @self.mcp.tool(name="zk_create_structure_from_cluster")
+        def zk_create_structure_from_cluster(
+            cluster_id: str,
+            title: Optional[str] = None,
+            create_links: bool = True
+        ) -> str:
+            """Create a structure note from a detected cluster.
+
+            Generates a structure note organizing all notes in the cluster,
+            with bidirectional links to each member note.
+
+            Run zk_get_cluster_report first to see available clusters and their IDs.
+
+            Args:
+                cluster_id: ID from cluster report (e.g. "jackson-mac-low-chance-operations")
+                title: Override the suggested title (optional)
+                create_links: Create bidirectional links to member notes (default: true)
+            """
+            try:
+                # Load report
+                report = self.cluster_service.load_report()
+                if not report:
+                    return "No cluster report found. Run zk_get_cluster_report(refresh=True) first."
+                
+                # Find cluster
+                cluster = next((c for c in report.clusters if c.id == cluster_id), None)
+                if not cluster:
+                    available = ', '.join(c.id for c in report.clusters[:5])
+                    return f"Cluster '{cluster_id}' not found. Available: {available}"
+                
+                # Build content
+                final_title = title or cluster.suggested_title
+                content = f"Structure note for {len(cluster.notes)} related notes.\n\n"
+                content += f"## Overview\n\nThis cluster emerged from notes sharing these tags: {', '.join(cluster.tags)}.\n\n"
+                content += "## Member Notes\n\n"
+                
+                for note_info in cluster.notes:
+                    content += f"- [[{note_info['id']}]] {note_info['title']}\n"
+                
+                content += "\n## Synthesis\n\n_TODO: Synthesize key insights from these notes._\n"
+                
+                # Create the structure note
+                structure_note = self.zettel_service.create_note(
+                    title=final_title,
+                    content=content,
+                    note_type=NoteType.STRUCTURE,
+                    tags=cluster.tags[:5]
+                )
+                
+                # Create links if requested
+                links_created = 0
+                if create_links:
+                    for note_info in cluster.notes:
+                        try:
+                            self.zettel_service.create_link(
+                                source_id=structure_note.id,
+                                target_id=note_info['id'],
+                                link_type=LinkType.REFERENCE,
+                                description="Member of structure note",
+                                bidirectional=True
+                            )
+                            links_created += 1
+                        except Exception as link_error:
+                            logger.warning(f"Failed to create link to {note_info['id']}: {link_error}")
+                
+                return f"Structure note created: {final_title} (ID: {structure_note.id})\nLinked to {links_created}/{len(cluster.notes)} member notes."
+            except Exception as e:
+                return self.format_error_response(e)
+
+        # Refresh cluster analysis
+        @self.mcp.tool(name="zk_refresh_clusters")
+        def zk_refresh_clusters() -> str:
+            """Regenerate cluster analysis and save report.
+
+            Analyzes all notes for emergent clusters based on:
+            - Tag co-occurrence (tags that frequently appear together)
+            - Connection patterns (notes that link to each other)
+            - Structure note coverage (which clusters already have structure notes)
+
+            Results saved to ~/.local/share/mcp/zettelkasten/cluster-analysis.json
+            """
+            try:
+                report = self.cluster_service.detect_clusters()
+                path = self.cluster_service.save_report(report)
+                
+                output = f"Cluster analysis complete.\n"
+                output += f"Report saved to: {path}\n\n"
+                output += f"Stats:\n"
+                output += f"  Total notes: {report.stats['total_notes']}\n"
+                output += f"  Orphaned notes: {report.stats['total_orphans']}\n"
+                output += f"  Clusters detected: {report.stats['clusters_detected']}\n"
+                output += f"  Clusters needing structure: {report.stats['clusters_needing_structure']}\n"
+                
+                if report.clusters:
+                    output += f"\nTop clusters:\n"
+                    for cluster in report.clusters[:3]:
+                        output += f"  - {cluster.suggested_title} (score: {cluster.score})\n"
+                
+                return output
+            except Exception as e:
+                return self.format_error_response(e)
+
         """Register MCP resources."""
         # Currently, we don't define resources for the Zettelkasten server
         pass
 
     def _register_prompts(self) -> None:
-        """Register MCP prompts."""
-        # Currently, we don't define prompts for the Zettelkasten server
-        pass
+        """Register MCP prompts for knowledge workflows."""
+
+        @self.mcp.prompt()
+        def knowledge_creation(content: str) -> str:
+            """Process new information into atomic Zettelkasten notes.
+
+            Use this workflow when you have text, articles, or ideas to add to your
+            knowledge base. The workflow searches for existing related notes, extracts
+            atomic ideas, creates properly linked notes, and updates structure notes.
+
+            Args:
+                content: The information to process (article text, notes, ideas, etc.)
+            """
+            return f"""I've attached information I'd like to incorporate into my Zettelkasten. Please:
+
+First, search for existing notes that might be related before creating anything new.
+
+Then, identify 3-5 key atomic ideas from this information and for each one:
+1. Create a note with an appropriate title, type, and tags
+2. Draft content in my own words with proper attribution
+3. Find and create meaningful connections to existing notes
+4. Update any relevant structure notes
+
+After processing all ideas, provide a summary of the notes created, connections established, and any follow-up questions you have.
+
+---
+
+{content}"""
+
+        @self.mcp.prompt()
+        def knowledge_creation_batch(content: str) -> str:
+            """Process larger volumes of information into the Zettelkasten.
+
+            Use this workflow for processing books, long articles, or collections of
+            related material. Extracts 5-10 atomic ideas, organizes them into clusters,
+            and ensures quality and consistency with existing notes.
+
+            Args:
+                content: The larger text or collection to process
+            """
+            return f"""I've attached a larger text/collection of information to process into my Zettelkasten. Please:
+
+1. First identify main themes and check my existing system for related notes and tags
+
+2. Extract 5-10 distinct atomic ideas from this material, organized into logical clusters
+   - Eliminate any concepts that duplicate my existing notes
+   - Process each validated concept into a note with appropriate type, title, tags, and content
+   - Create connections between related notes in this batch
+   - Connect each new note to relevant existing notes in my system
+
+3. Update or create structure notes as needed to integrate this batch of knowledge
+
+4. Verify quality for each note:
+   - Each note contains a single focused concept
+   - All sources are properly cited
+   - Each note has meaningful connections
+   - Terminology is consistent with my existing system
+
+Provide a summary of all notes created, connections established, and structure notes updated, along with any areas you've identified for follow-up work.
+
+---
+
+{content}"""
+
+        @self.mcp.prompt()
+        def knowledge_exploration(topic: str) -> str:
+            """Explore how a topic connects to existing knowledge.
+
+            Use this workflow to discover connections, find knowledge hubs, identify
+            gaps, and map how new information relates to your existing Zettelkasten.
+
+            Args:
+                topic: The topic or concept to explore
+            """
+            return f"""I'd like to explore how this information connects to my existing Zettelkasten. Please:
+
+1. Identify the central concepts in this information and find related notes in my system
+
+2. Examine knowledge hubs in my Zettelkasten by:
+   - Finding central notes related to these concepts
+   - Mapping their connections and similar notes
+   - Identifying promising knowledge paths to follow
+
+3. Look for any gaps, contradictions, or orphaned notes that relate to these concepts
+
+4. Create a conceptual map showing:
+   - How this information fits with my existing knowledge
+   - Unexpected connections discovered
+   - Potential areas for development
+
+Finally, summarize what you've learned about my Zettelkasten through this exploration and highlight the most valuable insights found.
+
+---
+
+Topic/concept to explore: {topic}"""
+
+        @self.mcp.prompt()
+        def knowledge_synthesis(content: str) -> str:
+            """Synthesize higher-order insights from connected knowledge.
+
+            Use this workflow to find bridges between unconnected areas, resolve
+            contradictions, extend chains of thought, and create new permanent notes
+            capturing emergent insights.
+
+            Args:
+                content: Information or context that might spark synthesis opportunities
+            """
+            return f"""I've attached information that might help synthesize ideas in my Zettelkasten. Please:
+
+1. Find opportunities for synthesis by identifying:
+   - Potential bridges between currently unconnected areas in my system
+   - Contradictions that this information might help resolve
+   - Incomplete chains of thought that could now be extended
+
+2. For the most promising synthesis opportunities (3-5 max):
+   - Create new permanent notes capturing the higher-order insights
+   - Connect these synthesis notes to the contributing notes with appropriate link types
+   - Update or create structure notes as needed
+
+3. Identify any relevant fleeting notes that should be converted to permanent notes in light of this synthesis
+
+4. Based on this synthesis work, highlight:
+   - New questions that have emerged
+   - Knowledge gaps revealed
+   - Potential applications of the new understanding
+
+Provide a summary of the insights discovered, notes created, and connections established through this synthesis process.
+
+---
+
+{content}"""
 
     def run(self) -> None:
         """Run the MCP server."""
