@@ -1,281 +1,376 @@
 # Zettelkasten MCP Server
 
-A Model Context Protocol (MCP) server that implements the Zettelkasten knowledge management methodology, allowing you to create, link, explore and synthesize atomic notes through Claude and other MCP-compatible clients.
-
-## What is Zettelkasten?
-
-The Zettelkasten method is a knowledge management system developed by German sociologist Niklas Luhmann, who used it to produce over 70 books and hundreds of articles. It consists of three core principles:
-
-1. **Atomicity**: Each note contains exactly one idea, making it a discrete unit of knowledge
-2. **Connectivity**: Notes are linked together to create a network of knowledge, with meaningful relationships between ideas
-3. **Emergence**: As the network grows, new patterns and insights emerge that weren't obvious when the individual notes were created
-
-What makes the Zettelkasten approach powerful is how it enables exploration in multiple ways:
-
-- **Vertical exploration**: dive deeper into specific topics by following connections within a subject area.
-- **Horizontal exploration**: discover unexpected relationships between different fields by traversing links that cross domains.
-
-This structure invites serendipitous discoveries as you follow trails of thought from note to note, all while keeping each piece of information easily accessible through its unique identifier. Luhmann called his system his "second brain" or "communication partner" - this digital implementation aims to provide similar benefits through modern technology.
+A Model Context Protocol server for managing a Zettelkasten knowledge system with automatic cluster detection.
 
 ## Features
 
-- Create atomic notes with unique timestamp-based IDs
-- Link notes bidirectionally to build a knowledge graph
-- Tag notes for categorical organization
-- Search notes by content, tags, or links
-- Use markdown format for human readability and editing
-- Integrate with Claude through MCP for AI-assisted knowledge management
-- Dual storage architecture (see below)
-- Synchronous operation model for simplified architecture
+- **Atomic Notes**: Create, update, and link notes following Zettelkasten principles
+- **Semantic Links**: Seven link types (reference, extends, refines, contradicts, questions, supports, related)
+- **Full-Text Search**: Search across titles, content, and tags
+- **Graph Analysis**: Find central notes, orphans, and similar notes
+- **Cluster Detection**: Automatic identification of emergent knowledge clusters
+- **Structure Note Generation**: Create structure notes from detected clusters
 
-## Examples
+## Quick Start
 
-- Knowledge creation: [A small Zettelkasten knowledge network about the Zettelkasten method itself](https://github.com/entanglr/zettelkasten-mcp/discussions/5)
-
-## Note Types
-
-The Zettelkasten MCP server supports different types of notes:
-
-|Type|Handle|Description|
-|---|---|---|
-|**Fleeting notes**|`fleeting`|Quick, temporary notes for capturing ideas|
-|**Literature notes**|`literature`|Notes from reading material|
-|**Permanent notes**|`permanent`|Well-formulated, evergreen notes|
-|**Structure notes**|`structure`|Index or outline notes that organize other notes|
-|**Hub notes**|`hub`|Entry points to the Zettelkasten on key topics|
-
-## Link Types
-
-The Zettelkasten MCP server uses a comprehensive semantic linking system that creates meaningful connections between notes. Each link type represents a specific relationship, allowing for a rich, multi-dimensional knowledge graph.
-
-| Primary Link Type | Inverse Link Type | Relationship Description |
-|-------------------|-------------------|--------------------------|
-| `reference` | `reference` | Simple reference to related information (symmetric relationship) |
-| `extends` | `extended_by` | One note builds upon or develops concepts from another |
-| `refines` | `refined_by` | One note clarifies or improves upon another |
-| `contradicts` | `contradicted_by` | One note presents opposing views to another |
-| `questions` | `questioned_by` | One note poses questions about another |
-| `supports` | `supported_by` | One note provides evidence for another |
-| `related` | `related` | Generic relationship (symmetric relationship) |
-
-## Prompting
-
-To ensure maximum effectiveness, we recommend using a system prompt ("project instructions"), project knowledge, and an appropriate chat prompt when asking the LLM to process information, or explore or synthesize your Zettelkasten notes. The `docs` directory in this repository contains the necessary files to get you started:
-
-### System prompts
-
-Pick one:
-
-- [system-prompt.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/prompts/system/system-prompt.md)
-- [system-prompt-with-protocol.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/prompts/system/system-prompt-with-protocol.md)
-
-### Project knowledge
-
-For end users:
-
-- [zettelkasten-methodology-technical.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/project-knowledge/user/zettelkasten-methodology-technical.md)
-- [link-types-in-zettelkasten-mcp-server.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/project-knowledge/user/link-types-in-zettelkasten-mcp-server.md)
-- (more info relevant to your project)
-
-### Chat Prompts
-
-- [chat-prompt-knowledge-creation.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/prompts/chat/chat-prompt-knowledge-creation.md)
-- [chat-prompt-knowledge-creation-batch.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/prompts/chat/chat-prompt-knowledge-creation-batch.md)
-- [chat-prompt-knowledge-exploration.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/prompts/chat/chat-prompt-knowledge-exploration.md)
-- [chat-prompt-knowledge-synthesis.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/prompts/chat/chat-prompt-knowledge-synthesis.md)
-
-### Project knowledge (dev)
-
-For developers and contributors:
-
-- [Example - A simple MCP server.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/project-knowledge/dev/Example%20-%20A%20simple%20MCP%20server%20that%20exposes%20a%20website%20fetching%20tool.md)
-- [MCP Python SDK-README.md](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/project-knowledge/dev/MCP%20Python%20SDK-README.md)
-- [llms-full.txt](https://github.com/entanglr/zettelkasten-mcp/blob/main/docs/project-knowledge/dev/llms-full.txt)
-
-NB: Optionally include the source code with a tool like [repomix](https://github.com/yamadashy/repomix).
-
-## Storage Architecture
-
-This system uses a dual storage approach:
-
-1. **Markdown Files**: All notes are stored as human-readable Markdown files with YAML frontmatter for metadata. These files are the **source of truth** and can be:
-   - Edited directly in any text editor
-   - Placed under version control (Git, etc.)
-   - Backed up using standard file backup procedures
-   - Shared or transferred like any other text files
-
-2. **SQLite Database**: Functions as an indexing layer that:
-   - Facilitates efficient querying and search operations
-   - Enables Claude to quickly traverse the knowledge graph
-   - Maintains relationship information for faster link traversal
-   - Is automatically rebuilt from Markdown files when needed
-
-If you edit Markdown files directly outside the system, you'll need to run the `zk_rebuild_index` tool to update the database. The database itself can be deleted at any time - it will be regenerated from your Markdown files.
-
-## Installation
+### 1. Clone and Install
 
 ```bash
-# Clone the repository
-git clone https://github.com/entanglr/zettelkasten-mcp.git
+git clone https://github.com/yourusername/zettelkasten-mcp.git
 cd zettelkasten-mcp
 
-# Create a virtual environment with uv
-uv venv
+# Create virtual environment
+python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
-uv add "mcp[cli]"
-
-# Install dev dependencies
-uv sync --all-extras
+pip install -e .
 ```
 
-## Configuration
+### 2. Configure Environment
 
-Create a `.env` file in the project root by copying the example:
+Create a `.env` file or set environment variables:
+
+```bash
+# Required: Where notes are stored as markdown files
+export ZETTELKASTEN_NOTES_DIR="~/.local/share/mcp/zettelkasten/notes"
+
+# Required: SQLite database path
+export ZETTELKASTEN_DATABASE_PATH="~/.local/share/mcp/zettelkasten/data/zettelkasten.db"
+
+# Optional: Log level (DEBUG, INFO, WARNING, ERROR)
+export ZETTELKASTEN_LOG_LEVEL="INFO"
+```
+
+Or copy the example env file:
 
 ```bash
 cp .env.example .env
+# Edit .env with your preferred paths
 ```
 
-Then edit the file to configure your connection parameters.
-
-## Usage
-
-### Starting the Server
+### 3. Initialize Data Directories
 
 ```bash
-python -m zettelkasten_mcp.main
+# Create directories (the server does this automatically, but good to verify)
+mkdir -p ~/.local/share/mcp/zettelkasten/notes
+mkdir -p ~/.local/share/mcp/zettelkasten/data
 ```
 
-Or with explicit configuration:
+### 4. Configure Claude Desktop
 
-```bash
-python -m zettelkasten_mcp.main --notes-dir ./data/notes --database-path ./data/db/zettelkasten.db
-```
-
-### Connecting to Claude Desktop
-
-Add the following configuration to your Claude Desktop:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or the equivalent on your platform:
 
 ```json
 {
   "mcpServers": {
     "zettelkasten": {
       "command": "/absolute/path/to/zettelkasten-mcp/.venv/bin/python",
-      "args": [
-        "-m",
-        "zettelkasten_mcp.main"
-      ],
+      "args": ["-m", "zettelkasten_mcp"],
       "env": {
-        "ZETTELKASTEN_NOTES_DIR": "/absolute/path/to/zettelkasten-mcp/data/notes",
-        "ZETTELKASTEN_DATABASE_PATH": "/absolute/path/to/zettelkasten-mcp/data/db/zettelkasten.db",
-        "ZETTELKASTEN_LOG_LEVEL": "INFO"
+        "ZETTELKASTEN_NOTES_DIR": "~/.local/share/mcp/zettelkasten/notes",
+        "ZETTELKASTEN_DATABASE_PATH": "~/.local/share/mcp/zettelkasten/data/zettelkasten.db"
       }
     }
   }
 }
 ```
 
-## Available MCP Tools
+**Important**: Replace `/absolute/path/to/` with your actual path.
 
-All tools have been prefixed with `zk_` for better organization:
+### 5. Restart Claude Desktop
 
+Quit and reopen Claude Desktop to load the MCP server.
+
+### 6. Verify Installation
+
+In Claude, try:
+- "Create a test note about something"
+- "Search my zettelkasten for test"
+- "Find orphaned notes"
+
+---
+
+## Optional: Automatic Cluster Detection
+
+### What It Does
+
+As your Zettelkasten grows, notes naturally cluster around themes—groups of notes sharing tags but lacking a structure note to organize them. Cluster detection identifies these emergent patterns so you can formalize them.
+
+**Why schedule it?** Cluster analysis scans all notes and computes similarity scores. Running it in the background (daily at 6am) means results are pre-computed when you start a Claude conversation. Without scheduling, `zk_get_cluster_report()` computes on-demand, which is slower for large collections.
+
+**When to run manually?** After bulk imports, major reorganization, or when you want immediate results without waiting for the next scheduled run.
+
+### Quick Install (macOS)
+
+```bash
+# Make installer executable and run it
+chmod +x scripts/install-cluster-detection.sh
+./scripts/install-cluster-detection.sh
+```
+
+The installer automatically:
+- Detects your Python/venv path
+- Generates the LaunchAgent plist with correct paths
+- Installs and loads the LaunchAgent
+
+### Manual Test
+
+```bash
+source .venv/bin/activate
+python scripts/detect_clusters.py
+```
+
+Output shows detected clusters and saves a report to `~/.local/share/mcp/zettelkasten/cluster-analysis.json`.
+
+### Uninstall
+
+```bash
+./scripts/install-cluster-detection.sh --uninstall
+```
+
+---
+
+## Optional: File Watcher for Auto-Indexing
+
+### What It Does
+
+The MCP server maintains a database index for fast searching. When you edit notes directly in Obsidian (or any editor), the database becomes stale until manually rebuilt with `zk_rebuild_index`.
+
+The file watcher solves this by running as a background daemon that monitors your notes directory and automatically rebuilds the index when `.md` files change.
+
+**When to use it?** If you frequently edit notes in Obsidian while also using Claude, the file watcher ensures both see the same data without manual rebuilds.
+
+### Quick Install (macOS)
+
+```bash
+chmod +x scripts/install-file-watcher.sh
+./scripts/install-file-watcher.sh
+```
+
+The installer:
+- Detects your Python/venv path
+- Installs `watchdog` if needed
+- Generates and loads the LaunchAgent
+- Starts automatically on login and restarts if it crashes
+
+### Manual Test
+
+```bash
+source .venv/bin/activate
+python scripts/watch_notes.py
+```
+
+Then edit a note file in another terminal—you should see "rebuilding index..." in the watcher output.
+
+### Check Status
+
+```bash
+# Is it running?
+launchctl list | grep zettelkasten.watcher
+
+# View logs
+tail -f ~/.local/share/mcp/zettelkasten/watcher.log
+```
+
+### Uninstall
+
+```bash
+./scripts/install-file-watcher.sh --uninstall
+```
+
+---
+
+## Recommended System Prompt
+
+For best results, add the system prompt from `docs/SYSTEM_PROMPT.md` to your Claude preferences. This enables:
+
+- Automatic knowledge capture during conversations
+- Cluster emergence detection at conversation start
+- Proper Zettelkasten workflows (search before create, link immediately)
+
+---
+
+## Tools Reference
+
+### Core Note Operations
 | Tool | Description |
-|---|---|
-| `zk_create_note` | Create a new note with a title, content, and optional tags |
-| `zk_get_note` | Retrieve a specific note by ID or title |
-| `zk_update_note` | Update an existing note's content or metadata |
-| `zk_delete_note` | Delete a note |
-| `zk_create_link` | Create links between notes |
-| `zk_remove_link` | Remove links between notes |
-| `zk_search_notes` | Search for notes by content, tags, or links |
-| `zk_get_linked_notes` | Find notes linked to a specific note |
-| `zk_get_all_tags` | List all tags in the system |
+|------|-------------|
+| `zk_create_note` | Create atomic notes (fleeting/literature/permanent/structure/hub) |
+| `zk_get_note` | Retrieve note by ID or title |
+| `zk_update_note` | Update existing notes |
+| `zk_delete_note` | Delete notes |
+
+### Linking
+| Tool | Description |
+|------|-------------|
+| `zk_create_link` | Create semantic links between notes |
+| `zk_remove_link` | Remove links |
+| `zk_get_linked_notes` | Get notes linked to/from a note |
+
+### Search & Discovery
+| Tool | Description |
+|------|-------------|
+| `zk_search_notes` | Search by text, tags, or type |
 | `zk_find_similar_notes` | Find notes similar to a given note |
-| `zk_find_central_notes` | Find notes with the most connections |
-| `zk_find_orphaned_notes` | Find notes with no connections |
-| `zk_list_notes_by_date` | List notes by creation/update date |
-| `zk_rebuild_index` | Rebuild the database index from Markdown files |
+| `zk_find_central_notes` | Find most connected notes |
+| `zk_find_orphaned_notes` | Find unconnected notes |
+| `zk_list_notes_by_date` | List notes by date range |
+| `zk_get_all_tags` | List all tags |
 
-## Project Structure
+### Cluster Analysis
+| Tool | Description |
+|------|-------------|
+| `zk_get_cluster_report` | Get pending clusters needing structure notes |
+| `zk_create_structure_from_cluster` | Create structure note from cluster |
+| `zk_refresh_clusters` | Regenerate cluster analysis |
+
+### Maintenance
+| Tool | Description |
+|------|-------------|
+| `zk_rebuild_index` | Rebuild database index from files |
+
+---
+
+## Prompts Reference
+
+MCP prompts are workflow templates accessible via Claude's prompt picker. They guide you through common Zettelkasten workflows.
+
+| Prompt | Description | Use When |
+|--------|-------------|----------|
+| `knowledge_creation` | Process information into 3-5 atomic notes | Adding articles, ideas, or notes |
+| `knowledge_creation_batch` | Process larger volumes into 5-10 notes | Processing books or long-form content |
+| `knowledge_exploration` | Map connections to existing knowledge | Exploring how topics relate |
+| `knowledge_synthesis` | Create higher-order insights | Finding bridges between ideas |
+
+### Example Usage
+
+In Claude Desktop, select a prompt from the prompt picker, then provide the required input:
+
+**knowledge_creation**: Paste an article or your notes, get atomic notes with links.
+
+**knowledge_exploration**: Enter a topic to map its connections in your Zettelkasten.
+
+**knowledge_synthesis**: Provide context to spark connections between unrelated areas.
+
+---
+
+## Link Types
+
+| Type | Use When | Inverse |
+|------|----------|---------|
+| `reference` | Generic "see also" connection | reference |
+| `extends` | Building on another idea | extended_by |
+| `refines` | Clarifying or improving | refined_by |
+| `contradicts` | Opposing view | contradicted_by |
+| `questions` | Raising questions about | questioned_by |
+| `supports` | Providing evidence for | supported_by |
+| `related` | Loose thematic connection | related |
+
+---
+
+## Note Types
+
+| Type | Purpose |
+|------|---------|
+| `fleeting` | Quick captures, unprocessed thoughts |
+| `literature` | Ideas from sources with citation |
+| `permanent` | Refined ideas in your own words |
+| `structure` | Maps organizing 7-15 related notes |
+| `hub` | Entry points into major domains |
+
+---
+
+## File Format
+
+Notes are stored as Markdown files with YAML frontmatter:
+
+```markdown
+---
+id: "20251217T172432480464000"
+title: "Poetry Revision Principles"
+type: structure
+tags:
+  - poetry
+  - revision
+  - craft
+created: "2025-12-17T17:24:32"
+updated: "2025-12-17T17:24:32"
+---
+
+# Poetry Revision Principles
+
+Content here...
+
+## Links
+- reference [[20250728T125429845760000]] Member of structure
+```
+
+You can edit these files directly in any text editor or Obsidian. Run `zk_rebuild_index` after external edits.
+
+---
+
+## Troubleshooting
+
+### Server not loading in Claude Desktop
+
+1. Check the path in `claude_desktop_config.json` is absolute (not relative)
+2. Verify the venv python exists: `ls -la /path/to/.venv/bin/python`
+3. Check Claude Desktop logs for errors
+
+### Database out of sync
+
+If notes were edited outside the MCP server:
 
 ```
-zettelkasten-mcp/
-├── src/
-│   └── zettelkasten_mcp/
-│       ├── models/       # Data models
-│       ├── storage/      # Storage layer
-│       ├── services/     # Business logic
-│       └── server/       # MCP server implementation
-├── data/
-│   ├── notes/            # Note storage (Markdown files)
-│   └── db/               # Database for indexing
-├── tests/                # Test suite
-├── .env.example          # Environment variable template
-└── README.md
+zk_rebuild_index
 ```
 
-## Tests
+### Cluster detection not running
 
-Comprehensive test suite for Zettelkasten MCP covering all layers of the application from models to the MCP server implementation.
-
-### How to Run the Tests
-
-From the project root directory, run:
-
-#### Using pytest directly
 ```bash
-python -m pytest -v tests/
+launchctl list | grep zettelkasten.cluster-detection
+# Should show: - 0 com.zettelkasten.cluster-detection
+
+# Check logs
+cat /tmp/zettelkasten-clusters.log
+
+# Reinstall if needed
+./scripts/install-cluster-detection.sh --uninstall
+./scripts/install-cluster-detection.sh
 ```
 
-#### Using UV
+### File watcher not running
+
 ```bash
-uv run pytest -v tests/
+launchctl list | grep zettelkasten.watcher
+# Should show: - 0 com.zettelkasten.watcher
+
+# Check logs
+cat ~/.local/share/mcp/zettelkasten/watcher.log
+
+# Reinstall if needed
+./scripts/install-file-watcher.sh --uninstall
+./scripts/install-file-watcher.sh
 ```
 
-#### With coverage report
+---
+
+## Development
+
 ```bash
-uv run pytest --cov=zettelkasten_mcp --cov-report=term-missing tests/
+# Run tests
+pytest
+
+# Run with debug logging
+ZETTELKASTEN_LOG_LEVEL=DEBUG python -m zettelkasten_mcp
+
+# Run cluster detection manually
+python scripts/detect_clusters.py
 ```
 
-#### Running a specific test file
-```bash
-uv run pytest -v tests/test_models.py
-```
-
-#### Running a specific test class
-```bash
-uv run pytest -v tests/test_models.py::TestNoteModel
-```
-
-#### Running a specific test function
-```bash
-uv run pytest -v tests/test_models.py::TestNoteModel::test_note_validation
-```
-
-### Tests Directory Structure
-
-```
-tests/
-├── conftest.py - Common fixtures for all tests
-├── test_integration.py - Integration tests for the entire system
-├── test_mcp_server.py - Tests for MCP server tools
-├── test_models.py - Tests for data models
-├── test_note_repository.py - Tests for note repository
-├── test_search_service.py - Tests for search service
-├── test_semantic_links.py - Tests for semantic linking
-└── test_zettel_service.py - Tests for zettel service
-```
-
-## Important Notice
-
-**⚠️ USE AT YOUR OWN RISK**: This software is experimental and provided as-is without warranty of any kind. While efforts have been made to ensure data integrity, it may contain bugs that could potentially lead to data loss or corruption. Always back up your notes regularly and use caution when testing with important information.
-
-## Credit Where Credit's Due
-
-This MCP server was crafted with the assistance of Claude, who helped organize the atomic thoughts of this project into a coherent knowledge graph. Much like a good Zettelkasten system, Claude connected the dots between ideas that might otherwise have remained isolated. Unlike Luhmann's paper-based system, however, Claude didn't require 90,000 index cards to be effective.
+---
 
 ## License
 
-MIT License
+MIT
