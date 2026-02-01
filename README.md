@@ -1,6 +1,6 @@
 # Zettelkasten MCP Server
 
-A Model Context Protocol server for managing a Zettelkasten knowledge system with automatic cluster detection.
+Model Context Protocol server for managing a Zettelkasten knowledge system with automatic cluster detection.
 
 ## Features
 
@@ -8,7 +8,7 @@ A Model Context Protocol server for managing a Zettelkasten knowledge system wit
 - **Semantic Links**: Seven link types (reference, extends, refines, contradicts, questions, supports, related)
 - **Full-Text Search**: Search across titles, content, and tags
 - **Graph Analysis**: Find central notes, orphans, and similar notes
-- **Cluster Detection**: Automatic identification of emergent knowledge clusters
+- **Cluster Detection**: Identifies emergent knowledge clusters
 - **Structure Note Generation**: Create structure notes from detected clusters
 
 ## Quick Start
@@ -19,11 +19,9 @@ A Model Context Protocol server for managing a Zettelkasten knowledge system wit
 git clone https://github.com/yourusername/zettelkasten-mcp.git
 cd zettelkasten-mcp
 
-# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install dependencies
 pip install -e .
 ```
 
@@ -32,34 +30,35 @@ pip install -e .
 Create a `.env` file or set environment variables:
 
 ```bash
-# Required: Where notes are stored as markdown files
+# Where notes are stored as markdown files
 export ZETTELKASTEN_NOTES_DIR="~/.local/share/mcp/zettelkasten/notes"
 
-# Required: SQLite database path
+# SQLite database path
 export ZETTELKASTEN_DATABASE_PATH="~/.local/share/mcp/zettelkasten/data/zettelkasten.db"
 
 # Optional: Log level (DEBUG, INFO, WARNING, ERROR)
 export ZETTELKASTEN_LOG_LEVEL="INFO"
 ```
 
-Or copy the example env file:
+Or copy the example:
 
 ```bash
 cp .env.example .env
-# Edit .env with your preferred paths
+# Edit .env with your paths
 ```
 
 ### 3. Initialize Data Directories
 
 ```bash
-# Create directories (the server does this automatically, but good to verify)
 mkdir -p ~/.local/share/mcp/zettelkasten/notes
 mkdir -p ~/.local/share/mcp/zettelkasten/data
 ```
 
+The server creates these automatically, but explicit creation helps verify permissions.
+
 ### 4. Configure Claude Desktop
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or the equivalent on your platform:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
 
 ```json
 {
@@ -76,7 +75,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-**Important**: Replace `/absolute/path/to/` with your actual path.
+Replace `/absolute/path/to/` with your actual path.
 
 ### 5. Restart Claude Desktop
 
@@ -84,7 +83,7 @@ Quit and reopen Claude Desktop to load the MCP server.
 
 ### 6. Verify Installation
 
-In Claude, try:
+In Claude:
 - "Create a test note about something"
 - "Search my zettelkasten for test"
 - "Find orphaned notes"
@@ -93,26 +92,18 @@ In Claude, try:
 
 ## Optional: Automatic Cluster Detection
 
-### What It Does
+Cluster analysis scans all notes and computes similarity scores. Running it daily (6am) pre-computes results so `zk_get_cluster_report()` returns instantly. Without scheduling, cluster detection runs on-demand, which is slower for large collections.
 
-As your Zettelkasten grows, notes naturally cluster around themes—groups of notes sharing tags but lacking a structure note to organize them. Cluster detection identifies these emergent patterns so you can formalize them.
+Run manually after bulk imports, major reorganization, or when you want immediate results.
 
-**Why schedule it?** Cluster analysis scans all notes and computes similarity scores. Running it in the background (daily at 6am) means results are pre-computed when you start a Claude conversation. Without scheduling, `zk_get_cluster_report()` computes on-demand, which is slower for large collections.
-
-**When to run manually?** After bulk imports, major reorganization, or when you want immediate results without waiting for the next scheduled run.
-
-### Quick Install (macOS)
+### Install (macOS)
 
 ```bash
-# Make installer executable and run it
 chmod +x scripts/install-cluster-detection.sh
 ./scripts/install-cluster-detection.sh
 ```
 
-The installer automatically:
-- Detects your Python/venv path
-- Generates the LaunchAgent plist with correct paths
-- Installs and loads the LaunchAgent
+The installer detects your Python/venv path, generates the LaunchAgent plist, and loads it.
 
 ### Manual Test
 
@@ -121,7 +112,7 @@ source .venv/bin/activate
 python scripts/detect_clusters.py
 ```
 
-Output shows detected clusters and saves a report to `~/.local/share/mcp/zettelkasten/cluster-analysis.json`.
+Output saved to `~/.local/share/mcp/zettelkasten/cluster-analysis.json`.
 
 ### Uninstall
 
@@ -133,26 +124,20 @@ Output shows detected clusters and saves a report to `~/.local/share/mcp/zettelk
 
 ## Optional: File Watcher for Auto-Indexing
 
-### What It Does
+The MCP server maintains a database index for fast searching. Editing notes in Obsidian (or any editor) makes the database stale until you run `zk_rebuild_index`.
 
-The MCP server maintains a database index for fast searching. When you edit notes directly in Obsidian (or any editor), the database becomes stale until manually rebuilt with `zk_rebuild_index`.
+The file watcher runs as a background daemon, monitoring your notes directory and automatically rebuilding the index when `.md` files change.
 
-The file watcher solves this by running as a background daemon that monitors your notes directory and automatically rebuilds the index when `.md` files change.
+Use it if you frequently edit notes in Obsidian while also using Claude.
 
-**When to use it?** If you frequently edit notes in Obsidian while also using Claude, the file watcher ensures both see the same data without manual rebuilds.
-
-### Quick Install (macOS)
+### Install (macOS)
 
 ```bash
 chmod +x scripts/install-file-watcher.sh
 ./scripts/install-file-watcher.sh
 ```
 
-The installer:
-- Detects your Python/venv path
-- Installs `watchdog` if needed
-- Generates and loads the LaunchAgent
-- Starts automatically on login and restarts if it crashes
+The installer detects your Python/venv path, installs `watchdog` if needed, and loads the LaunchAgent. Starts on login and restarts if it crashes.
 
 ### Manual Test
 
@@ -161,12 +146,11 @@ source .venv/bin/activate
 python scripts/watch_notes.py
 ```
 
-Then edit a note file in another terminal—you should see "rebuilding index..." in the watcher output.
+Edit a note file—you should see "rebuilding index..." in the watcher output.
 
 ### Check Status
 
 ```bash
-# Is it running?
 launchctl list | grep zettelkasten.watcher
 
 # View logs
@@ -183,7 +167,7 @@ tail -f ~/.local/share/mcp/zettelkasten/watcher.log
 
 ## Recommended System Prompt
 
-For best results, add the system prompt from `docs/SYSTEM_PROMPT.md` to your Claude preferences. This enables:
+Add the system prompt from `docs/SYSTEM_PROMPT.md` to your Claude preferences. This enables:
 
 - Automatic knowledge capture during conversations
 - Cluster emergence detection at conversation start
@@ -224,6 +208,7 @@ For best results, add the system prompt from `docs/SYSTEM_PROMPT.md` to your Cla
 | `zk_get_cluster_report` | Get pending clusters needing structure notes |
 | `zk_create_structure_from_cluster` | Create structure note from cluster |
 | `zk_refresh_clusters` | Regenerate cluster analysis |
+| `zk_dismiss_cluster` | Permanently dismiss cluster from suggestions |
 
 ### Maintenance
 | Tool | Description |
@@ -234,7 +219,7 @@ For best results, add the system prompt from `docs/SYSTEM_PROMPT.md` to your Cla
 
 ## Prompts Reference
 
-MCP prompts are workflow templates accessible via Claude's prompt picker. They guide you through common Zettelkasten workflows.
+MCP prompts are workflow templates accessible via Claude's prompt picker.
 
 | Prompt | Description | Use When |
 |--------|-------------|----------|
@@ -249,7 +234,7 @@ In Claude Desktop, select a prompt from the prompt picker, then provide the requ
 
 **knowledge_creation**: Paste an article or your notes, get atomic notes with links.
 
-**knowledge_exploration**: Enter a topic to map its connections in your Zettelkasten.
+**knowledge_exploration**: Enter a topic to map its connections.
 
 **knowledge_synthesis**: Provide context to spark connections between unrelated areas.
 
@@ -368,6 +353,24 @@ ZETTELKASTEN_LOG_LEVEL=DEBUG python -m zettelkasten_mcp
 # Run cluster detection manually
 python scripts/detect_clusters.py
 ```
+
+---
+
+## CLI Tool
+
+The `zk` command provides terminal access for mechanical operations:
+
+```bash
+zk status          # Overview of notes, tags, orphans, pending clusters
+zk search <query>  # Find notes by text
+zk clusters        # Show pending structure note candidates
+zk orphans         # List unconnected notes
+zk rebuild         # Rebuild index (add --clusters to refresh cluster analysis)
+zk export <id>     # Export note markdown to stdout
+zk tags            # List all tags with usage counts
+```
+
+Install: `pip install -e .` (adds `zk` to your PATH)
 
 ---
 
