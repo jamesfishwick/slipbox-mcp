@@ -66,3 +66,6 @@ src/data/
 
 # Serena MCP configuration
 .serena/
+
+# Git worktrees
+.worktrees/
