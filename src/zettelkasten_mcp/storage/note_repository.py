@@ -532,8 +532,6 @@ class NoteRepository(Repository[Note]):
                 )
             if "title" in kwargs:
                 search_title = kwargs['title']
-                # query = query.where(DBNote.title.like(f"%{search_title}%"))
-                # Use case-insensitive search with func.lower()
                 query = query.where(func.lower(DBNote.title).like(f"%{search_title.lower()}%"))
             if "note_type" in kwargs:
                 note_type = (

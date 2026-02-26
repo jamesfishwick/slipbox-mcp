@@ -33,32 +33,6 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
     # Apply configuration
     logging.basicConfig(**log_config)
 
-def generate_timestamp_id() -> str:
-    """Generate a timestamp-based ID in ISO 8601 Zettelkasten format with nanosecond precision.
-    
-    Returns:
-        A string in format "YYYYMMDDTHHMMSSsssssssss" where:
-        - YYYYMMDD is the date
-        - T is the ISO 8601 date/time separator
-        - HHMMSS is the time (hours, minutes, seconds)
-        - sssssssss is the 9-digit nanosecond component
-    """
-    # Get nanoseconds since epoch
-    ns_timestamp = time.time_ns()
-    
-    # Convert to seconds and nanosecond fraction
-    seconds = ns_timestamp // 1_000_000_000
-    nanoseconds = ns_timestamp % 1_000_000_000
-    
-    # Convert seconds to datetime
-    timestamp = datetime.fromtimestamp(seconds)
-    
-    # Format as ISO 8601 basic format (YYYYMMDDThhmmss) with nanoseconds
-    date_time = timestamp.strftime('%Y%m%dT%H%M%S')
-    
-    # Return the ISO 8601 timestamp with nanosecond precision
-    return f"{date_time}{nanoseconds:09d}"
-
 def parse_tags(tags_str: str) -> list[str]:
     """Parse a comma-separated list of tags into a list of tag strings.
     Args:

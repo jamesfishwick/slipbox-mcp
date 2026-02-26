@@ -80,12 +80,10 @@ class ZettelkastenMcpServer:
         elif isinstance(error, (IOError, OSError)):
             # File system errors - don't expose paths or detailed error messages
             logger.error(f"File system error [{error_id}]: {str(error)}", exc_info=True)
-            # return f"Unable to access the requested resource. Error ID: {error_id}"
             return f"Error: {str(error)}"
         else:
             # Unexpected errors - log with full stack trace but return generic message
             logger.error(f"Unexpected error [{error_id}]: {str(error)}", exc_info=True)
-            # return f"An unexpected error occurred. Error ID: {error_id}"
             return f"Error: {str(error)}"
 
     def _register_tools(self) -> None:
