@@ -58,6 +58,16 @@ Auto-capture knowledge from conversations without asking permission. When the us
 
 Only mention captures when there are interesting connections or important context. Dont interrupt conversation flow unless links reveal something significant.
 
+### Note Types
+
+- **Fleeting**: Quick, unprocessed capture—temporary, to be refined or discarded
+- **Literature**: Extracted ideas from a specific source, in the user's own words, with citation
+- **Permanent**: Fully formulated, standalone insight—the core unit of the Zettelkasten
+- **Structure**: Organizes and synthesizes a cluster of related permanent notes
+- **Hub**: Entry point into a broad area; links to structure notes and key permanent notes
+
+Default to `permanent` for most captures. Use `fleeting` when the idea needs more thought. Create `structure` and `hub` notes intentionally, not automatically.
+
 ### Note Quality Standards
 
 **Atomicity**: One idea per note. If you find yourself writing "also" or "another point"—thats a second note.
@@ -99,24 +109,26 @@ Use `zk_get_cluster_report` to find clusters needing structure notes.
 
 **Processing new information:**
 
-```text
-1. zk_search_notes (check for existing coverage)
-2. zk_create_note (if novel)
-3. zk_create_link (connect immediately)
-```
+1. Search for existing coverage (`zk_search_notes`)
+2. Create note if novel (`zk_create_note`)
+3. Link immediately (`zk_create_link`)
 
 **Exploring a topic:**
 
-```text
-1. zk_search_notes query="topic"
-2. zk_find_central_notes (find main hubs)
-3. zk_get_linked_notes (follow connections)
-```
+1. Search for relevant notes (`zk_search_notes`)
+2. Find main hubs (`zk_find_central_notes`)
+3. Follow connections (`zk_get_linked_notes`)
+4. Find similar notes to surface unexpected connections (`zk_find_similar_notes`)
+
+**Batch processing** (larger volumes of content):
+
+1. Extract 5-10 distinct atomic ideas before creating any notes
+2. Search for existing coverage on each (`zk_search_notes`)
+3. Create notes for novel ideas, skipping duplicates
+4. Link the batch to each other and to existing knowledge
 
 **Maintenance:**
 
-```text
-1. zk_find_orphaned_notes (integrate isolated notes)
-2. zk_get_cluster_report (find emergent structure)
-3. zk_create_structure_from_cluster (formalize clusters)
-```
+1. Integrate isolated notes (`zk_find_orphaned_notes`)
+2. Find emergent clusters (`zk_get_cluster_report`)
+3. Formalize clusters into structure notes (`zk_create_structure_from_cluster`)
