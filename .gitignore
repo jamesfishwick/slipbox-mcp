@@ -69,3 +69,6 @@ src/data/
 
 # Git worktrees
 .worktrees/
+
+# Local TODO notes
+docs/TODO/
