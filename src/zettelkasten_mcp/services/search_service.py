@@ -27,55 +27,6 @@ class SearchService:
         """Initialize the service and dependencies."""
         self.zettel_service.initialize()
 
-    @staticmethod
-    def _extract_snippet(content: str, query: str, context_chars: int = 40) -> str:
-        """Return a short excerpt from content around the first occurrence of query."""
-        index = content.lower().find(query)
-        start = max(0, index - context_chars)
-        end = min(len(content), index + len(query) + context_chars)
-        return content[start:end]
-
-    @staticmethod
-    def _score_note(
-        note: Note,
-        query: str,
-        query_terms: Set[str],
-        include_title: bool = True,
-        include_content: bool = True,
-    ) -> Tuple[float, Set[str], str]:
-        """Score a note against a text query.
-
-        Returns (score, matched_terms, matched_context). A score of 0.0 means
-        no match. Title exact match: +2.0, title term match: +0.5 each.
-        Content exact match: +1.0, content term match: +0.2 each.
-        """
-        score = 0.0
-        matched_terms: Set[str] = set()
-        matched_context = ""
-
-        if include_title:
-            title_lower = note.title.lower() if note.title else ""
-            if query in title_lower:
-                score += 2.0
-                matched_context = f"Title: {note.title}"
-            for term in query_terms:
-                if term in title_lower:
-                    score += 0.5
-                    matched_terms.add(term)
-
-        if include_content:
-            content_lower = note.content.lower() if note.content else ""
-            if query in content_lower:
-                score += 1.0
-                snippet = SearchService._extract_snippet(note.content, query)
-                matched_context = f"Content: ...{snippet}..."
-            for term in query_terms:
-                if term in content_lower:
-                    score += 0.2
-                    matched_terms.add(term)
-
-        return score, matched_terms, matched_context
-
     def search_by_text(
         self, query: str, include_content: bool = True, include_title: bool = True
     ) -> List[SearchResult]:
