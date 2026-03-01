@@ -249,44 +249,38 @@ def test_note_references_roundtrip():
     assert "Ahrens" in note.references[0]
 
 
-def test_note_to_markdown_includes_references(tmp_path):
+def test_note_to_markdown_includes_references(note_repository):
     import frontmatter as fm
     from zettelkasten_mcp.models.schema import Note
-    from zettelkasten_mcp.storage.note_repository import NoteRepository
-    repo = NoteRepository(notes_dir=tmp_path)
+    from zettelkasten_mcp.config import config
     note = Note(
         title="Cited Note",
         content="This idea came from a book.",
         references=["Ahrens, S. (2017). How to Take Smart Notes.", "https://zettelkasten.de"]
     )
-    created = repo.create(note)
-    file_path = tmp_path / f"{created.id}.md"
+    created = note_repository.create(note)
+    notes_dir = config.get_absolute_path(config.notes_dir)
+    file_path = notes_dir / f"{created.id}.md"
     post = fm.load(str(file_path))
     assert "references" in post.metadata
     assert len(post.metadata["references"]) == 2
     assert "Ahrens" in post.metadata["references"][0]
 
 
-def test_references_roundtrip_via_file(tmp_path):
+def test_references_roundtrip_via_file(note_repository):
     from zettelkasten_mcp.models.schema import Note
-    from zettelkasten_mcp.storage.note_repository import NoteRepository
-    repo = NoteRepository(notes_dir=tmp_path)
     note = Note(
         title="Roundtrip Note",
         content="Body text.",
         references=["Luhmann, N. (1992). Communicating with Slip Boxes."]
     )
-    created = repo.create(note)
-    retrieved = repo.get(created.id)
+    created = note_repository.create(note)
+    retrieved = note_repository.get(created.id)
     assert retrieved.references == ["Luhmann, N. (1992). Communicating with Slip Boxes."]
 
 
-def test_service_create_note_with_references(tmp_path):
-    from zettelkasten_mcp.services.zettel_service import ZettelService
-    from zettelkasten_mcp.storage.note_repository import NoteRepository
-    repo = NoteRepository(notes_dir=tmp_path)
-    service = ZettelService(repository=repo)
-    note = service.create_note(
+def test_service_create_note_with_references(zettel_service):
+    note = zettel_service.create_note(
         title="Service Note",
         content="Body.",
         references=["Ahrens, S. (2017). How to Take Smart Notes."]
@@ -294,39 +288,27 @@ def test_service_create_note_with_references(tmp_path):
     assert note.references == ["Ahrens, S. (2017). How to Take Smart Notes."]
 
 
-def test_service_update_note_references(tmp_path):
-    from zettelkasten_mcp.services.zettel_service import ZettelService
-    from zettelkasten_mcp.storage.note_repository import NoteRepository
-    repo = NoteRepository(notes_dir=tmp_path)
-    service = ZettelService(repository=repo)
-    note = service.create_note(title="Note", content="Body.")
-    updated = service.update_note(note.id, references=["New ref."])
+def test_service_update_note_references(zettel_service):
+    note = zettel_service.create_note(title="Note", content="Body.")
+    updated = zettel_service.update_note(note.id, references=["New ref."])
     assert updated.references == ["New ref."]
 
 
-def test_mcp_create_and_retrieve_references(tmp_path):
-    from zettelkasten_mcp.services.zettel_service import ZettelService
-    from zettelkasten_mcp.storage.note_repository import NoteRepository
-    repo = NoteRepository(notes_dir=tmp_path)
-    service = ZettelService(repository=repo)
-    note = service.create_note(
+def test_mcp_create_and_retrieve_references(zettel_service):
+    note = zettel_service.create_note(
         title="Cited",
         content="Body.",
         references=["Ahrens, S. (2017). How to Take Smart Notes."]
     )
-    retrieved = service.get_note(note.id)
+    retrieved = zettel_service.get_note(note.id)
     assert "Ahrens" in retrieved.references[0]
 
 
-def test_mcp_update_clears_references_with_empty_list(tmp_path):
-    from zettelkasten_mcp.services.zettel_service import ZettelService
-    from zettelkasten_mcp.storage.note_repository import NoteRepository
-    repo = NoteRepository(notes_dir=tmp_path)
-    service = ZettelService(repository=repo)
-    note = service.create_note(
+def test_mcp_update_clears_references_with_empty_list(zettel_service):
+    note = zettel_service.create_note(
         title="Note",
         content="Body.",
         references=["Some ref."]
     )
-    updated = service.update_note(note.id, references=[])
+    updated = zettel_service.update_note(note.id, references=[])
     assert updated.references == []
