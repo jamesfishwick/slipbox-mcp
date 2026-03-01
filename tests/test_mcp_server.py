@@ -80,7 +80,8 @@ class TestMcpServer:
             title="Test Note",
             content="Test content",
             note_type=NoteType.PERMANENT,
-            tags=["tag1", "tag2"]
+            tags=["tag1", "tag2"],
+            references=[]
         )
 
     def test_get_note_tool(self):
@@ -301,3 +302,31 @@ def test_service_update_note_references(tmp_path):
     note = service.create_note(title="Note", content="Body.")
     updated = service.update_note(note.id, references=["New ref."])
     assert updated.references == ["New ref."]
+
+
+def test_mcp_create_and_retrieve_references(tmp_path):
+    from zettelkasten_mcp.services.zettel_service import ZettelService
+    from zettelkasten_mcp.storage.note_repository import NoteRepository
+    repo = NoteRepository(notes_dir=tmp_path)
+    service = ZettelService(repository=repo)
+    note = service.create_note(
+        title="Cited",
+        content="Body.",
+        references=["Ahrens, S. (2017). How to Take Smart Notes."]
+    )
+    retrieved = service.get_note(note.id)
+    assert "Ahrens" in retrieved.references[0]
+
+
+def test_mcp_update_clears_references_with_empty_list(tmp_path):
+    from zettelkasten_mcp.services.zettel_service import ZettelService
+    from zettelkasten_mcp.storage.note_repository import NoteRepository
+    repo = NoteRepository(notes_dir=tmp_path)
+    service = ZettelService(repository=repo)
+    note = service.create_note(
+        title="Note",
+        content="Body.",
+        references=["Some ref."]
+    )
+    updated = service.update_note(note.id, references=[])
+    assert updated.references == []
