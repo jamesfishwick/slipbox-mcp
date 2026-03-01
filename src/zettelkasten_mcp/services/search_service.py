@@ -250,13 +250,13 @@ class SearchService:
 
     def search_combined(
         self,
-        text: Optional[str] = None,
+        query_text: Optional[str] = None,
         tags: Optional[List[str]] = None,
         note_type: Optional[NoteType] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[SearchResult]:
-        """Perform a combined search with multiple criteria."""
+        """Perform a combined search: SQL pre-filter by metadata, FTS5 for text ranking."""
         repository = self.zettel_service.repository
 
         with repository.session_factory() as session:
@@ -272,36 +272,44 @@ class SearchService:
             if end_date:
                 query = query.where(DBNote.created_at <= end_date)
             if tags:
-                query = query.where(
-                    DBNote.tags.any(DBTag.name.in_(tags))
-                )
+                query = query.where(DBNote.tags.any(DBTag.name.in_(tags)))
 
             db_notes = session.execute(query).unique().scalars().all()
-            filtered_notes = [repository._db_note_to_note(n) for n in db_notes]
+            candidate_ids = {db_note.id: db_note for db_note in db_notes}
+
+            if not query_text:
+                notes = [repository._db_note_to_note(n) for n in db_notes]
+                return [
+                    SearchResult(note=n, score=1.0, matched_terms=set(), matched_context="")
+                    for n in notes
+                ]
+
+            escaped = query_text.replace('"', '""')
+            fts_query = f'"{escaped}"'
+
+            fts_sql = text("""
+                SELECT
+                    n.id,
+                    bm25(notes_fts) AS bm25_score,
+                    snippet(notes_fts, 1, '', '', '...', 8) AS matched_context
+                FROM notes_fts
+                JOIN notes n ON notes_fts.rowid = n.rowid
+                WHERE notes_fts MATCH :query
+                ORDER BY bm25(notes_fts)
+            """)
+            fts_rows = session.execute(fts_sql, {"query": fts_query}).fetchall()
 
         results = []
-        if text:
-            text = text.lower()
-            query_terms = set(text.split())
+        for row in fts_rows:
+            if row.id not in candidate_ids:
+                continue
+            note = repository._db_note_to_note(candidate_ids[row.id])
+            score = -row.bm25_score
+            results.append(SearchResult(
+                note=note,
+                score=score,
+                matched_terms=set(query_text.split()),
+                matched_context=f"Content: ...{row.matched_context}...",
+            ))
 
-            for note in filtered_notes:
-                score, matched_terms, matched_context = self._score_note(
-                    note, text, query_terms
-                )
-                if score > 0:
-                    results.append(
-                        SearchResult(
-                            note=note,
-                            score=score,
-                            matched_terms=matched_terms,
-                            matched_context=matched_context,
-                        )
-                    )
-        else:
-            results = [
-                SearchResult(note=note, score=1.0, matched_terms=set(), matched_context="")
-                for note in filtered_notes
-            ]
-
-        results.sort(key=lambda x: x.score, reverse=True)
         return results

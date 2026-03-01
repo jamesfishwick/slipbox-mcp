@@ -207,7 +207,7 @@ class TestMcpServer:
         
         # Verify service call
         self.mock_search_service.search_combined.assert_called_with(
-            text="test query",
+            query_text="test query",
             tags=["tag1", "tag2"],
             note_type=NoteType.PERMANENT
         )

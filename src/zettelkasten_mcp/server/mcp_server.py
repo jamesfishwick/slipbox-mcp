@@ -342,7 +342,7 @@ class ZettelkastenMcpServer:
                         return f"Invalid note type: {note_type}. Valid types are: {', '.join(t.value for t in NoteType)}"
 
                 results = self.search_service.search_combined(
-                    text=query,
+                    query_text=query,
                     tags=tag_list,
                     note_type=note_type_enum
                 )

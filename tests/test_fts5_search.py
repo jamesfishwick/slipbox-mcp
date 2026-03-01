@@ -92,3 +92,41 @@ def test_search_by_text_fts_special_chars_do_not_crash(zettel_service, search_se
     assert search_service.search_by_text("AND OR NOT") == [] or True  # no crash
     assert search_service.search_by_text('say "hello"') == [] or True  # no crash
     assert search_service.search_by_text("*wildcard") == [] or True   # no crash
+
+
+def test_search_combined_text_uses_bm25(zettel_service, search_service):
+    """search_combined with text must return BM25-ranked results, not Python-scored."""
+    note_a = zettel_service.create_note(
+        title="ontology ontology",
+        content="ontology is the branch of metaphysics.",
+        note_type=NoteType.PERMANENT,
+        tags=["philosophy"]
+    )
+    note_b = zettel_service.create_note(
+        title="Brief Mention",
+        content="Ontology is mentioned once here.",
+        note_type=NoteType.PERMANENT,
+        tags=["philosophy"]
+    )
+
+    results = search_service.search_combined(query_text="ontology", tags=["philosophy"])
+
+    assert len(results) == 2
+    assert results[0].note.id == note_a.id, "Higher BM25 score should rank first"
+    assert all(r.score > 0 for r in results)
+
+
+def test_search_combined_no_text_still_works(zettel_service, search_service):
+    """search_combined without text must return all notes matching other filters."""
+    note = zettel_service.create_note(
+        title="Tagged Note",
+        content="Some content.",
+        note_type=NoteType.PERMANENT,
+        tags=["unique-tag-xyz"]
+    )
+
+    results = search_service.search_combined(tags=["unique-tag-xyz"])
+
+    assert len(results) == 1
+    assert results[0].note.id == note.id
+    assert results[0].score == 1.0
