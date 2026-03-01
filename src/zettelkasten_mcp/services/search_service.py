@@ -79,31 +79,47 @@ class SearchService:
     def search_by_text(
         self, query: str, include_content: bool = True, include_title: bool = True
     ) -> List[SearchResult]:
-        """Search for notes by text content."""
+        """Search for notes by text using SQLite FTS5 with BM25 ranking."""
         if not query:
             return []
 
-        query = query.lower()
-        query_terms = set(query.split())
+        repository = self.zettel_service.repository
 
-        all_notes = self.zettel_service.get_all_notes()
+        escaped = query.replace('"', '""')
+        if include_title and include_content:
+            fts_query = f'"{escaped}"'
+        elif include_title:
+            fts_query = f'title:"{escaped}"'
+        else:
+            fts_query = f'content:"{escaped}"'
+
+        with repository.session_factory() as session:
+            sql = text("""
+                SELECT
+                    n.id,
+                    bm25(notes_fts) AS bm25_score,
+                    snippet(notes_fts, 1, '', '', '...', 8) AS matched_context
+                FROM notes_fts
+                JOIN notes n ON notes_fts.rowid = n.rowid
+                WHERE notes_fts MATCH :query
+                ORDER BY bm25(notes_fts)
+            """)
+            rows = session.execute(sql, {"query": fts_query}).fetchall()
+
         results = []
+        for row in rows:
+            note = repository.get(row.id)
+            if note is None:
+                continue
+            # bm25() returns negative float; negate so higher = better
+            score = -row.bm25_score
+            results.append(SearchResult(
+                note=note,
+                score=score,
+                matched_terms=set(query.split()),
+                matched_context=f"Content: ...{row.matched_context}...",
+            ))
 
-        for note in all_notes:
-            score, matched_terms, matched_context = self._score_note(
-                note, query, query_terms, include_title, include_content
-            )
-            if score > 0:
-                results.append(
-                    SearchResult(
-                        note=note,
-                        score=score,
-                        matched_terms=matched_terms,
-                        matched_context=matched_context,
-                    )
-                )
-
-        results.sort(key=lambda x: x.score, reverse=True)
         return results
 
     def search_by_tag(self, tags: Union[str, List[str]]) -> List[Note]:
