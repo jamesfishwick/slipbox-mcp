@@ -218,13 +218,31 @@ class TestMcpServer:
         value_error = ValueError("Invalid input")
         result = self.server.format_error_response(value_error)
         assert "Error: Invalid input" in result
-        
+
         # Test IOError handling
         io_error = IOError("File not found")
         result = self.server.format_error_response(io_error)
         assert "Error: File not found" in result
-        
+
         # Test general exception handling
         general_error = Exception("Something went wrong")
         result = self.server.format_error_response(general_error)
         assert "Error: Something went wrong" in result
+
+
+def test_note_has_references_field():
+    from zettelkasten_mcp.models.schema import Note
+    note = Note(title="Test", content="Body")
+    assert hasattr(note, "references")
+    assert note.references == []
+
+
+def test_note_references_roundtrip():
+    from zettelkasten_mcp.models.schema import Note
+    note = Note(
+        title="Test",
+        content="Body",
+        references=["Ahrens, S. (2017). How to Take Smart Notes.", "https://zettelkasten.de"]
+    )
+    assert len(note.references) == 2
+    assert "Ahrens" in note.references[0]
