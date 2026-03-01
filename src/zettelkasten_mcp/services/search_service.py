@@ -1,7 +1,10 @@
 """Service for searching and discovering notes in the Zettelkasten."""
 from dataclasses import dataclass
 from datetime import datetime
+import logging
 from typing import List, Optional, Set, Tuple, Union
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import or_, select, text
 from sqlalchemy.orm import joinedload
 
@@ -173,8 +176,14 @@ class SearchService:
         result = []
         for note_id in ordered_ids:
             db_note = db_notes_by_id.get(note_id)
-            if db_note:
-                result.append((repository._db_note_to_note(db_note), rank_map[note_id]))
+            if db_note is None:
+                logger.warning(
+                    "find_central_notes: note '%s' found in links table but missing "
+                    "from notes table (referential integrity violation); skipping",
+                    note_id,
+                )
+                continue
+            result.append((repository._db_note_to_note(db_note), rank_map[note_id]))
         return result
 
     def find_notes_by_date_range(

@@ -224,15 +224,76 @@ class TestSearchService:
             note_type=NoteType.PERMANENT,
             tags=["python", "web", "development"]
         )
-        
+
         # Test tag-based search
         python_notes = zettel_service.get_notes_by_tag("python")
         assert len(python_notes) == 2
         assert {n.id for n in python_notes} == {note1.id, note2.id}
-        
+
         # Test tag and type filtering
         permanent_notes = zettel_service.repository.search(
             note_type=NoteType.PERMANENT,
             tags=["python"]
         )
         assert len(permanent_notes) == 2
+
+    def test_search_by_tag_list_returns_union(self, zettel_service):
+        """search_by_tag with a list returns notes matching any of the tags (OR semantics)."""
+        search_service = SearchService(zettel_service)
+        note_a = zettel_service.create_note(title="Alpha", content="body", tags=["alpha"])
+        note_b = zettel_service.create_note(title="Beta", content="body", tags=["beta"])
+        note_c = zettel_service.create_note(title="Gamma", content="body", tags=["gamma"])
+
+        results = search_service.search_by_tag(["alpha", "beta"])
+
+        ids = {n.id for n in results}
+        assert note_a.id in ids
+        assert note_b.id in ids
+        assert note_c.id not in ids
+
+    def test_search_by_tag_list_no_duplicates(self, zettel_service):
+        """A note tagged with two searched tags must not appear twice in results."""
+        search_service = SearchService(zettel_service)
+        note = zettel_service.create_note(
+            title="Multi Tag", content="body", tags=["alpha", "beta"]
+        )
+
+        results = search_service.search_by_tag(["alpha", "beta"])
+
+        assert [n.id for n in results].count(note.id) == 1
+
+    def test_search_by_tag_string_delegates_correctly(self, zettel_service):
+        """search_by_tag with a plain string (single-tag path) still works."""
+        search_service = SearchService(zettel_service)
+        note = zettel_service.create_note(title="Solo Tag", content="body", tags=["solo"])
+
+        results = search_service.search_by_tag("solo")
+
+        assert any(n.id == note.id for n in results)
+
+    def test_find_central_notes_returns_in_rank_order(self, zettel_service):
+        """find_central_notes returns notes ordered by total connections descending."""
+        search_service = SearchService(zettel_service)
+        hub = zettel_service.create_note(title="Hub", content="body", tags=[])
+        spoke1 = zettel_service.create_note(title="Spoke1", content="body", tags=[])
+        spoke2 = zettel_service.create_note(title="Spoke2", content="body", tags=[])
+        spoke3 = zettel_service.create_note(title="Spoke3", content="body", tags=[])
+
+        zettel_service.create_link(hub.id, spoke1.id, LinkType.REFERENCE)
+        zettel_service.create_link(hub.id, spoke2.id, LinkType.EXTENDS)
+        zettel_service.create_link(hub.id, spoke3.id, LinkType.SUPPORTS)
+
+        results = search_service.find_central_notes(limit=10)
+
+        assert len(results) >= 1
+        assert results[0][0].id == hub.id
+        assert results[0][1] == 3
+
+    def test_find_central_notes_empty_when_no_links(self, zettel_service):
+        """find_central_notes returns empty list when no notes have links."""
+        search_service = SearchService(zettel_service)
+        zettel_service.create_note(title="Isolated", content="body", tags=[])
+
+        results = search_service.find_central_notes()
+
+        assert results == []

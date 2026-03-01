@@ -141,6 +141,50 @@ def test_search_notes(note_repository):
     assert len(programming_notes) == 2
     assert {note.id for note in programming_notes} == {saved_note1.id, saved_note2.id}
 
+def test_references_survive_get_all(note_repository):
+    """References are preserved through the DB bulk-read path (get_all -> _db_note_to_note)."""
+    note = Note(
+        title="References Bulk Note",
+        content="body",
+        references=["Luhmann, N. (1992). Communicating with Slip Boxes."]
+    )
+    created = note_repository.create(note)
+
+    all_notes = note_repository.get_all()
+
+    match = next((n for n in all_notes if n.id == created.id), None)
+    assert match is not None
+    assert match.references == ["Luhmann, N. (1992). Communicating with Slip Boxes."]
+
+
+def test_references_survive_search(note_repository):
+    """References are preserved through the DB search path (search -> _db_note_to_note)."""
+    note = Note(
+        title="References Search Note",
+        content="body",
+        references=["Ahrens, S. (2017). How to Take Smart Notes."]
+    )
+    note_repository.create(note)
+
+    results = note_repository.search(title="References Search Note")
+
+    assert len(results) == 1
+    assert results[0].references == ["Ahrens, S. (2017). How to Take Smart Notes."]
+
+
+def test_references_survive_update(note_repository):
+    """References written via update are returned correctly by subsequent bulk reads."""
+    note = Note(title="Update Ref Note", content="body", references=[])
+    created = note_repository.create(note)
+
+    created.references = ["Eco, U. (1977). How to Write a Thesis."]
+    note_repository.update(created)
+
+    results = note_repository.search(title="Update Ref Note")
+    assert len(results) == 1
+    assert results[0].references == ["Eco, U. (1977). How to Write a Thesis."]
+
+
 def test_note_linking(note_repository):
     """Test creating links between notes."""
     # Create test notes

@@ -1,11 +1,15 @@
 """SQLAlchemy database models for the Zettelkasten MCP server."""
 import datetime
 import json
+import logging
 from typing import List, Optional
 
 from sqlalchemy import (Column, DateTime, Engine, ForeignKey, Integer, String,
                        Table, Text, UniqueConstraint, create_engine, text)
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
+logger = logging.getLogger(__name__)
 
 from zettelkasten_mcp.config import config
 from zettelkasten_mcp.models.schema import LinkType, NoteType
@@ -33,10 +37,22 @@ class DBNote(Base):
     @property
     def references(self) -> list:
         """Deserialize references from JSON storage."""
+        raw = self.references_json or "[]"
         try:
-            return json.loads(self.references_json or "[]")
-        except (ValueError, TypeError):
+            value = json.loads(raw)
+        except (ValueError, TypeError) as e:
+            logger.error(
+                "Failed to deserialize references_json for note %s: %s (raw: %r)",
+                self.id, e, raw,
+            )
             return []
+        if not isinstance(value, list):
+            logger.error(
+                "references_json for note %s deserialized to %s, expected list (raw: %r)",
+                self.id, type(value).__name__, raw,
+            )
+            return []
+        return value
 
     @references.setter
     def references(self, value: list) -> None:
@@ -116,9 +132,15 @@ def init_db() -> "Engine":
                 "ALTER TABLE notes ADD COLUMN references_json TEXT NOT NULL DEFAULT '[]'"
             ))
             conn.commit()
-        except Exception:
-            # Column already exists — ignore.
+        except OperationalError as e:
             conn.rollback()
+            if "duplicate column name" in str(e).lower():
+                pass  # Column already exists — expected on existing databases.
+            else:
+                logger.error(
+                    "Unexpected error during references_json migration: %s", e, exc_info=True
+                )
+                raise
 
         conn.execute(text("""
             CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts

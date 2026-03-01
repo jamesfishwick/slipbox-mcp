@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 import frontmatter
 from sqlalchemy import and_, create_engine, delete, func, or_, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from zettelkasten_mcp.config import config
@@ -229,12 +230,25 @@ class NoteRepository(Repository[Note]):
         )
 
     def _get_or_create_tag(self, session: Session, tag_name: str) -> DBTag:
-        """Return the DBTag with the given name, creating it if absent."""
+        """Return the DBTag with the given name, creating it if absent.
+
+        Handles the TOCTOU race where two concurrent writers both see the tag
+        as absent and attempt an INSERT: the loser catches IntegrityError,
+        rolls back the savepoint, and re-queries to get the winner's row.
+        """
         db_tag = session.scalar(select(DBTag).where(DBTag.name == tag_name))
         if not db_tag:
             db_tag = DBTag(name=tag_name)
             session.add(db_tag)
-            session.flush()
+            try:
+                session.flush()
+            except IntegrityError:
+                session.rollback()
+                db_tag = session.scalar(select(DBTag).where(DBTag.name == tag_name))
+                if db_tag is None:
+                    raise RuntimeError(
+                        f"Failed to get or create tag '{tag_name}' after IntegrityError"
+                    )
         return db_tag
 
     def _index_note(self, note: Note) -> None:
