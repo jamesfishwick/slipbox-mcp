@@ -81,6 +81,11 @@ class NoteRepository(Repository[Note]):
             for note in notes:
                 self._index_note(note)
 
+        # Rebuild FTS index to ensure consistency after bulk delete + re-insert
+        with self.session_factory() as session:
+            session.execute(text("INSERT INTO notes_fts(notes_fts) VALUES ('rebuild')"))
+            session.commit()
+
     def _parse_note_from_markdown(self, content: str) -> Optional[Note]:
         """Parse a note from markdown content."""
         post = frontmatter.loads(content)

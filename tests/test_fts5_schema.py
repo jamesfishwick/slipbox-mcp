@@ -37,3 +37,23 @@ def test_fts5_trigger_sync_on_insert(note_repository):
         ).fetchall()
 
     assert len(result) == 1
+
+def test_fts5_populated_after_rebuild(note_repository):
+    """FTS index must be queryable after rebuild_index runs."""
+    from zettelkasten_mcp.models.schema import Note, NoteType, Tag
+
+    note = note_repository.create(Note(
+        title="Unique Zettelkasten Term",
+        content="antidisestablishmentarianism is searchable",
+        note_type=NoteType.PERMANENT,
+        tags=[Tag(name="test")]
+    ))
+
+    note_repository.rebuild_index()
+
+    with note_repository.session_factory() as session:
+        results = session.execute(
+            text("SELECT rowid FROM notes_fts WHERE notes_fts MATCH 'antidisestablishmentarianism'")
+        ).fetchall()
+
+    assert len(results) == 1
