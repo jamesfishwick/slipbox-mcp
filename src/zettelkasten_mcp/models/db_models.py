@@ -1,10 +1,15 @@
 """SQLAlchemy database models for the Zettelkasten MCP server."""
 import datetime
+import json
+import logging
 from typing import List, Optional
 
 from sqlalchemy import (Column, DateTime, Engine, ForeignKey, Integer, String,
                        Table, Text, UniqueConstraint, create_engine, text)
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
+logger = logging.getLogger(__name__)
 
 from zettelkasten_mcp.config import config
 from zettelkasten_mcp.models.schema import LinkType, NoteType
@@ -25,8 +30,34 @@ class DBNote(Base):
     title = Column(String(255), nullable=False, index=True)
     content = Column(Text, nullable=False)
     note_type = Column(String(50), default=NoteType.PERMANENT.value, nullable=False, index=True)
+    references_json = Column(Text, nullable=False, default="[]")
     created_at = Column(DateTime, default=datetime.datetime.now, nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.now, nullable=False)
+
+    @property
+    def references(self) -> list:
+        """Deserialize references from JSON storage."""
+        raw = self.references_json or "[]"
+        try:
+            value = json.loads(raw)
+        except (ValueError, TypeError) as e:
+            logger.error(
+                "Failed to deserialize references_json for note %s: %s (raw: %r)",
+                self.id, e, raw,
+            )
+            return []
+        if not isinstance(value, list):
+            logger.error(
+                "references_json for note %s deserialized to %s, expected list (raw: %r)",
+                self.id, type(value).__name__, raw,
+            )
+            return []
+        return value
+
+    @references.setter
+    def references(self, value: list) -> None:
+        """Serialize references to JSON storage."""
+        self.references_json = json.dumps(value or [])
 
     tags = relationship(
         "DBTag", secondary=note_tags, back_populates="notes"
@@ -95,6 +126,22 @@ def init_db() -> "Engine":
     Base.metadata.create_all(engine)
 
     with engine.connect() as conn:
+        # Add references_json column to existing databases that predate this field.
+        try:
+            conn.execute(text(
+                "ALTER TABLE notes ADD COLUMN references_json TEXT NOT NULL DEFAULT '[]'"
+            ))
+            conn.commit()
+        except OperationalError as e:
+            conn.rollback()
+            if "duplicate column name" in str(e).lower():
+                pass  # Column already exists — expected on existing databases.
+            else:
+                logger.error(
+                    "Unexpected error during references_json migration: %s", e, exc_info=True
+                )
+                raise
+
         conn.execute(text("""
             CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts
             USING fts5(title, content, content='notes', content_rowid='rowid')
