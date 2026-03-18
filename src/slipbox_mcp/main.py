@@ -6,10 +6,10 @@ import os
 import sys
 from pathlib import Path
 
-from zettelkasten_mcp.config import config
-from zettelkasten_mcp.models.db_models import init_db
-from zettelkasten_mcp.server.mcp_server import ZettelkastenMcpServer
-from zettelkasten_mcp.utils import setup_logging
+from slipbox_mcp.config import config
+from slipbox_mcp.models.db_models import init_db
+from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
+from slipbox_mcp.utils import setup_logging
 
 def parse_args():
     """Parse command line arguments."""

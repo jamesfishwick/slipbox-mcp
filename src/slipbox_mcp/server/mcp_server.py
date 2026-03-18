@@ -5,11 +5,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 from sqlalchemy import exc as sqlalchemy_exc
 from mcp.server.fastmcp import Context, FastMCP
-from zettelkasten_mcp.config import config
-from zettelkasten_mcp.models.schema import LinkType, Note, NoteType, Tag
-from zettelkasten_mcp.services.search_service import SearchService
-from zettelkasten_mcp.services.cluster_service import ClusterService
-from zettelkasten_mcp.services.zettel_service import ZettelService
+from slipbox_mcp.config import config
+from slipbox_mcp.models.schema import LinkType, Note, NoteType, Tag
+from slipbox_mcp.services.search_service import SearchService
+from slipbox_mcp.services.cluster_service import ClusterService
+from slipbox_mcp.services.zettel_service import ZettelService
 
 logger = logging.getLogger(__name__)
 
