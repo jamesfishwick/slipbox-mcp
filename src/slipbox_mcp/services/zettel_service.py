@@ -239,7 +239,7 @@ class ZettelService:
             raise ValueError(f"Note with ID {note_id} not found")
 
         if format.lower() == "markdown":
-            return note.to_markdown()
+            return self.repository._note_to_markdown(note)
         else:
             raise ValueError(f"Unsupported export format: {format}")
 
