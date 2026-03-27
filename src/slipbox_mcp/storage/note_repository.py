@@ -110,7 +110,7 @@ class NoteRepository(Repository[Note]):
                     if note:  # Skip files without IDs
                         notes.append(note)
                 except Exception as e:
-                    logger.error(f"Error processing file {file_path}: {e}")
+                    logger.error("Error processing file %s: %s", file_path, e)
 
             for note in notes:
                 self._index_note(note)
@@ -194,7 +194,7 @@ class NoteRepository(Repository[Note]):
                             )
                         )
                 except Exception as e:
-                    logger.error(f"Error parsing link: {line} - {e}")
+                    logger.error("Error parsing link: %s - %s", line, e)
 
         created_str = metadata.get("created")
         created_at = (
@@ -495,7 +495,7 @@ class NoteRepository(Repository[Note]):
                     # File exists but DB row is missing — re-index to recover.
                     self._index_note(note)
         except Exception as e:
-            logger.error(f"Failed to update note in database: {e}")
+            logger.error("Failed to update note in database: %s", e)
             raise
 
         return note
