@@ -445,7 +445,7 @@ class TestDeleteLinkTool(MockServerBase):
         super().setup_method()
         self.mock_note = MagicMock()
         self.mock_note.id = self.SOURCE_ID
-        self.mock_zettel_service.delete_link.return_value = self.mock_note
+        self.mock_zettel_service.delete_link.return_value = (self.mock_note, None)
 
     def test_delete_link_returns_success_message(self):
         result = self._tool("zk_delete_link")(
@@ -457,6 +457,39 @@ class TestDeleteLinkTool(MockServerBase):
         self.mock_zettel_service.delete_link.assert_called_once_with(
             source_id=self.SOURCE_ID,
             target_id=self.TARGET_ID,
+            link_type=None,
+            bidirectional=False,
+        )
+
+    def test_delete_link_with_link_type(self):
+        result = self._tool("zk_delete_link")(
+            source_id=self.SOURCE_ID,
+            target_id=self.TARGET_ID,
+            link_type="extends",
+        )
+        assert self.SOURCE_ID in result
+        self.mock_zettel_service.delete_link.assert_called_once_with(
+            source_id=self.SOURCE_ID,
+            target_id=self.TARGET_ID,
+            link_type=LinkType.EXTENDS,
+            bidirectional=False,
+        )
+
+    def test_delete_link_bidirectional(self):
+        mock_target = MagicMock()
+        mock_target.id = self.TARGET_ID
+        self.mock_zettel_service.delete_link.return_value = (self.mock_note, mock_target)
+        result = self._tool("zk_delete_link")(
+            source_id=self.SOURCE_ID,
+            target_id=self.TARGET_ID,
+            bidirectional=True,
+        )
+        assert "Bidirectional" in result
+        self.mock_zettel_service.delete_link.assert_called_once_with(
+            source_id=self.SOURCE_ID,
+            target_id=self.TARGET_ID,
+            link_type=None,
+            bidirectional=True,
         )
 
     def test_delete_link_returns_error_when_link_does_not_exist(self):

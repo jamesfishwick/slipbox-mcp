@@ -311,22 +311,31 @@ class ZettelkastenMcpServer:
         def zk_delete_link(
             source_id: str,
             target_id: str,
+            link_type: Optional[str] = None,
+            bidirectional: bool = False,
         ) -> str:
             """Delete a link between two notes.
 
-            Removes all links from the source note to the target note,
+            Removes links from the source note to the target note,
             persists the change to the markdown file, and updates the SQLite index.
             Returns an error if either note is not found or no link exists.
 
             Args:
                 source_id: ID of the source note
                 target_id: ID of the target note
+                link_type: Optional link type to delete (e.g. "reference", "extends"). If omitted, removes all links to the target.
+                bidirectional: If true, also removes links in the reverse direction
             """
             try:
-                self.zettel_service.delete_link(
+                parsed_link_type = LinkType(link_type) if link_type else None
+                source_note, target_note = self.zettel_service.delete_link(
                     source_id=str(source_id),
                     target_id=str(target_id),
+                    link_type=parsed_link_type,
+                    bidirectional=bidirectional,
                 )
+                if bidirectional:
+                    return f"Bidirectional link deleted between {source_id} and {target_id}"
                 return f"Link deleted from {source_id} to {target_id}"
             except Exception as e:
                 return self.format_error_response(e)

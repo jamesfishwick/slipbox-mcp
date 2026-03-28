@@ -321,7 +321,7 @@ class TestSemanticLinks:
         )
         
         # Delete the link
-        source = zettel_service.delete_link(
+        source, _ = zettel_service.delete_link(
             source_id=source_note.id,
             target_id=target_note.id,
         )
@@ -391,7 +391,7 @@ class TestSemanticLinks:
         assert len(target_links) == len(link_types)
 
         # Delete all links to target
-        source_note = zettel_service.delete_link(
+        source_note, _ = zettel_service.delete_link(
             source_id=source_note.id,
             target_id=target_note.id,
         )
@@ -440,21 +440,12 @@ class TestSemanticLinks:
             for link in target.links
         )
 
-        # Delete forward link
-        zettel_service.delete_link(
+        # Delete bidirectionally
+        source, target = zettel_service.delete_link(
             source_id=source_note.id,
             target_id=target_note.id,
+            bidirectional=True,
         )
-
-        # Delete reverse link
-        zettel_service.delete_link(
-            source_id=target_note.id,
-            target_id=source_note.id,
-        )
-
-        # Verify both directions removed
-        source = zettel_service.get_note(source_note.id)
-        target = zettel_service.get_note(target_note.id)
         assert not any(
             link.target_id == target_note.id for link in source.links
         )
@@ -999,7 +990,7 @@ class TestDeleteLink:
             link_type=LinkType.REFERENCE,
         )
 
-        updated = zettel_service.delete_link(source.id, target.id)
+        updated, _ = zettel_service.delete_link(source.id, target.id)
         assert not any(link.target_id == target.id for link in updated.links)
 
         # Verify persistence
