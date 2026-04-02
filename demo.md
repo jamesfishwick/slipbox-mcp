@@ -241,3 +241,277 @@ grep 'def zk_' src/zettelkasten_mcp/server/mcp_server.py | sed 's/.*def //' | se
 Seven semantic link types connect notes: **reference**, **extends**, **refines**, **contradicts**, **questions**, **supports**, **related**. These typed relationships let Claude navigate the knowledge graph purposefully — not just by keyword.
 
 All notes are plain markdown files with YAML frontmatter, readable and editable in Obsidian, Foam, Logseq, or any text editor. The SQLite+FTS5 index is always rebuildable from the files.
+
+---
+
+## Demo Script
+
+This section covers everything worth showing when demoing slipbox to someone. Each section shows what to say to Claude and what to point out.
+
+---
+
+### 1. Session Start: Proactive Maintenance
+
+**What to say:**
+```
+Use the slipbox://maintenance-status resource and tell me if there's anything that needs attention.
+```
+
+**What it shows:** The MCP resource endpoint returns pending cluster data without the user asking. Explain that in a well-configured Claude Desktop setup, this could surface automatically at session start — Claude acting as a proactive knowledge manager, not just a passive assistant.
+
+---
+
+### 2. Full-Text Search
+
+**What to say:**
+```
+Search my notes for "zettelkasten workflow" and show me the most relevant results.
+```
+
+Or with tag filtering:
+```
+Search for notes tagged "poetry" and "craft" about revision.
+```
+
+**What it shows:** BM25-ranked FTS5 search across 550+ notes returns in milliseconds. Point out that the results combine full-text scoring with tag filtering — not just a grep.
+
+---
+
+### 3. Knowledge Graph: Central Notes
+
+**What to say:**
+```
+Which notes are the most connected in my Zettelkasten? Show me the top 10.
+```
+
+**What it shows:** `zk_find_central_notes` traverses the link graph and surfaces structural anchors. These are the notes everything else orbits. A knowledge base with no central notes is a pile of files; one with them is a network.
+
+---
+
+### 4. Knowledge Graph: Orphaned Notes
+
+**What to say:**
+```
+Find all my orphaned notes — the ones with no connections to anything else.
+```
+
+**What it shows:** Unintegrated knowledge is waste. The orphan finder surfaces notes that were captured but never woven into the graph. Demo the follow-up action:
+
+```
+Look at the first three orphaned notes and suggest which existing notes they might connect to.
+```
+
+---
+
+### 5. Direct Capture: Your Ideas → Atomic Notes
+
+**What to say:**
+```
+I've been thinking about something. Here's my rough idea:
+
+"When I read technical books, I tend to extract too many notes at once.
+I end up with 30 fleeting notes from a single chapter and never process them.
+The bottleneck isn't capture — it's integration. Maybe I should limit myself
+to 3-5 notes per reading session and immediately link each one before moving on."
+
+Capture this as a permanent note and find related notes to link it to.
+```
+
+**What it shows:** The user provides raw thinking; Claude formats it into a proper atomic note with appropriate title, tags (inferred from content and existing taxonomy), and links to related notes. Claude is a *formatting and integration layer*, not a content generator. The ideas stay yours.
+
+---
+
+### 6. Source Decomposition: Article → Atomic Notes
+
+**What to say:**
+```
+Use the knowledge_creation prompt with this article excerpt:
+
+"The Zettelkasten method's power comes from its constraints. Each note must contain
+exactly one idea. This forces you to understand what you've read well enough to
+decompose it. Most people fail not because they don't take notes, but because their
+notes are grab-bags of loosely related thoughts that can't be recombined later.
+
+The linking requirement adds a second constraint: you must understand how a new idea
+relates to what you already know. This is where learning actually happens — in the
+moment of connection, not in the moment of highlight."
+
+— From "Why Most Note-Taking Fails" by Example Author
+```
+
+**What it shows:** Claude extracts 2-3 atomic ideas from the source, searches for existing related notes first (to avoid duplication), creates literature notes with proper citation, and links them into the graph. The content comes from a source; Claude's job is decomposition and integration.
+
+---
+
+### 7. Conversation Distillation: Dialogue → Notes
+
+**What to say (after a substantive discussion):**
+```
+We've been talking about [topic] for the last few exchanges.
+Distill the key insights from our conversation into notes for my Zettelkasten.
+```
+
+**What it shows:** Claude extracts insights that emerged from the dialogue — things *you* said or conclusions *you* reached — and captures them as permanent notes. This is the highest-value workflow: conversations are where thinking happens, but they're ephemeral. The slipbox makes them durable.
+
+**Example follow-up:**
+```
+Actually, the insight about X was yours, not mine. Remove that note —
+I only want to capture my own thinking.
+```
+
+This demonstrates that the user controls what gets captured. Claude proposes; the user disposes.
+
+---
+
+### 8. Finding Similar Notes
+
+**What to say:**
+```
+Find notes similar to [paste an ID from the central notes output].
+```
+
+**What it shows:** `zk_find_similar_notes` computes similarity from shared tags, common links, and content overlap — three signals. Lower the threshold to 0.1 to show the spectrum of similarity scores.
+
+---
+
+### 9. Cluster Detection
+
+**What to say:**
+```
+Run a cluster analysis and show me the top clusters that need structure notes.
+```
+
+Or to refresh stale data:
+```
+Run zk_refresh_clusters and then show me the report.
+```
+
+**What it shows:** The cluster detector finds groups of co-occurring tags that lack an organizing structure note. Each cluster gets a score based on note count, orphan ratio, link density, and recency. Point out:
+- A cluster with score > 0.7 is a strong signal that this topic area has grown enough to need a map.
+- `include_notes=true` shows all the notes in the cluster.
+
+---
+
+### 10. Creating a Structure Note from a Cluster (the big demo moment)
+
+**What to say:**
+```
+Take the highest-scoring cluster and create a structure note for it. Link it to all the member notes.
+```
+
+**What it shows:** `zk_create_structure_from_cluster` does the full scaffolding automatically: creates the structure note, writes a TODO synthesis stub, creates bidirectional `reference` links to every member note, and dismisses the cluster from future reports. This is the core value proposition: Claude turning emergent patterns into organized knowledge.
+
+---
+
+### 11. Browsing by Date
+
+**What to say:**
+```
+Show me the 10 most recently created notes.
+```
+
+Or a date range:
+```
+List notes created between 2026-01-01 and 2026-03-01.
+```
+
+**What it shows:** `zk_list_notes_by_date` with `use_updated=true` vs `false`. Useful for reviewing what was captured during a specific project or time period.
+
+---
+
+### 12. Tag Taxonomy
+
+**What to say:**
+```
+Show me all the tags in my Zettelkasten.
+```
+
+**What it shows:** `zk_get_all_tags` returns the full vocabulary alphabetically. Point out that tag consistency is a hygiene problem in any knowledge base — this is how Claude can check before creating notes with new tags. Say to Claude:
+
+```
+Before creating any new notes, check the existing tags and tell me which ones are most relevant to software architecture.
+```
+
+---
+
+### 13. Guided Workflows via Prompts
+
+These workflows process *your content* into the Zettelkasten. They are not content generators.
+
+**Claude Code slash commands:**
+```
+/mcp__slipbox-mcp__knowledge_creation
+/mcp__slipbox-mcp__knowledge_exploration
+/mcp__slipbox-mcp__knowledge_synthesis
+/mcp__slipbox-mcp__knowledge_creation_batch
+/mcp__slipbox-mcp__cluster_maintenance
+```
+
+**`knowledge_creation`** — Process a single article, idea, or conversation excerpt:
+
+```text
+Use the knowledge_creation prompt with this text:
+
+[paste article, your notes, or conversation excerpt here]
+```
+
+Claude searches for related existing notes first, extracts 3-5 atomic ideas, creates properly typed and tagged notes, and links them to your existing knowledge.
+
+**`knowledge_creation_batch`** — For larger material (book chapters, long articles, collections):
+
+```text
+Use the knowledge_creation_batch prompt with this content:
+
+[paste longer text — a book chapter, lecture transcript, etc.]
+```
+
+Extracts 5-10 ideas, eliminates duplicates of existing notes, organizes into clusters, and verifies quality. Good for processing a week's worth of highlights.
+
+**`knowledge_exploration`** — Map how a topic connects through your existing graph:
+
+```text
+Use the knowledge_exploration prompt for the topic: "cognitive load in code review"
+```
+
+No new content created — this explores what you already have. Finds central notes, maps connections, surfaces gaps and orphans related to the topic.
+
+**`knowledge_synthesis`** — Surface higher-order insights from existing notes:
+
+```text
+Use the knowledge_synthesis prompt to find bridges between my notes on
+"API design" and "team communication"
+```
+
+Looks for connections you haven't made yet, resolves contradictions, creates synthesis notes that emerge from *your* existing knowledge — not generated from nothing.
+
+**`cluster_maintenance`** — Proactive housekeeping:
+
+```text
+Use the cluster_maintenance prompt.
+```
+
+Reports clusters that have grown large enough to need structure notes. Good for starting a session.
+
+---
+
+### 14. Index Rebuild
+
+**What to say:**
+
+```text
+Rebuild the database index from the markdown files.
+```
+
+**What it shows:** The SQLite index is always derivable from the flat markdown files. This is a safety guarantee: you can never lose your data, even if the DB is deleted. Edit a note in Obsidian, then rebuild to sync.
+
+---
+
+### Talking Points Summary
+
+- **Claude processes your content, not generates it.** The three core workflows are: direct capture (your ideas), source decomposition (articles/books), and conversation distillation (dialogues). Claude formats, links, and integrates — the ideas stay yours.
+- **Atomic notes + typed links** = a graph, not a folder. The structure emerges from the connections.
+- **Five note types** enforce the Zettelkasten hierarchy: fleeting → literature → permanent → structure → hub.
+- **Seven link types** (reference, extends, refines, contradicts, questions, supports, related) make relationships explicit and navigable.
+- **Cluster detection** is the intelligence layer: it finds the topics your knowledge has grown into that still lack organizing structure.
+- **Plain markdown files** mean zero lock-in. The DB is an index, not the source of truth.
+- **MCP prompts** are reusable workflows that process input, not content generators. They encode the Zettelkasten method so you don't have to re-explain it every session.
