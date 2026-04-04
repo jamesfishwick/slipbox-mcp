@@ -537,11 +537,15 @@ class NoteRepository(Repository[Note]):
 
         # Cascade on DBNote handles outgoing_links and incoming_links;
         # the note_tags association table rows are removed via FK.
-        with self.session_factory() as session:
-            db_note = session.get(DBNote, id)
-            if db_note:
-                session.delete(db_note)
-                session.commit()
+        try:
+            with self.session_factory() as session:
+                db_note = session.get(DBNote, id)
+                if db_note:
+                    session.delete(db_note)
+                    session.commit()
+        except Exception as e:
+            logger.error("File deleted but DB cleanup failed for note %s: %s", id, e)
+            raise
 
     def search(self, **kwargs: Any) -> List[Note]:
         """Search for notes based on criteria."""

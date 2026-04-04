@@ -31,3 +31,47 @@ class TestCreateAtomicity:
         from slipbox_mcp.models.db_models import DBNote
         with note_repository.session_factory() as session:
             assert session.scalar(select(DBNote).where(DBNote.id == note.id)) is None
+
+
+class TestDeleteAtomicity:
+    """Verify delete() keeps file and DB in sync under failure."""
+
+    def test_db_failure_after_file_delete_raises(self, note_repository, zettel_service):
+        """If DB delete fails after file removal, the error should propagate."""
+        note = zettel_service.create_note(
+            title="Delete Sync Test",
+            content="Testing delete atomicity.",
+        )
+        note_id = note.id
+
+        # Verify file exists
+        file_path = note_repository.notes_dir / f"{note_id}.md"
+        assert file_path.exists()
+
+        with patch.object(
+            note_repository, "session_factory", side_effect=RuntimeError("DB down")
+        ):
+            with pytest.raises(RuntimeError, match="DB down"):
+                note_repository.delete(note_id)
+
+        # File should be gone (delete succeeded at file level)
+        assert not file_path.exists()
+
+    def test_delete_cleans_db_on_success(self, note_repository, zettel_service):
+        """Normal delete removes both file and DB record."""
+        note = zettel_service.create_note(
+            title="Normal Delete",
+            content="Should be fully removed.",
+        )
+        note_id = note.id
+
+        note_repository.delete(note_id)
+
+        # Both file and DB should be gone
+        file_path = note_repository.notes_dir / f"{note_id}.md"
+        assert not file_path.exists()
+
+        from sqlalchemy import select
+        from slipbox_mcp.models.db_models import DBNote
+        with note_repository.session_factory() as session:
+            assert session.scalar(select(DBNote).where(DBNote.id == note_id)) is None
