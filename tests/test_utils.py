@@ -4,7 +4,6 @@ import logging
 from datetime import datetime
 from unittest.mock import patch
 
-import pytest
 
 from slipbox_mcp.models.schema import Link, LinkType
 from slipbox_mcp.utils import format_note_for_display, parse_tags, setup_logging

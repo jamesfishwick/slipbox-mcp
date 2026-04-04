@@ -2,7 +2,8 @@
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
-from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer, _parse_refs
+from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
+from slipbox_mcp.server.tools.note_tools import _parse_refs
 from slipbox_mcp.models.schema import LinkType, NoteType
 
 

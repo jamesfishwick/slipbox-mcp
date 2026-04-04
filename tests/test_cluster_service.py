@@ -1,8 +1,6 @@
 """Tests for ClusterService pure functions."""
-from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
-import pytest
 
 from slipbox_mcp.models.schema import LinkType, NoteType
 from slipbox_mcp.services.cluster_service import (

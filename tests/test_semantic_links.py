@@ -1,7 +1,5 @@
 """Comprehensive test suite for semantic link types in the Zettelkasten MCP implementation."""
 import datetime
-import pytest
-from unittest.mock import patch
 
 from slipbox_mcp.models.schema import LinkType, NoteType
 from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
