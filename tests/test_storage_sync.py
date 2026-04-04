@@ -75,3 +75,32 @@ class TestDeleteAtomicity:
         from slipbox_mcp.models.db_models import DBNote
         with note_repository.session_factory() as session:
             assert session.scalar(select(DBNote).where(DBNote.id == note_id)) is None
+
+
+class TestUpdateAtomicity:
+    """Verify update() keeps file and DB in sync under failure."""
+
+    def test_db_failure_rolls_back_file_change(self, note_repository, zettel_service):
+        """If DB update fails, file should revert to previous content."""
+        note = zettel_service.create_note(
+            title="Original Title",
+            content="Original content.",
+        )
+        note_id = note.id
+
+        # Read original file content
+        file_path = note_repository.notes_dir / f"{note_id}.md"
+        original_content = file_path.read_text()
+
+        # Attempt update that will fail at DB layer
+        note.title = "Updated Title"
+        note.content = "Updated content."
+
+        with patch.object(
+            note_repository, "session_factory", side_effect=RuntimeError("DB boom")
+        ):
+            with pytest.raises(RuntimeError, match="DB boom"):
+                note_repository.update(note)
+
+        # File should be reverted to original
+        assert file_path.read_text() == original_content

@@ -476,9 +476,14 @@ class NoteRepository(Repository[Note]):
 
         note.updated_at = datetime.datetime.now()
 
+        file_path = self.notes_dir / f"{note.id}.md"
+
+        # Capture original content for rollback
+        with self.file_lock:
+            original_content = file_path.read_text(encoding="utf-8")
+
         markdown = self.note_to_markdown(note)
 
-        file_path = self.notes_dir / f"{note.id}.md"
         try:
             with self.file_lock:
                 with open(file_path, "w", encoding="utf-8") as f:
@@ -517,8 +522,11 @@ class NoteRepository(Repository[Note]):
                 else:
                     # File exists but DB row is missing — re-index to recover.
                     self._index_note(note)
-        except Exception as e:
-            logger.error("Failed to update note in database: %s", e)
+        except Exception:
+            # Roll back file to original content
+            with self.file_lock:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(original_content)
             raise
 
         return note
