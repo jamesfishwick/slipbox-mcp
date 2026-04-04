@@ -417,16 +417,21 @@ class NoteRepository(Repository[Note]):
             note.id = generate_id()
 
         markdown = self.note_to_markdown(note)
-
         file_path = self.notes_dir / f"{note.id}.md"
-        try:
-            with self.file_lock:
+
+        with self.file_lock:
+            try:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(markdown)
-        except IOError as e:
-            raise IOError(f"Failed to write note to {file_path}: {e}")
+            except IOError as e:
+                raise IOError(f"Failed to write note to {file_path}: {e}")
 
-        self._index_note(note)
+            try:
+                self._index_note(note)
+            except Exception:
+                file_path.unlink(missing_ok=True)
+                raise
+
         return note
 
     def get(self, id: str) -> Optional[Note]:
@@ -469,50 +474,51 @@ class NoteRepository(Repository[Note]):
 
         note.updated_at = datetime.datetime.now()
 
+        file_path = self.notes_dir / f"{note.id}.md"
         markdown = self.note_to_markdown(note)
 
-        file_path = self.notes_dir / f"{note.id}.md"
-        try:
-            with self.file_lock:
+        with self.file_lock:
+            original_content = file_path.read_text(encoding="utf-8")
+
+            try:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(markdown)
-        except IOError as e:
-            raise IOError(f"Failed to write note to {file_path}: {e}")
 
-        try:
-            with self.session_factory() as session:
-                db_note = session.scalar(select(DBNote).where(DBNote.id == note.id))
-                if db_note:
-                    db_note.title = note.title
-                    db_note.content = note.content
-                    db_note.note_type = note.note_type.value
-                    db_note.references = note.references
-                    db_note.updated_at = note.updated_at
+                with self.session_factory() as session:
+                    db_note = session.scalar(select(DBNote).where(DBNote.id == note.id))
+                    if db_note:
+                        db_note.title = note.title
+                        db_note.content = note.content
+                        db_note.note_type = note.note_type.value
+                        db_note.references = note.references
+                        db_note.updated_at = note.updated_at
 
-                    db_note.tags = []
-                    for tag in note.tags:
-                        db_note.tags.append(self._get_or_create_tag(session, tag.name))
+                        db_note.tags = []
+                        for tag in note.tags:
+                            db_note.tags.append(self._get_or_create_tag(session, tag.name))
 
-                    # Delete-and-replace links rather than merging to avoid stale entries.
-                    session.execute(delete(DBLink).where(DBLink.source_id == note.id))
+                        session.execute(delete(DBLink).where(DBLink.source_id == note.id))
 
-                    for link in note.links:
-                        db_link = DBLink(
-                            source_id=link.source_id,
-                            target_id=link.target_id,
-                            link_type=link.link_type.value,
-                            description=link.description,
-                            created_at=link.created_at
-                        )
-                        session.add(db_link)
+                        for link in note.links:
+                            db_link = DBLink(
+                                source_id=link.source_id,
+                                target_id=link.target_id,
+                                link_type=link.link_type.value,
+                                description=link.description,
+                                created_at=link.created_at
+                            )
+                            session.add(db_link)
 
-                    session.commit()
-                else:
-                    # File exists but DB row is missing — re-index to recover.
-                    self._index_note(note)
-        except Exception as e:
-            logger.error("Failed to update note in database: %s", e)
-            raise
+                        session.commit()
+                    else:
+                        self._index_note(note)
+            except Exception:
+                try:
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(original_content)
+                except IOError:
+                    logger.error("Failed to roll back file %s after DB error", file_path)
+                raise
 
         return note
 
@@ -522,19 +528,29 @@ class NoteRepository(Repository[Note]):
         if not file_path.exists():
             raise ValueError(f"Note with ID {id} does not exist")
 
-        try:
-            with self.file_lock:
-                os.remove(file_path)
-        except IOError as e:
-            raise IOError(f"Failed to delete note {id}: {e}")
+        with self.file_lock:
+            original_content = file_path.read_text(encoding="utf-8")
 
-        # Cascade on DBNote handles outgoing_links and incoming_links;
-        # the note_tags association table rows are removed via FK.
-        with self.session_factory() as session:
-            db_note = session.get(DBNote, id)
-            if db_note:
-                session.delete(db_note)
-                session.commit()
+            try:
+                os.remove(file_path)
+            except IOError as e:
+                raise IOError(f"Failed to delete note {id}: {e}")
+
+            try:
+                with self.session_factory() as session:
+                    db_note = session.get(DBNote, id)
+                    if db_note:
+                        session.delete(db_note)
+                        session.commit()
+            except Exception as e:
+                # Restore file to maintain sync
+                try:
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(original_content)
+                except IOError:
+                    logger.error("Failed to restore file %s after DB error", file_path)
+                logger.error("DB cleanup failed for note %s, file restored: %s", id, e)
+                raise
 
     def search(self, **kwargs: Any) -> List[Note]:
         """Search for notes based on criteria."""
