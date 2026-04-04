@@ -32,15 +32,9 @@ def cmd_status(args):
     tags = zettel.get_all_tags()
     report = cluster.load_report()
 
-    # Count orphans
-    orphan_count = sum(
-        1 for n in notes
-        if not n.links and not any(
-            link.target_id == n.id
-            for other in notes
-            for link in other.links
-        )
-    )
+    # Count orphans via SQL (replaces O(n^2) in-memory loop)
+    search = SearchService(zettel)
+    orphan_count = len(search.find_orphaned_notes())
 
     print(f"Notes: {len(notes)}")
     print(f"Tags: {len(tags)}")
@@ -97,18 +91,8 @@ def cmd_clusters(args):
 def cmd_orphans(args):
     """List orphaned notes."""
     zettel = ZettelService()
-    notes = zettel.get_all_notes()
-
-    orphans = []
-
-    for note in notes:
-        has_incoming = any(
-            link.target_id == note.id
-            for other in notes
-            for link in other.links
-        )
-        if not note.links and not has_incoming:
-            orphans.append(note)
+    search = SearchService(zettel)
+    orphans = search.find_orphaned_notes()
 
     if not orphans:
         print("No orphaned notes.")

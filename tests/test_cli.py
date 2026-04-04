@@ -33,3 +33,16 @@ def test_base_dir_flag_accepted():
     """--base-dir /tmp should be accepted without error."""
     result = _run_cli("--base-dir", "/tmp", "status")
     assert result.returncode == 0
+
+
+def test_orphans_command_runs():
+    """slipbox orphans should exit 0."""
+    result = _run_cli("--base-dir", "/tmp", "orphans")
+    assert result.returncode == 0
+
+
+def test_status_shows_orphan_count():
+    """slipbox status output should contain 'Orphans:'."""
+    result = _run_cli("--base-dir", "/tmp", "status")
+    assert result.returncode == 0
+    assert "Orphans:" in result.stdout
