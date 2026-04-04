@@ -3,25 +3,10 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from slipbox_mcp.formatting import format_note_summary
 from slipbox_mcp.models.schema import NoteType
-from slipbox_mcp.server.descriptions import (
-    ZK_FIND_CENTRAL_NOTES,
-    ZK_FIND_ORPHANED_NOTES,
-    ZK_FIND_SIMILAR_NOTES,
-    ZK_LIST_NOTES_BY_DATE,
-    ZK_REBUILD_INDEX,
-    ZK_SEARCH_NOTES,
-)
+from slipbox_mcp.utils import content_preview, format_tags, parse_tags
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_tags(tags: Optional[str]):
-    """Split a comma-separated tag string into a list of stripped tag names."""
-    if not tags:
-        return []
-    return [t.strip() for t in tags.split(",") if t.strip()]
 
 
 def register_search_tools(server) -> None:
@@ -31,15 +16,31 @@ def register_search_tools(server) -> None:
     zettel_service = server.zettel_service
     format_error = server.format_error_response
 
-    @mcp.tool(name="zk_search_notes", description=ZK_SEARCH_NOTES)
+    @mcp.tool(name="zk_search_notes")
     def zk_search_notes(
         query: Optional[str] = None,
         tags: Optional[str] = None,
         note_type: Optional[str] = None,
         limit: int = 10
     ) -> str:
+        """Search for notes by text, tags, or type.
+
+        Searches across titles and content. Combine parameters for precise filtering.
+
+        Examples:
+        - Search by topic: query="poetry revision"
+        - Filter by tag: tags="craft,poetry"
+        - Find structure notes: note_type="structure"
+        - Combined: query="metaphor" tags="poetry" limit=5
+
+        Args:
+            query: Text to search in titles and content (optional)
+            tags: Comma-separated tags to filter by, e.g. "poetry,craft" (optional)
+            note_type: Filter by type: fleeting/literature/permanent/structure/hub (optional)
+            limit: Maximum results to return (default: 10)
+        """
         try:
-            tag_list = _parse_tags(tags) if tags is not None else None
+            tag_list = parse_tags(tags) if tags is not None else None
 
             note_type_enum = None
             if note_type:
@@ -61,20 +62,31 @@ def register_search_tools(server) -> None:
             output = f"Found {len(results)} matching notes:\n\n"
             for i, result in enumerate(results, 1):
                 note = result.note
-                output += format_note_summary(
-                    note, index=i,
-                    extra_lines=[f"Created: {note.created_at.strftime('%Y-%m-%d')}"],
-                )
+                output += f"{i}. {note.title} (ID: {note.id})\n"
+                if note.tags:
+                    output += f"   Tags: {format_tags(note.tags)}\n"
+                output += f"   Created: {note.created_at.strftime('%Y-%m-%d')}\n"
+                output += f"   Preview: {content_preview(note.content)}\n\n"
             return output
         except Exception as e:
             return format_error(e)
 
-    @mcp.tool(name="zk_find_similar_notes", description=ZK_FIND_SIMILAR_NOTES)
+    @mcp.tool(name="zk_find_similar_notes")
     def zk_find_similar_notes(
         note_id: str,
         threshold: float = 0.3,
         limit: int = 5
     ) -> str:
+        """Find notes similar to a given note.
+
+        Similarity is based on shared tags, common links, and content overlap.
+        Useful for discovering connections you might have missed.
+
+        Args:
+            note_id: ID of the reference note
+            threshold: Minimum similarity score 0.0-1.0 (default: 0.3)
+            limit: Maximum results (default: 5)
+        """
         try:
             if not 0.0 <= threshold <= 1.0:
                 logger.warning("zk_find_similar_notes: threshold %r out of range [0.0, 1.0]", threshold)
@@ -89,16 +101,25 @@ def register_search_tools(server) -> None:
 
             output = f"Found {len(similar_notes)} similar notes for {note_id}:\n\n"
             for i, (note, similarity) in enumerate(similar_notes, 1):
-                output += format_note_summary(
-                    note, index=i, preview_len=100,
-                    extra_lines=[f"Similarity: {similarity:.2f}"],
-                )
+                output += f"{i}. {note.title} (ID: {note.id})\n"
+                output += f"   Similarity: {similarity:.2f}\n"
+                if note.tags:
+                    output += f"   Tags: {format_tags(note.tags)}\n"
+                output += f"   Preview: {content_preview(note.content)}\n\n"
             return output
         except Exception as e:
             return format_error(e)
 
-    @mcp.tool(name="zk_find_central_notes", description=ZK_FIND_CENTRAL_NOTES)
+    @mcp.tool(name="zk_find_central_notes")
     def zk_find_central_notes(limit: int = 10) -> str:
+        """Find the most connected notes in the Zettelkasten.
+
+        Central notes have the most incoming and outgoing links, making them
+        key hubs in your knowledge network. Good candidates for hub notes.
+
+        Args:
+            limit: Maximum results (default: 10)
+        """
         try:
             if limit <= 0:
                 logger.warning("zk_find_central_notes: limit %r must be a positive integer", limit)
@@ -109,16 +130,22 @@ def register_search_tools(server) -> None:
 
             output = "Central notes in the Zettelkasten (most connected):\n\n"
             for i, (note, connection_count) in enumerate(central_notes, 1):
-                output += format_note_summary(
-                    note, index=i, preview_len=100,
-                    extra_lines=[f"Connections: {connection_count}"],
-                )
+                output += f"{i}. {note.title} (ID: {note.id})\n"
+                output += f"   Connections: {connection_count}\n"
+                if note.tags:
+                    output += f"   Tags: {format_tags(note.tags)}\n"
+                output += f"   Preview: {content_preview(note.content)}\n\n"
             return output
         except Exception as e:
             return format_error(e)
 
-    @mcp.tool(name="zk_find_orphaned_notes", description=ZK_FIND_ORPHANED_NOTES)
+    @mcp.tool(name="zk_find_orphaned_notes")
     def zk_find_orphaned_notes() -> str:
+        """Find notes with no connections to other notes.
+
+        Orphaned notes represent unintegrated knowledge. Review these periodically
+        to either link them to existing notes or identify candidates for deletion.
+        """
         try:
             orphans = search_service.find_orphaned_notes()
             if not orphans:
@@ -126,18 +153,31 @@ def register_search_tools(server) -> None:
 
             output = f"Found {len(orphans)} orphaned notes:\n\n"
             for i, note in enumerate(orphans, 1):
-                output += format_note_summary(note, index=i, preview_len=100)
+                output += f"{i}. {note.title} (ID: {note.id})\n"
+                if note.tags:
+                    output += f"   Tags: {format_tags(note.tags)}\n"
+                output += f"   Preview: {content_preview(note.content)}\n\n"
             return output
         except Exception as e:
             return format_error(e)
 
-    @mcp.tool(name="zk_list_notes_by_date", description=ZK_LIST_NOTES_BY_DATE)
+    @mcp.tool(name="zk_list_notes_by_date")
     def zk_list_notes_by_date(
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         use_updated: bool = False,
         limit: int = 10
     ) -> str:
+        """List notes by creation or update date.
+
+        Useful for reviewing recent work or finding notes from a specific period.
+
+        Args:
+            start_date: Start date in ISO format YYYY-MM-DD (optional)
+            end_date: End date in ISO format YYYY-MM-DD (optional)
+            use_updated: If true, filter by updated_at instead of created_at (default: false)
+            limit: Maximum results (default: 10)
+        """
         try:
             start_datetime = None
             if start_date:
@@ -176,10 +216,11 @@ def register_search_tools(server) -> None:
             output += f" (showing {len(notes)} results):\n\n"
             for i, note in enumerate(notes, 1):
                 date = note.updated_at if use_updated else note.created_at
-                output += format_note_summary(
-                    note, index=i, preview_len=100,
-                    extra_lines=[f"{date_type.capitalize()}: {date.strftime('%Y-%m-%d %H:%M')}"],
-                )
+                output += f"{i}. {note.title} (ID: {note.id})\n"
+                output += f"   {date_type.capitalize()}: {date.strftime('%Y-%m-%d %H:%M')}\n"
+                if note.tags:
+                    output += f"   Tags: {format_tags(note.tags)}\n"
+                output += f"   Preview: {content_preview(note.content)}\n\n"
             return output
         except ValueError as e:
             logger.error("Date parsing error: %s", e)
@@ -187,8 +228,13 @@ def register_search_tools(server) -> None:
         except Exception as e:
             return format_error(e)
 
-    @mcp.tool(name="zk_rebuild_index", description=ZK_REBUILD_INDEX)
+    @mcp.tool(name="zk_rebuild_index")
     def zk_rebuild_index() -> str:
+        """Rebuild the database index from markdown files.
+
+        Use this if notes were edited outside the MCP server or if the
+        database seems out of sync with the filesystem.
+        """
         try:
             note_count_before = len(zettel_service.get_all_notes())
             zettel_service.rebuild_index()

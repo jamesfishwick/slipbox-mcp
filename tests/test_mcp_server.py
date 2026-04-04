@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
-from slipbox_mcp.server.tools.note_tools import _parse_refs
+from slipbox_mcp.utils import parse_refs
 from slipbox_mcp.models.schema import LinkType, NoteType
 
 
@@ -474,18 +474,18 @@ class TestGuardClauses(MockServerBase):
 
 
 # ---------------------------------------------------------------------------
-# Module-level helper: _parse_refs
+# Module-level helper: parse_refs
 # ---------------------------------------------------------------------------
 
 class TestParseRefs:
-    """_parse_refs splits newline-separated references and strips whitespace."""
+    """parse_refs splits newline-separated references and strips whitespace."""
 
     def test_splits_newline_separated_refs(self):
         # Arrange
         RAW = "Ahrens, S. (2017).\nhttps://zettelkasten.de"
 
         # Act
-        result = _parse_refs(RAW)
+        result = parse_refs(RAW)
 
         # Assert
         assert result == ["Ahrens, S. (2017).", "https://zettelkasten.de"], (
@@ -497,7 +497,7 @@ class TestParseRefs:
         RAW = "  ref one  \n  ref two  "
 
         # Act
-        result = _parse_refs(RAW)
+        result = parse_refs(RAW)
 
         # Assert
         assert result == ["ref one", "ref two"], (
@@ -505,17 +505,17 @@ class TestParseRefs:
         )
 
     def test_empty_string_returns_empty_list(self):
-        assert _parse_refs("") == [], "Empty string should produce empty list"
+        assert parse_refs("") == [], "Empty string should produce empty list"
 
     def test_none_returns_empty_list(self):
-        assert _parse_refs(None) == [], "None should produce empty list"
+        assert parse_refs(None) == [], "None should produce empty list"
 
     def test_trailing_newline_ignored(self):
         # Arrange
         RAW = "ref one\nref two\n"
 
         # Act
-        result = _parse_refs(RAW)
+        result = parse_refs(RAW)
 
         # Assert
         assert result == ["ref one", "ref two"], (

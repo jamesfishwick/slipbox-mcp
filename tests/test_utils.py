@@ -5,8 +5,15 @@ from datetime import datetime
 from unittest.mock import patch
 
 
-from slipbox_mcp.models.schema import Link, LinkType
-from slipbox_mcp.utils import format_note_for_display, parse_tags, setup_logging
+from slipbox_mcp.models.schema import Link, LinkType, Tag
+from slipbox_mcp.utils import (
+    content_preview,
+    format_note_for_display,
+    format_tags,
+    parse_refs,
+    parse_tags,
+    setup_logging,
+)
 
 # ---------------------------------------------------------------------------
 # Named constants
@@ -225,3 +232,98 @@ class TestFormatNoteForDisplay:
         assert f"- {LinkType.REFERENCE.value}: {LINK_TARGET_ID}\n" in output, (
             "Link line without description not formatted correctly"
         )
+
+
+# ---------------------------------------------------------------------------
+# parse_tags – None handling
+# ---------------------------------------------------------------------------
+
+
+class TestParseTagsNone:
+    """Tests for parse_tags accepting None."""
+
+    def test_none_returns_empty_list(self):
+        assert parse_tags(None) == []
+
+    def test_skips_empty_segments(self):
+        assert parse_tags("poetry,,craft,") == ["poetry", "craft"]
+
+
+# ---------------------------------------------------------------------------
+# parse_refs
+# ---------------------------------------------------------------------------
+
+
+class TestParseRefs:
+    """Tests for the parse_refs utility."""
+
+    def test_empty_string(self):
+        assert parse_refs("") == []
+
+    def test_none(self):
+        assert parse_refs(None) == []
+
+    def test_single_ref(self):
+        assert parse_refs("Ahrens (2017)") == ["Ahrens (2017)"]
+
+    def test_multiple_refs(self):
+        assert parse_refs("Ahrens (2017)\nhttps://example.com") == [
+            "Ahrens (2017)",
+            "https://example.com",
+        ]
+
+    def test_strips_whitespace(self):
+        assert parse_refs("  Ahrens (2017) \n  https://example.com  ") == [
+            "Ahrens (2017)",
+            "https://example.com",
+        ]
+
+    def test_skips_empty_lines(self):
+        assert parse_refs("Ahrens (2017)\n\nhttps://example.com\n") == [
+            "Ahrens (2017)",
+            "https://example.com",
+        ]
+
+
+# ---------------------------------------------------------------------------
+# content_preview
+# ---------------------------------------------------------------------------
+
+
+class TestContentPreview:
+    """Tests for the content_preview utility."""
+
+    def test_short_content_unchanged(self):
+        assert content_preview("hello world") == "hello world"
+
+    def test_truncates_with_ellipsis(self):
+        long = "a" * 200
+        result = content_preview(long)
+        assert len(result) == 103  # 100 + "..."
+        assert result.endswith("...")
+
+    def test_replaces_newlines(self):
+        assert content_preview("line1\nline2") == "line1 line2"
+
+    def test_custom_max_length(self):
+        result = content_preview("a" * 200, max_length=50)
+        assert len(result) == 53
+
+
+# ---------------------------------------------------------------------------
+# format_tags
+# ---------------------------------------------------------------------------
+
+
+class TestFormatTags:
+    """Tests for the format_tags utility."""
+
+    def test_empty_list(self):
+        assert format_tags([]) == ""
+
+    def test_single_tag(self):
+        assert format_tags([Tag(name="poetry")]) == "poetry"
+
+    def test_multiple_tags(self):
+        tags = [Tag(name="poetry"), Tag(name="craft")]
+        assert format_tags(tags) == "poetry, craft"
