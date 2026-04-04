@@ -165,21 +165,7 @@ class ZettelService:
         reverse_note = None
         if bidirectional:
             if bidirectional_type is None:
-                inverse_map = {
-                    LinkType.REFERENCE: LinkType.REFERENCE,
-                    LinkType.EXTENDS: LinkType.EXTENDED_BY,
-                    LinkType.EXTENDED_BY: LinkType.EXTENDS,
-                    LinkType.REFINES: LinkType.REFINED_BY,
-                    LinkType.REFINED_BY: LinkType.REFINES,
-                    LinkType.CONTRADICTS: LinkType.CONTRADICTED_BY,
-                    LinkType.CONTRADICTED_BY: LinkType.CONTRADICTS,
-                    LinkType.QUESTIONS: LinkType.QUESTIONED_BY,
-                    LinkType.QUESTIONED_BY: LinkType.QUESTIONS,
-                    LinkType.SUPPORTS: LinkType.SUPPORTED_BY,
-                    LinkType.SUPPORTED_BY: LinkType.SUPPORTS,
-                    LinkType.RELATED: LinkType.RELATED
-                }
-                bidirectional_type = inverse_map.get(link_type, link_type)
+                bidirectional_type = link_type.inverse
 
             if not self._note_has_link(target_note, source_id, bidirectional_type):
                 target_note.add_link(source_id, bidirectional_type, description)
