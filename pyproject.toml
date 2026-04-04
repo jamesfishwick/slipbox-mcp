@@ -60,3 +60,7 @@ disallow_incomplete_defs = true
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
+markers = [
+    "eval: LLM eval tests (require claude CLI)",
+    "contract: deterministic tool contract tests",
+]
