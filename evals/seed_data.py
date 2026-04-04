@@ -6,162 +6,179 @@ def populate_slipbox(zettel_service) -> dict[str, str]:
     """Build a 14-note slipbox with links and return ID reference dict.
 
     Returns dict mapping descriptive keys to note IDs, e.g.:
-        {"hub_philosophy": "20260403...", "permanent_stoic_letters": "20260403...", ...}
+        {"hub_philosophy_of_mind": "20260403...", "permanent_spinoza": "20260403...", ...}
     """
     # -- Hub (1) --
     hub = zettel_service.create_note(
-        title="Philosophy",
+        title="Philosophy of Mind",
         content=(
-            "Philosophy is the practice of examining fundamental questions about "
-            "existence, knowledge, values, and reason. It is not merely academic "
-            "but a way of living deliberately."
+            "Philosophy of mind investigates the nature of consciousness, mental "
+            "states, and their relation to the physical world. Central questions "
+            "include the hard problem of consciousness, the explanatory gap, and "
+            "whether mind is fundamental or emergent."
         ),
         note_type=NoteType.HUB,
-        tags=["philosophy"],
+        tags=["philosophy-of-mind", "consciousness"],
     )
 
     # -- Structure (2) --
-    stoicism = zettel_service.create_note(
-        title="Stoicism Overview",
+    panpsychism = zettel_service.create_note(
+        title="Panpsychism Overview",
         content=(
-            "Stoicism is a Hellenistic philosophy founded in Athens by Zeno of "
-            "Citium. Key concepts include the dichotomy of control, virtue as the "
-            "sole good, and living in accordance with nature. This note organizes "
-            "the main stoic ideas explored in this slipbox."
+            "Panpsychism is the view that consciousness or mentality is a "
+            "fundamental and ubiquitous feature of reality. Variants range from "
+            "constitutive panpsychism (micro-level experience combines into "
+            "macro-level consciousness) to cosmopsychism (the universe itself "
+            "is conscious). This note organizes the main panpsychist positions "
+            "explored in this slipbox."
         ),
         note_type=NoteType.STRUCTURE,
-        tags=["stoicism", "philosophy"],
+        tags=["panpsychism", "consciousness", "philosophy-of-mind"],
     )
 
-    epistemology = zettel_service.create_note(
-        title="Epistemology Overview",
+    wittgenstein = zettel_service.create_note(
+        title="Wittgenstein's Philosophy",
         content=(
-            "Epistemology is the branch of philosophy concerned with the nature, "
-            "sources, and limits of knowledge. This structure note organizes notes "
-            "on competing epistemological traditions."
+            "Ludwig Wittgenstein's work divides into early (Tractatus) and late "
+            "(Philosophical Investigations) periods. The early work presents a "
+            "picture theory of language; the later work replaces it with language "
+            "games and forms of life. This structure note organizes Wittgenstein's "
+            "key ideas as they relate to philosophy of mind."
         ),
         note_type=NoteType.STRUCTURE,
-        tags=["epistemology", "philosophy"],
+        tags=["wittgenstein", "language", "philosophy-of-mind"],
     )
 
     # -- Permanent (6) --
-    seneca = zettel_service.create_note(
-        title="Seneca's Letters on Anger",
+    spinoza = zettel_service.create_note(
+        title="Spinoza's Substance Monism",
         content=(
-            "In De Ira, Seneca argues that anger is a temporary madness and can be "
-            "overcome through rational self-examination. He prescribes a nightly "
-            "review of the day's events as a method for catching and defusing anger "
-            "before it takes hold."
+            "Spinoza argues in the Ethics that there is only one substance, which "
+            "he identifies with God or Nature (Deus sive Natura). Thought and "
+            "extension are two attributes of this single substance, not separate "
+            "realms. This dissolves the mind-body problem by denying dualism at "
+            "the ontological level."
         ),
         note_type=NoteType.PERMANENT,
-        tags=["stoicism", "seneca", "emotions"],
+        tags=["spinoza", "monism", "metaphysics"],
     )
 
-    marcus = zettel_service.create_note(
-        title="Marcus Aurelius on Impermanence",
+    hard_problem = zettel_service.create_note(
+        title="The Hard Problem of Consciousness",
         content=(
-            "Marcus Aurelius repeatedly returns to the theme of impermanence in "
-            "the Meditations. Everything is in flux; what seems solid will dissolve. "
-            "This awareness should free us from attachment and bring equanimity."
+            "David Chalmers formulated the hard problem: why and how do physical "
+            "processes give rise to subjective experience? Even a complete "
+            "functional account of the brain would leave unexplained why there is "
+            "something it is like to be conscious. The hard problem motivates "
+            "both panpsychism and property dualism."
         ),
         note_type=NoteType.PERMANENT,
-        tags=["stoicism", "marcus-aurelius", "meditation"],
+        tags=["consciousness", "hard-problem", "qualia"],
     )
 
-    journaling = zettel_service.create_note(
-        title="Stoic Journaling Practice",
+    faggin = zettel_service.create_note(
+        title="Faggin's Quantum Information Panpsychism",
         content=(
-            "The Stoics practiced daily reflection through journaling. Marcus "
-            "Aurelius wrote the Meditations as a personal journal. Seneca reviewed "
-            "his day each evening. Modern practitioners adapt these techniques "
-            "into structured morning and evening routines."
+            "Federico Faggin proposes that consciousness is intrinsic to "
+            "information processing at the quantum level. In his view, quantum "
+            "fields possess an inner experiential aspect that classical physics "
+            "cannot capture. This positions consciousness not as an emergent "
+            "byproduct but as fundamental to the fabric of reality."
         ),
         note_type=NoteType.PERMANENT,
-        tags=["stoicism", "journaling", "practice"],
+        tags=["panpsychism", "quantum", "faggin", "information"],
     )
 
-    plato = zettel_service.create_note(
-        title="Plato's Theory of Forms",
+    private_language = zettel_service.create_note(
+        title="Wittgenstein's Private Language Argument",
         content=(
-            "Plato posits a realm of abstract, perfect Forms (Ideas) that exist "
-            "independently of the physical world. Material objects are imperfect "
-            "copies of these Forms. True knowledge is knowledge of the Forms, "
-            "accessible only through reason, not the senses."
+            "Wittgenstein argues in the Investigations that a purely private "
+            "language -- one whose words refer to the speaker's immediate private "
+            "sensations and nothing else -- is impossible. Language requires "
+            "public criteria for correctness. If there is no way to check whether "
+            "a word is used consistently, it has no meaning."
         ),
         note_type=NoteType.PERMANENT,
-        tags=["epistemology", "plato", "metaphysics"],
+        tags=["wittgenstein", "language", "private-language"],
     )
 
-    empiricism = zettel_service.create_note(
-        title="Empiricism vs Rationalism",
+    iit = zettel_service.create_note(
+        title="Integrated Information Theory (IIT)",
         content=(
-            "Empiricists (Locke, Hume) hold that knowledge derives from sensory "
-            "experience. Rationalists (Descartes, Leibniz) argue that reason alone "
-            "can yield knowledge independent of experience. This debate shapes "
-            "modern philosophy of science and epistemology."
+            "Giulio Tononi's IIT proposes that consciousness corresponds to "
+            "integrated information, measured by phi. A system is conscious to "
+            "the degree that it is both differentiated (many possible states) and "
+            "integrated (cannot be reduced to independent parts). IIT implies "
+            "that consciousness is graded and widespread in nature."
         ),
         note_type=NoteType.PERMANENT,
-        tags=["epistemology", "philosophy-of-science"],
+        tags=["consciousness", "iit", "tononi", "information"],
     )
 
-    cbt = zettel_service.create_note(
-        title="Cognitive Behavioral Therapy Origins",
+    russellian = zettel_service.create_note(
+        title="Russellian Monism",
         content=(
-            "CBT was developed by Aaron Beck in the 1960s, but its intellectual "
-            "roots trace back to Stoic philosophy. The core CBT insight -- that "
-            "our beliefs about events, not the events themselves, cause emotional "
-            "distress -- closely mirrors Epictetus's Enchiridion."
+            "Russellian monism holds that physics describes the relational and "
+            "structural properties of matter but is silent about its intrinsic "
+            "nature. The intrinsic properties grounding physical structure may be "
+            "experiential or proto-experiential, offering a middle path between "
+            "physicalism and dualism."
         ),
         note_type=NoteType.PERMANENT,
-        tags=["psychology", "cbt", "stoicism"],
+        tags=["panpsychism", "russellian-monism", "physics"],
     )
 
     # -- Literature (2) --
-    meditations = zettel_service.create_note(
-        title="Notes on Meditations",
+    lit_faggin = zettel_service.create_note(
+        title="Notes on Faggin's Irreducible",
         content=(
-            "Reading notes from Marcus Aurelius's Meditations. Key themes: "
-            "impermanence, duty, the inner citadel, cosmopolitanism. The text is "
-            "structured as a personal journal rather than a treatise, giving it "
-            "an intimate, unpolished quality."
+            "Reading notes from Federico Faggin's Irreducible. Key themes: "
+            "consciousness as fundamental, the limits of classical computation, "
+            "quantum information as the seat of experience, and the irreducibility "
+            "of first-person awareness to algorithmic processes."
         ),
         note_type=NoteType.LITERATURE,
-        tags=["stoicism", "marcus-aurelius"],
-        references=["Aurelius, M. Meditations. Penguin Classics."],
+        tags=["faggin", "panpsychism", "quantum"],
+        references=["Faggin, F. (2022). Irreducible: Consciousness, Life, Computers, and Human Nature."],
     )
 
-    smart_notes = zettel_service.create_note(
-        title="Notes on How to Take Smart Notes",
+    lit_investigations = zettel_service.create_note(
+        title="Notes on Wittgenstein's Philosophical Investigations",
         content=(
-            "Ahrens argues that writing is not the output of thinking but the "
-            "medium in which thinking happens. The slip-box method externalizes "
-            "ideas so they can be connected, reordered, and discovered over time."
+            "Reading notes from the Philosophical Investigations. Key themes: "
+            "language games replace the picture theory, meaning is use, forms of "
+            "life ground linguistic practice, the beetle-in-a-box thought "
+            "experiment undermines private ostensive definition."
         ),
         note_type=NoteType.LITERATURE,
-        tags=["zettelkasten", "methodology"],
-        references=["Ahrens, S. (2017). How to Take Smart Notes."],
+        tags=["wittgenstein", "language-games"],
+        references=["Wittgenstein, L. (1953). Philosophical Investigations. Blackwell."],
     )
 
     # -- Fleeting (2) --
-    cbt_question = zettel_service.create_note(
-        title="Could CBT be Stoic philosophy repackaged?",
+    iit_question = zettel_service.create_note(
+        title="Is IIT just mathematical panpsychism?",
         content=(
-            "Struck by the parallels between CBT techniques and Stoic exercises. "
-            "Is CBT essentially Stoicism with a clinical veneer? Need to trace "
-            "the historical influence more carefully."
+            "IIT's phi measure assigns some degree of consciousness to any "
+            "system with integrated information. Doesn't this collapse into "
+            "panpsychism by another name? Need to compare IIT's axioms with "
+            "constitutive panpsychism more carefully."
         ),
         note_type=NoteType.FLEETING,
-        tags=["cbt", "stoicism", "question"],
+        tags=["iit", "panpsychism", "question"],
     )
 
-    skepticism = zettel_service.create_note(
-        title="Read more about Pyrrhonian skepticism",
+    spinoza_faggin = zettel_service.create_note(
+        title="Explore connection between Spinoza and Faggin",
         content=(
-            "Pyrrhonian skepticism seems like an important counterpoint to both "
-            "rationalism and empiricism. Add Sextus Empiricus to reading list."
+            "Both Spinoza and Faggin treat consciousness as fundamental rather "
+            "than emergent. Spinoza's dual-aspect monism (thought and extension "
+            "as attributes of one substance) resonates with Faggin's view that "
+            "quantum information has an experiential inner aspect. Worth tracing "
+            "the lineage more carefully."
         ),
         note_type=NoteType.FLEETING,
-        tags=["epistemology", "reading-list"],
+        tags=["spinoza", "faggin", "reading-list"],
     )
 
     # -- Orphan (1) --
@@ -176,46 +193,46 @@ def populate_slipbox(zettel_service) -> dict[str, str]:
         tags=["cooking", "recipes"],
     )
 
-    # -- Links --
+    # -- Links (12) --
     # Hub -> Structure
-    zettel_service.create_link(hub.id, stoicism.id, LinkType.REFERENCE)
-    zettel_service.create_link(hub.id, epistemology.id, LinkType.REFERENCE)
+    zettel_service.create_link(hub.id, panpsychism.id, LinkType.REFERENCE)
+    zettel_service.create_link(hub.id, wittgenstein.id, LinkType.REFERENCE)
 
-    # Structure -> Permanent (stoicism branch)
-    zettel_service.create_link(stoicism.id, seneca.id, LinkType.REFERENCE)
-    zettel_service.create_link(stoicism.id, marcus.id, LinkType.REFERENCE)
-    zettel_service.create_link(stoicism.id, journaling.id, LinkType.REFERENCE)
+    # Structure -> Permanent (panpsychism branch)
+    zettel_service.create_link(panpsychism.id, spinoza.id, LinkType.REFERENCE)
+    zettel_service.create_link(panpsychism.id, hard_problem.id, LinkType.REFERENCE)
+    zettel_service.create_link(panpsychism.id, faggin.id, LinkType.REFERENCE)
 
     # Permanent <-> Permanent
-    zettel_service.create_link(seneca.id, marcus.id, LinkType.EXTENDS)
-    zettel_service.create_link(cbt.id, seneca.id, LinkType.SUPPORTS)
+    zettel_service.create_link(spinoza.id, hard_problem.id, LinkType.EXTENDS)  # substance monism addresses the hard problem
+    zettel_service.create_link(iit.id, faggin.id, LinkType.SUPPORTS)  # both link consciousness to information
 
-    # Structure -> Permanent (epistemology branch)
-    zettel_service.create_link(epistemology.id, plato.id, LinkType.REFERENCE)
-    zettel_service.create_link(epistemology.id, empiricism.id, LinkType.REFERENCE)
+    # Structure -> Permanent (wittgenstein branch)
+    zettel_service.create_link(wittgenstein.id, private_language.id, LinkType.REFERENCE)
+    zettel_service.create_link(wittgenstein.id, russellian.id, LinkType.REFERENCE)  # later work connects to intrinsic natures
 
-    # Permanent <-> Permanent (epistemology)
-    zettel_service.create_link(plato.id, empiricism.id, LinkType.CONTRADICTS)
+    # Permanent <-> Permanent (cross-branch)
+    zettel_service.create_link(private_language.id, hard_problem.id, LinkType.CONTRADICTS)  # if no private language, qualia are suspect
 
     # Literature -> Permanent
-    zettel_service.create_link(meditations.id, marcus.id, LinkType.SUPPORTS)
+    zettel_service.create_link(lit_faggin.id, faggin.id, LinkType.SUPPORTS)
 
     # Fleeting -> Permanent
-    zettel_service.create_link(cbt_question.id, cbt.id, LinkType.RELATED)
+    zettel_service.create_link(iit_question.id, iit.id, LinkType.RELATED)
 
     return {
-        "hub_philosophy": hub.id,
-        "structure_stoicism": stoicism.id,
-        "structure_epistemology": epistemology.id,
-        "permanent_seneca": seneca.id,
-        "permanent_marcus": marcus.id,
-        "permanent_journaling": journaling.id,
-        "permanent_plato": plato.id,
-        "permanent_empiricism": empiricism.id,
-        "permanent_cbt": cbt.id,
-        "literature_meditations": meditations.id,
-        "literature_smart_notes": smart_notes.id,
-        "fleeting_cbt_question": cbt_question.id,
-        "fleeting_skepticism": skepticism.id,
+        "hub_philosophy_of_mind": hub.id,
+        "structure_panpsychism": panpsychism.id,
+        "structure_wittgenstein": wittgenstein.id,
+        "permanent_spinoza": spinoza.id,
+        "permanent_hard_problem": hard_problem.id,
+        "permanent_faggin": faggin.id,
+        "permanent_private_language": private_language.id,
+        "permanent_iit": iit.id,
+        "permanent_russellian": russellian.id,
+        "literature_faggin_book": lit_faggin.id,
+        "literature_investigations": lit_investigations.id,
+        "fleeting_iit_question": iit_question.id,
+        "fleeting_spinoza_faggin": spinoza_faggin.id,
         "orphan_pasta": pasta.id,
     }

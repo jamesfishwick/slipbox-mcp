@@ -11,12 +11,12 @@ from evals.conftest import run_claude_eval
 class TestSearch:
 
     def test_finds_notes_by_topic(self, seeded_slipbox, test_config):
-        """LLM should find epistemology-related notes when asked."""
+        """LLM should find panpsychism-related notes when asked."""
         svc, refs = seeded_slipbox
 
         result = run_claude_eval(
             prompt=(
-                "What notes do I have about epistemology? "
+                "What notes do I have about panpsychism? "
                 "List them with their titles."
             ),
             notes_dir=svc.repository.notes_dir,
@@ -24,46 +24,47 @@ class TestSearch:
         )
         assert result["exit_code"] == 0, f"claude failed: {result['stderr']}"
 
-        # Grade: output should mention at least 2 of the 3 epistemology-related notes
-        # (Plato's Forms, Empiricism vs Rationalism, Epistemology Overview)
+        # Grade: output should mention at least 2 of the panpsychism-related notes
+        # (Faggin, IIT, Russellian Monism, Panpsychism Overview, Spinoza)
         output = result["output"].lower()
         mentions = sum([
-            "plato" in output or "forms" in output,
-            "empiricism" in output or "rationalism" in output,
-            "epistemology overview" in output or "epistemology" in output,
+            "faggin" in output or "quantum" in output,
+            "iit" in output or "integrated information" in output,
+            "panpsychism overview" in output or "russellian" in output,
         ])
         assert mentions >= 2, (
-            f"Expected output to mention at least 2 epistemology-related notes, "
+            f"Expected output to mention at least 2 panpsychism-related notes, "
             f"found {mentions}. Output: {output[:500]}"
         )
 
     def test_finds_connections_between_topics(self, seeded_slipbox, test_config):
-        """LLM should identify connections between stoicism and psychology."""
+        """LLM should identify connections between panpsychism and Wittgenstein."""
         svc, refs = seeded_slipbox
 
         result = run_claude_eval(
             prompt=(
-                "How does stoicism connect to psychology in my slipbox? "
-                "Trace the connections between these topics."
+                "How does panpsychism connect to Wittgenstein's philosophy in "
+                "my slipbox? Trace the connections between these topics."
             ),
             notes_dir=svc.repository.notes_dir,
             db_path=test_config.get_absolute_path(test_config.database_path),
         )
         assert result["exit_code"] == 0, f"claude failed: {result['stderr']}"
 
-        # Grade: output should mention the CBT note and at least one stoicism note
+        # Grade: output should mention the hard problem (bridge between branches)
+        # and at least one note from each branch
         output = result["output"].lower()
-        assert "cbt" in output or "cognitive behavioral" in output, (
-            f"Expected mention of CBT note. Output: {output[:500]}"
+        assert "hard problem" in output or "consciousness" in output or "qualia" in output, (
+            f"Expected mention of hard problem / consciousness. Output: {output[:500]}"
         )
-        stoic_mentions = (
-            "seneca" in output
-            or "marcus" in output
-            or "stoic" in output
-            or "epictetus" in output
+        panpsychism_mentions = (
+            "faggin" in output
+            or "panpsych" in output
+            or "spinoza" in output
+            or "iit" in output
         )
-        assert stoic_mentions, (
-            f"Expected mention of stoicism-related note. Output: {output[:500]}"
+        assert panpsychism_mentions, (
+            f"Expected mention of panpsychism-related note. Output: {output[:500]}"
         )
 
     def test_identifies_orphan_notes(self, seeded_slipbox, test_config):

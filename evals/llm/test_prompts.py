@@ -18,10 +18,10 @@ class TestPrompts:
 
         result = run_claude_eval(
             prompt=(
-                "I have several related ideas about the philosophy of mind: "
-                "(1) consciousness might be an illusion, "
-                "(2) qualia are private by definition, "
-                "(3) the hard problem may be a category error. "
+                "I have several related ideas about consciousness and information: "
+                "(1) IIT's phi could be a formalization of Russellian intrinsic properties, "
+                "(2) Faggin's quantum panpsychism needs a combination mechanism, "
+                "(3) Wittgenstein's beetle-in-a-box maps onto the hard problem. "
                 "Process these into my slipbox as a batch."
             ),
             notes_dir=svc.repository.notes_dir,
@@ -49,12 +49,12 @@ class TestPrompts:
         )
 
     def test_knowledge_synthesis(self, seeded_slipbox, test_config):
-        """LLM should synthesize connections between stoicism and epistemology."""
+        """LLM should synthesize connections between panpsychism and Wittgenstein."""
         svc, refs = seeded_slipbox
 
         result = run_claude_eval(
             prompt=(
-                "Look at my notes on stoicism and epistemology. Can you find "
+                "Look at my notes on panpsychism and Wittgenstein. Can you find "
                 "any bridges or synthesis opportunities between these two areas?"
             ),
             notes_dir=svc.repository.notes_dir,
@@ -64,18 +64,18 @@ class TestPrompts:
 
         # Grade: output should mention notes from both clusters
         output = result["output"].lower()
-        has_stoicism = (
-            "stoic" in output or "seneca" in output or "marcus" in output
+        has_panpsychism = (
+            "panpsych" in output or "faggin" in output or "iit" in output
         )
-        has_epistemology = (
-            "epistemology" in output or "plato" in output
-            or "empiricism" in output or "rationalism" in output
+        has_wittgenstein = (
+            "wittgenstein" in output or "private language" in output
+            or "language game" in output or "investigations" in output
         )
-        assert has_stoicism, (
-            f"Expected mention of stoicism-related notes. Output: {output[:500]}"
+        assert has_panpsychism, (
+            f"Expected mention of panpsychism-related notes. Output: {output[:500]}"
         )
-        assert has_epistemology, (
-            f"Expected mention of epistemology-related notes. Output: {output[:500]}"
+        assert has_wittgenstein, (
+            f"Expected mention of Wittgenstein-related notes. Output: {output[:500]}"
         )
 
     def test_analyze_note(self, seeded_slipbox, test_config):

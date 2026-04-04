@@ -16,7 +16,8 @@ class TestNoteCreation:
 
         result = run_claude_eval(
             prompt=(
-                "Add a note about how Seneca's letters relate to modern cognitive behavioral therapy. "
+                "Add a note about how Spinoza's conatus concept relates to Faggin's "
+                "view that consciousness is fundamental to information processing. "
                 "Tag it appropriately and link to any related existing notes."
             ),
             notes_dir=svc.repository.notes_dir,
@@ -34,12 +35,12 @@ class TestNoteCreation:
         )
 
         # Grade: does the new note have relevant tags?
-        relevant_tags = {"stoicism", "cbt", "philosophy", "psychology", "seneca",
-                        "cognitive-behavioral-therapy", "therapy", "emotions"}
+        relevant_tags = {"panpsychism", "consciousness", "spinoza", "faggin",
+                        "quantum", "conatus", "information", "philosophy-of-mind"}
         new_note = new_notes[0]
         tag_names = {t.name.lower() for t in new_note.tags}
         assert tag_names & relevant_tags, (
-            f"Expected tags related to stoicism/CBT, got: {tag_names}"
+            f"Expected tags related to panpsychism/consciousness, got: {tag_names}"
         )
 
     def test_creates_links_to_existing_notes(self, seeded_slipbox, test_config):
@@ -48,8 +49,8 @@ class TestNoteCreation:
 
         result = run_claude_eval(
             prompt=(
-                "Add a note about Stoic mindfulness practices. "
-                "Connect it to my existing notes about Stoicism."
+                "Add a note about the combination problem in panpsychism. "
+                "Connect it to my existing notes about panpsychism."
             ),
             notes_dir=svc.repository.notes_dir,
             db_path=test_config.get_absolute_path(test_config.database_path),
@@ -75,8 +76,8 @@ class TestNoteCreation:
 
         result = run_claude_eval(
             prompt=(
-                "Add a literature note about Nassim Taleb's concept of "
-                "antifragility from his book Antifragile (2012). "
+                "Add a literature note about Chalmers' formulation of the hard "
+                "problem from his book The Conscious Mind (1996). "
                 "Include the citation as a reference."
             ),
             notes_dir=svc.repository.notes_dir,
@@ -108,9 +109,9 @@ class TestNoteCreation:
 
         result = run_claude_eval(
             prompt=(
-                "Quick thought: there might be a connection between Stoic "
-                "ataraxia and Buddhist equanimity. Capture this as a fleeting "
-                "note for later processing."
+                "Quick thought: there might be a connection between Russellian "
+                "monism and Spinoza's dual-aspect theory. Capture this as a "
+                "fleeting note for later processing."
             ),
             notes_dir=svc.repository.notes_dir,
             db_path=test_config.get_absolute_path(test_config.database_path),
@@ -136,9 +137,9 @@ class TestNoteCreation:
 
         result = run_claude_eval(
             prompt=(
-                "Add a new permanent note about Marcus Aurelius's daily meditation "
-                "routine as a leadership practice. Search for related existing notes "
-                "first and link to them."
+                "Add a new permanent note about how IIT's phi measure could serve "
+                "as empirical evidence for panpsychism. Search for related existing "
+                "notes first and link to them."
             ),
             notes_dir=svc.repository.notes_dir,
             db_path=test_config.get_absolute_path(test_config.database_path),
@@ -155,13 +156,13 @@ class TestNoteCreation:
         linked = svc.get_linked_notes(new_note.id, "both")
         linked_ids = {n.id for n in linked}
         related_ids = {
-            refs["permanent_marcus"],
-            refs["literature_meditations"],
-            refs["structure_stoicism"],
-            refs["permanent_seneca"],
-            refs["permanent_journaling"],
+            refs["permanent_iit"],
+            refs["permanent_faggin"],
+            refs["structure_panpsychism"],
+            refs["permanent_hard_problem"],
+            refs["fleeting_iit_question"],
         }
         assert linked_ids & related_ids, (
-            f"Expected links to existing Marcus Aurelius/stoicism notes. "
+            f"Expected links to existing IIT/panpsychism notes. "
             f"Linked to: {linked_ids}, expected overlap with: {related_ids}"
         )

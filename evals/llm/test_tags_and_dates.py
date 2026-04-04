@@ -25,7 +25,7 @@ class TestTagsAndDates:
 
         # Grade: output should mention several seed data tags
         output = result["output"].lower()
-        expected_tags = ["stoicism", "philosophy", "epistemology"]
+        expected_tags = ["panpsychism", "consciousness", "wittgenstein"]
         matches = sum(1 for tag in expected_tags if tag in output)
         assert matches >= 2, (
             f"Expected output to mention at least 2 of {expected_tags}. "
@@ -49,13 +49,13 @@ class TestTagsAndDates:
         output = result["output"].lower()
         # Any of the seed notes would be valid -- they were all created "recently"
         note_mentions = (
-            "seneca" in output
-            or "marcus" in output
-            or "plato" in output
+            "spinoza" in output
+            or "faggin" in output
+            or "wittgenstein" in output
             or "pasta" in output
-            or "stoic" in output
-            or "epistemology" in output
-            or "cbt" in output
+            or "panpsych" in output
+            or "consciousness" in output
+            or "iit" in output
         )
         assert note_mentions, (
             f"Expected output to mention seed data notes. Output: {output[:500]}"
@@ -77,13 +77,13 @@ class TestTagsAndDates:
         # Grade: output should mention hub/structure notes (they have the most links)
         output = result["output"].lower()
         central_mentions = (
-            "stoicism overview" in output
-            or "philosophy" in output
-            or "epistemology overview" in output
+            "panpsychism overview" in output
+            or "philosophy of mind" in output
+            or "wittgenstein" in output
             or "hub" in output
             or "structure" in output
-            or "seneca" in output
-            or "marcus" in output
+            or "hard problem" in output
+            or "faggin" in output
         )
         assert central_mentions, (
             f"Expected output to mention well-connected notes. Output: {output[:500]}"
