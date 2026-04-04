@@ -12,6 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv venv && uv pip install -e ".[dev]"
+      - run: uv venv && uv pip install -e ".[dev]" && uv pip install ruff
       - run: source .venv/bin/activate && ruff check src/ evals/
       - run: source .venv/bin/activate && pytest -q
