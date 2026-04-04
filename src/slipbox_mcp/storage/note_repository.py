@@ -516,8 +516,11 @@ class NoteRepository(Repository[Note]):
                     else:
                         self._index_note(note)
             except Exception:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(original_content)
+                try:
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(original_content)
+                except IOError:
+                    logger.error("Failed to roll back file %s after DB error", file_path)
                 raise
 
         return note
@@ -529,6 +532,8 @@ class NoteRepository(Repository[Note]):
             raise ValueError(f"Note with ID {id} does not exist")
 
         with self.file_lock:
+            original_content = file_path.read_text(encoding="utf-8")
+
             try:
                 os.remove(file_path)
             except IOError as e:
@@ -541,7 +546,13 @@ class NoteRepository(Repository[Note]):
                         session.delete(db_note)
                         session.commit()
             except Exception as e:
-                logger.error("File deleted but DB cleanup failed for note %s: %s", id, e)
+                # Restore file to maintain sync
+                try:
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(original_content)
+                except IOError:
+                    logger.error("Failed to restore file %s after DB error", file_path)
+                logger.error("DB cleanup failed for note %s, file restored: %s", id, e)
                 raise
 
     def search(self, **kwargs: Any) -> List[Note]:

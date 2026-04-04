@@ -36,17 +36,17 @@ class TestCreateAtomicity:
 class TestDeleteAtomicity:
     """Verify delete() keeps file and DB in sync under failure."""
 
-    def test_db_failure_after_file_delete_raises(self, note_repository, zettel_service):
-        """If DB delete fails after file removal, the error should propagate."""
+    def test_db_failure_restores_file(self, note_repository, zettel_service):
+        """If DB delete fails after file removal, file should be restored."""
         note = zettel_service.create_note(
             title="Delete Sync Test",
             content="Testing delete atomicity.",
         )
         note_id = note.id
 
-        # Verify file exists
         file_path = note_repository.notes_dir / f"{note_id}.md"
         assert file_path.exists()
+        original_content = file_path.read_text()
 
         with patch.object(
             note_repository, "session_factory", side_effect=RuntimeError("DB down")
@@ -54,8 +54,9 @@ class TestDeleteAtomicity:
             with pytest.raises(RuntimeError, match="DB down"):
                 note_repository.delete(note_id)
 
-        # File should be gone (delete succeeded at file level)
-        assert not file_path.exists()
+        # File should be restored after DB failure
+        assert file_path.exists(), "File was not restored after DB failure"
+        assert file_path.read_text() == original_content
 
     def test_delete_cleans_db_on_success(self, note_repository, zettel_service):
         """Normal delete removes both file and DB record."""
