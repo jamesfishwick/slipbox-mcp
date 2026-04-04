@@ -1,7 +1,6 @@
 """Utility functions for the Zettelkasten MCP server."""
 import logging
 import sys
-from datetime import datetime
 from typing import Optional
 
 def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
@@ -24,32 +23,29 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
 
     logging.basicConfig(**log_config)
 
-def parse_tags(tags_str: str) -> list[str]:
+def parse_tags(tags_str: Optional[str]) -> list[str]:
     """Parse a comma-separated list of tags into a list of tag strings."""
     if not tags_str:
         return []
     return [tag.strip() for tag in tags_str.split(",") if tag.strip()]
 
-def format_note_for_display(title: str, id: str, content: str, tags: list[str],
-                          created_at: datetime, updated_at: datetime,
-                          links: Optional[list] = None) -> str:
-    """Format a note for display in the console."""
-    result = f"# {title}\n"
-    result += f"ID: {id}\n"
-    result += f"Created: {created_at.isoformat()}\n"
-    result += f"Updated: {updated_at.isoformat()}\n"
 
-    if tags:
-        result += f"Tags: {', '.join(tags)}\n"
+def parse_refs(references: Optional[str]) -> list[str]:
+    """Parse a newline-separated references string into a list of stripped entries."""
+    if not references:
+        return []
+    return [r.strip() for r in references.split("\n") if r.strip()]
 
-    result += f"\n{content}\n"
 
-    if links:
-        result += "\n## Links\n"
-        for link in links:
-            if hasattr(link, "description") and link.description:
-                result += f"- {link.link_type.value}: {link.target_id} - {link.description}\n"
-            else:
-                result += f"- {link.link_type.value}: {link.target_id}\n"
+def content_preview(text: str, max_length: int = 100) -> str:
+    """Return a single-line preview of *text*, truncated with ellipsis if needed."""
+    preview = text[:max_length].replace("\n", " ")
+    if len(text) > max_length:
+        preview += "..."
+    return preview
 
-    return result
+
+def format_tags(tags: list) -> str:
+    """Format a list of Tag objects as a comma-separated string."""
+    return ", ".join(tag.name for tag in tags)
+

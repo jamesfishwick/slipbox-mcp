@@ -1,12 +1,17 @@
 # tests/test_utils.py
 """Tests for utility functions in slipbox_mcp.utils."""
 import logging
-from datetime import datetime
 from unittest.mock import patch
 
 
-from slipbox_mcp.models.schema import Link, LinkType
-from slipbox_mcp.utils import format_note_for_display, parse_tags, setup_logging
+from slipbox_mcp.models.schema import Tag
+from slipbox_mcp.utils import (
+    content_preview,
+    format_tags,
+    parse_refs,
+    parse_tags,
+    setup_logging,
+)
 
 # ---------------------------------------------------------------------------
 # Named constants
@@ -16,16 +21,6 @@ SAMPLE_TAGS_CSV = "python, testing, notes"
 EXPECTED_TAGS = ["python", "testing", "notes"]
 SINGLE_TAG = "python"
 TRAILING_COMMA_CSV = "python, testing,"
-
-SAMPLE_TITLE = "Test Note"
-SAMPLE_ID = "20250101T120000000000000"
-SAMPLE_CONTENT = "This is the note body."
-SAMPLE_CREATED = datetime(2025, 1, 1, 12, 0, 0)
-SAMPLE_UPDATED = datetime(2025, 1, 2, 12, 0, 0)
-SAMPLE_TAGS_LIST = ["python", "testing"]
-
-LINK_TARGET_ID = "20250101T130000000000000"
-LINK_DESCRIPTION = "See also this note"
 
 
 # ---------------------------------------------------------------------------
@@ -122,106 +117,95 @@ class TestSetupLogging:
 
 
 # ---------------------------------------------------------------------------
-# format_note_for_display
+# parse_tags – None handling
 # ---------------------------------------------------------------------------
 
 
-class TestFormatNoteForDisplay:
-    """Tests for the format_note_for_display utility."""
+class TestParseTagsNone:
+    """Tests for parse_tags accepting None."""
 
-    def test_basic_fields_appear_in_output(self):
-        # Arrange / Act
-        output = format_note_for_display(
-            title=SAMPLE_TITLE,
-            id=SAMPLE_ID,
-            content=SAMPLE_CONTENT,
-            tags=[],
-            created_at=SAMPLE_CREATED,
-            updated_at=SAMPLE_UPDATED,
-        )
+    def test_none_returns_empty_list(self):
+        assert parse_tags(None) == []
 
-        # Assert
-        assert f"# {SAMPLE_TITLE}" in output, "Title not found in output"
-        assert f"ID: {SAMPLE_ID}" in output, "ID not found in output"
-        assert SAMPLE_CONTENT in output, "Content not found in output"
+    def test_skips_empty_segments(self):
+        assert parse_tags("poetry,,craft,") == ["poetry", "craft"]
 
-    def test_tags_appear_when_provided(self):
-        # Arrange / Act
-        output = format_note_for_display(
-            title=SAMPLE_TITLE,
-            id=SAMPLE_ID,
-            content=SAMPLE_CONTENT,
-            tags=SAMPLE_TAGS_LIST,
-            created_at=SAMPLE_CREATED,
-            updated_at=SAMPLE_UPDATED,
-        )
 
-        # Assert
-        assert "Tags:" in output, "Tags line missing from output"
-        for tag in SAMPLE_TAGS_LIST:
-            assert tag in output, f"Tag '{tag}' not found in output"
+# ---------------------------------------------------------------------------
+# parse_refs
+# ---------------------------------------------------------------------------
 
-    def test_tags_absent_when_empty(self):
-        # Arrange / Act
-        output = format_note_for_display(
-            title=SAMPLE_TITLE,
-            id=SAMPLE_ID,
-            content=SAMPLE_CONTENT,
-            tags=[],
-            created_at=SAMPLE_CREATED,
-            updated_at=SAMPLE_UPDATED,
-        )
 
-        # Assert
-        assert "Tags:" not in output, "Tags line should be absent for empty tags"
+class TestParseRefs:
+    """Tests for the parse_refs utility."""
 
-    def test_links_section_renders_with_description(self):
-        # Arrange
-        link = Link(
-            source_id=SAMPLE_ID,
-            target_id=LINK_TARGET_ID,
-            link_type=LinkType.REFERENCE,
-            description=LINK_DESCRIPTION,
-        )
+    def test_empty_string(self):
+        assert parse_refs("") == []
 
-        # Act
-        output = format_note_for_display(
-            title=SAMPLE_TITLE,
-            id=SAMPLE_ID,
-            content=SAMPLE_CONTENT,
-            tags=[],
-            created_at=SAMPLE_CREATED,
-            updated_at=SAMPLE_UPDATED,
-            links=[link],
-        )
+    def test_none(self):
+        assert parse_refs(None) == []
 
-        # Assert
-        assert "## Links" in output, "Links header missing"
-        assert LINK_TARGET_ID in output, "Link target_id missing"
-        assert LINK_DESCRIPTION in output, "Link description missing"
+    def test_single_ref(self):
+        assert parse_refs("Ahrens (2017)") == ["Ahrens (2017)"]
 
-    def test_links_section_renders_without_description(self):
-        # Arrange
-        link = Link(
-            source_id=SAMPLE_ID,
-            target_id=LINK_TARGET_ID,
-            link_type=LinkType.REFERENCE,
-        )
+    def test_multiple_refs(self):
+        assert parse_refs("Ahrens (2017)\nhttps://example.com") == [
+            "Ahrens (2017)",
+            "https://example.com",
+        ]
 
-        # Act
-        output = format_note_for_display(
-            title=SAMPLE_TITLE,
-            id=SAMPLE_ID,
-            content=SAMPLE_CONTENT,
-            tags=[],
-            created_at=SAMPLE_CREATED,
-            updated_at=SAMPLE_UPDATED,
-            links=[link],
-        )
+    def test_strips_whitespace(self):
+        assert parse_refs("  Ahrens (2017) \n  https://example.com  ") == [
+            "Ahrens (2017)",
+            "https://example.com",
+        ]
 
-        # Assert
-        assert "## Links" in output, "Links header missing"
-        assert LINK_TARGET_ID in output, "Link target_id missing"
-        assert f"- {LinkType.REFERENCE.value}: {LINK_TARGET_ID}\n" in output, (
-            "Link line without description not formatted correctly"
-        )
+    def test_skips_empty_lines(self):
+        assert parse_refs("Ahrens (2017)\n\nhttps://example.com\n") == [
+            "Ahrens (2017)",
+            "https://example.com",
+        ]
+
+
+# ---------------------------------------------------------------------------
+# content_preview
+# ---------------------------------------------------------------------------
+
+
+class TestContentPreview:
+    """Tests for the content_preview utility."""
+
+    def test_short_content_unchanged(self):
+        assert content_preview("hello world") == "hello world"
+
+    def test_truncates_with_ellipsis(self):
+        long = "a" * 200
+        result = content_preview(long)
+        assert len(result) == 103  # 100 + "..."
+        assert result.endswith("...")
+
+    def test_replaces_newlines(self):
+        assert content_preview("line1\nline2") == "line1 line2"
+
+    def test_custom_max_length(self):
+        result = content_preview("a" * 200, max_length=50)
+        assert len(result) == 53
+
+
+# ---------------------------------------------------------------------------
+# format_tags
+# ---------------------------------------------------------------------------
+
+
+class TestFormatTags:
+    """Tests for the format_tags utility."""
+
+    def test_empty_list(self):
+        assert format_tags([]) == ""
+
+    def test_single_tag(self):
+        assert format_tags([Tag(name="poetry")]) == "poetry"
+
+    def test_multiple_tags(self):
+        tags = [Tag(name="poetry"), Tag(name="craft")]
+        assert format_tags(tags) == "poetry, craft"
