@@ -341,6 +341,41 @@ class TestScoreCluster:
         assert result["internal_links"] == 0, f"Expected 0 internal links, got {result['internal_links']}"
 
 
+class TestReportPath:
+    """ClusterService should support configurable report paths."""
+
+    def test_save_report_to_custom_path(self, tmp_path):
+        """save_report should use the configured report path."""
+        from datetime import datetime
+
+        service = ClusterService(report_path=tmp_path / "report.json")
+        report = ClusterReport(
+            generated_at=datetime.now(),
+            clusters=[],
+            stats={},
+            dismissed_cluster_ids=[],
+        )
+        path = service.save_report(report)
+        assert path == tmp_path / "report.json"
+        assert path.exists()
+
+    def test_load_report_from_custom_path(self, tmp_path):
+        """load_report should read from the configured report path."""
+        from datetime import datetime
+
+        service = ClusterService(report_path=tmp_path / "report.json")
+        report = ClusterReport(
+            generated_at=datetime.now(),
+            clusters=[],
+            stats={"total_notes": 0},
+            dismissed_cluster_ids=[],
+        )
+        service.save_report(report)
+        loaded = service.load_report()
+        assert loaded is not None
+        assert loaded.stats == {"total_notes": 0}
+
+
 class TestDetectClusters:
     """detect_clusters runs the full cluster detection pipeline."""
 

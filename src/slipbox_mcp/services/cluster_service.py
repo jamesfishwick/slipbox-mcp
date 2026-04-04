@@ -23,8 +23,9 @@ logger = logging.getLogger(__name__)
 class ClusterService:
     """Service for detecting and managing knowledge clusters."""
 
-    def __init__(self, zettel_service: Optional[ZettelService] = None):
+    def __init__(self, zettel_service: Optional[ZettelService] = None, report_path: Optional[Path] = None):
         self.zettel_service = zettel_service or ZettelService()
+        self.report_path = Path(report_path) if report_path is not None else REPORT_PATH
 
     def build_tag_cooccurrence(self, notes: List[Note]) -> Dict[Tuple[str, str], int]:
         """Build matrix of tag pairs that appear together on notes."""
@@ -197,7 +198,7 @@ class ClusterService:
 
     def save_report(self, report: ClusterReport) -> Path:
         """Save cluster report to JSON file."""
-        REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        self.report_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
             "generated_at": report.generated_at.isoformat(),
@@ -220,16 +221,16 @@ class ClusterService:
             "dismissed_cluster_ids": report.dismissed_cluster_ids
         }
 
-        REPORT_PATH.write_text(json.dumps(data, indent=2))
-        return REPORT_PATH
+        self.report_path.write_text(json.dumps(data, indent=2))
+        return self.report_path
 
     def load_report(self) -> Optional[ClusterReport]:
         """Load cluster report from JSON file."""
-        if not REPORT_PATH.exists():
+        if not self.report_path.exists():
             return None
 
         try:
-            data = json.loads(REPORT_PATH.read_text())
+            data = json.loads(self.report_path.read_text())
             return ClusterReport(
                 generated_at=datetime.fromisoformat(data["generated_at"]),
                 clusters=[
