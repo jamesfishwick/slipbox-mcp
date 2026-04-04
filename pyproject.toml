@@ -36,7 +36,7 @@ dev = [
 ]
 
 [project.scripts]
-zk = "slipbox_mcp.cli:main"
+slipbox = "slipbox_mcp.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

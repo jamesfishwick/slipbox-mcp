@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Zettelkasten CLI for maintenance and inspection tasks.
+"""Slipbox CLI for maintenance and inspection tasks.
 
 This CLI provides mechanical/read-only operations that don't require agent
 intelligence. It complements the MCP server (which handles intelligent note
@@ -76,7 +76,7 @@ def cmd_clusters(args):
     report = cluster.load_report()
 
     if not report:
-        print("No cluster report. Run: zk rebuild --clusters")
+        print("No cluster report. Run: slipbox rebuild --clusters")
         return
 
     active = [c for c in report.clusters if c.id not in report.dismissed_cluster_ids]
@@ -168,7 +168,7 @@ def cmd_tags(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="zk",
+        prog="slipbox",
         description="Zettelkasten CLI for maintenance and inspection"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
