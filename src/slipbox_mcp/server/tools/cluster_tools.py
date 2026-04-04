@@ -1,6 +1,8 @@
 """Cluster analysis and structure note tools."""
 import logging
 from typing import Optional
+
+from slipbox_mcp.formatting import format_cluster_summary
 from slipbox_mcp.models.schema import LinkType, NoteType
 
 logger = logging.getLogger(__name__)
@@ -66,18 +68,7 @@ def register_cluster_tools(server) -> None:
             output += f"{report.stats['clusters_needing_structure']} clusters need structure notes\n\n"
 
             for i, cluster in enumerate(clusters, 1):
-                output += f"{i}. {cluster.suggested_title}\n"
-                output += f"   ID: {cluster.id}\n"
-                output += f"   Score: {cluster.score} | Notes: {cluster.note_count} | Orphans: {cluster.orphan_count}\n"
-                output += f"   Tags: {', '.join(cluster.tags)}\n"
-
-                if include_notes:
-                    output += "   Notes:\n"
-                    for note in cluster.notes[:10]:
-                        output += f"     - {note['title']} ({note['id']})\n"
-                    if len(cluster.notes) > 10:
-                        output += f"     ... and {len(cluster.notes) - 10} more\n"
-                output += "\n"
+                output += format_cluster_summary(cluster, index=i, include_notes=include_notes)
 
             return output
         except Exception as e:

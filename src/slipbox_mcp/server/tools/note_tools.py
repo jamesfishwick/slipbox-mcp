@@ -2,6 +2,7 @@
 import logging
 from typing import List, Optional
 
+from slipbox_mcp.formatting import format_note_detail
 from slipbox_mcp.models.schema import NoteType
 
 logger = logging.getLogger(__name__)
@@ -98,19 +99,7 @@ def register_note_tools(server) -> None:
             if not note:
                 return f"Note not found: {identifier}"
 
-            result = f"# {note.title}\n"
-            result += f"ID: {note.id}\n"
-            result += f"Type: {note.note_type.value}\n"
-            result += f"Created: {note.created_at.isoformat()}\n"
-            result += f"Updated: {note.updated_at.isoformat()}\n"
-            if note.tags:
-                result += f"Tags: {', '.join(tag.name for tag in note.tags)}\n"
-            if note.references:
-                result += "References:\n"
-                for ref in note.references:
-                    result += f"  - {ref}\n"
-            result += f"\n{note.content}\n"
-            return result
+            return format_note_detail(note)
         except Exception as e:
             return format_error(e)
 

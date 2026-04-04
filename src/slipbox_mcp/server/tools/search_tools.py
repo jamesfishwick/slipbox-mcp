@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+from slipbox_mcp.formatting import format_note_summary
 from slipbox_mcp.models.schema import NoteType
 
 logger = logging.getLogger(__name__)
@@ -68,14 +69,10 @@ def register_search_tools(server) -> None:
             output = f"Found {len(results)} matching notes:\n\n"
             for i, result in enumerate(results, 1):
                 note = result.note
-                output += f"{i}. {note.title} (ID: {note.id})\n"
-                if note.tags:
-                    output += f"   Tags: {', '.join(tag.name for tag in note.tags)}\n"
-                output += f"   Created: {note.created_at.strftime('%Y-%m-%d')}\n"
-                content_preview = note.content[:150].replace("\n", " ")
-                if len(note.content) > 150:
-                    content_preview += "..."
-                output += f"   Preview: {content_preview}\n\n"
+                output += format_note_summary(
+                    note, index=i,
+                    extra_lines=[f"Created: {note.created_at.strftime('%Y-%m-%d')}"],
+                )
             return output
         except Exception as e:
             return format_error(e)
@@ -110,14 +107,10 @@ def register_search_tools(server) -> None:
 
             output = f"Found {len(similar_notes)} similar notes for {note_id}:\n\n"
             for i, (note, similarity) in enumerate(similar_notes, 1):
-                output += f"{i}. {note.title} (ID: {note.id})\n"
-                output += f"   Similarity: {similarity:.2f}\n"
-                if note.tags:
-                    output += f"   Tags: {', '.join(tag.name for tag in note.tags)}\n"
-                content_preview = note.content[:100].replace("\n", " ")
-                if len(note.content) > 100:
-                    content_preview += "..."
-                output += f"   Preview: {content_preview}\n\n"
+                output += format_note_summary(
+                    note, index=i, preview_len=100,
+                    extra_lines=[f"Similarity: {similarity:.2f}"],
+                )
             return output
         except Exception as e:
             return format_error(e)
@@ -142,14 +135,10 @@ def register_search_tools(server) -> None:
 
             output = "Central notes in the Zettelkasten (most connected):\n\n"
             for i, (note, connection_count) in enumerate(central_notes, 1):
-                output += f"{i}. {note.title} (ID: {note.id})\n"
-                output += f"   Connections: {connection_count}\n"
-                if note.tags:
-                    output += f"   Tags: {', '.join(tag.name for tag in note.tags)}\n"
-                content_preview = note.content[:100].replace("\n", " ")
-                if len(note.content) > 100:
-                    content_preview += "..."
-                output += f"   Preview: {content_preview}\n\n"
+                output += format_note_summary(
+                    note, index=i, preview_len=100,
+                    extra_lines=[f"Connections: {connection_count}"],
+                )
             return output
         except Exception as e:
             return format_error(e)
@@ -168,13 +157,7 @@ def register_search_tools(server) -> None:
 
             output = f"Found {len(orphans)} orphaned notes:\n\n"
             for i, note in enumerate(orphans, 1):
-                output += f"{i}. {note.title} (ID: {note.id})\n"
-                if note.tags:
-                    output += f"   Tags: {', '.join(tag.name for tag in note.tags)}\n"
-                content_preview = note.content[:100].replace("\n", " ")
-                if len(note.content) > 100:
-                    content_preview += "..."
-                output += f"   Preview: {content_preview}\n\n"
+                output += format_note_summary(note, index=i, preview_len=100)
             return output
         except Exception as e:
             return format_error(e)
@@ -234,14 +217,10 @@ def register_search_tools(server) -> None:
             output += f" (showing {len(notes)} results):\n\n"
             for i, note in enumerate(notes, 1):
                 date = note.updated_at if use_updated else note.created_at
-                output += f"{i}. {note.title} (ID: {note.id})\n"
-                output += f"   {date_type.capitalize()}: {date.strftime('%Y-%m-%d %H:%M')}\n"
-                if note.tags:
-                    output += f"   Tags: {', '.join(tag.name for tag in note.tags)}\n"
-                content_preview = note.content[:100].replace("\n", " ")
-                if len(note.content) > 100:
-                    content_preview += "..."
-                output += f"   Preview: {content_preview}\n\n"
+                output += format_note_summary(
+                    note, index=i, preview_len=100,
+                    extra_lines=[f"{date_type.capitalize()}: {date.strftime('%Y-%m-%d %H:%M')}"],
+                )
             return output
         except ValueError as e:
             logger.error("Date parsing error: %s", e)

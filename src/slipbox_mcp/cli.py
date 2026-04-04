@@ -17,6 +17,7 @@ from pathlib import Path
 # Handle broken pipe gracefully (e.g., when piping to head)
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
+from slipbox_mcp.formatting import format_cluster_summary, format_note_compact  # noqa: E402
 from slipbox_mcp.services.zettel_service import ZettelService  # noqa: E402
 from slipbox_mcp.services.cluster_service import ClusterService  # noqa: E402
 from slipbox_mcp.services.search_service import SearchService  # noqa: E402
@@ -58,11 +59,7 @@ def cmd_search(args):
         return
 
     for result in results[:args.limit]:
-        note = result.note
-        tags = ", ".join(t.name for t in note.tags[:3])
-        print(f"{note.id[:12]}  {note.title}")
-        if tags:
-            print(f"            [{tags}]")
+        print(format_note_compact(result.note))
 
 
 def cmd_clusters(args):
@@ -82,10 +79,7 @@ def cmd_clusters(args):
         return
 
     for c in active[:args.limit]:
-        print(f"\n{c.suggested_title}")
-        print(f"  Score: {c.score:.2f} | Notes: {c.note_count} | Orphans: {c.orphan_count}")
-        print(f"  Tags: {', '.join(c.tags[:5])}")
-        print(f"  ID: {c.id}")
+        print(format_cluster_summary(c))
 
 
 def cmd_orphans(args):
@@ -100,7 +94,7 @@ def cmd_orphans(args):
 
     print(f"Found {len(orphans)} orphaned notes:\n")
     for note in orphans[:args.limit]:
-        print(f"{note.id[:12]}  {note.title}")
+        print(format_note_compact(note))
 
 
 def cmd_rebuild(args):
