@@ -46,3 +46,39 @@ def test_status_shows_orphan_count():
     result = _run_cli("--base-dir", "/tmp", "status")
     assert result.returncode == 0
     assert "Orphans:" in result.stdout
+
+
+def test_status_handles_error_gracefully():
+    """Service errors should produce clean 'Error:' messages, not tracebacks."""
+    import os
+
+    env = os.environ.copy()
+    env["SLIPBOX_BASE_DIR"] = "/nonexistent/readonly/path"
+    result = _run_cli("status", env=env)
+    assert result.returncode == 1
+    assert "Error:" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_search_handles_error_gracefully():
+    """Search against a broken path should produce clean error output."""
+    import os
+
+    env = os.environ.copy()
+    env["SLIPBOX_BASE_DIR"] = "/nonexistent/readonly/path"
+    result = _run_cli("search", "test-query", env=env)
+    assert result.returncode == 1
+    assert "Error:" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_rebuild_handles_error_gracefully():
+    """Rebuild against a broken path should produce clean error output."""
+    import os
+
+    env = os.environ.copy()
+    env["SLIPBOX_BASE_DIR"] = "/nonexistent/readonly/path"
+    result = _run_cli("rebuild", env=env)
+    assert result.returncode == 1
+    assert "Error:" in result.stderr
+    assert "Traceback" not in result.stderr

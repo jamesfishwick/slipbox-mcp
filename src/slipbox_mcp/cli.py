@@ -26,124 +26,154 @@ from slipbox_mcp.storage.note_repository import NoteRepository  # noqa: E402
 
 def cmd_status(args):
     """Show Zettelkasten status."""
-    zettel = ZettelService()
-    cluster = ClusterService(zettel)
+    try:
+        zettel = ZettelService()
+        cluster = ClusterService(zettel)
 
-    notes = zettel.get_all_notes()
-    tags = zettel.get_all_tags()
-    report = cluster.load_report()
+        notes = zettel.get_all_notes()
+        tags = zettel.get_all_tags()
+        report = cluster.load_report()
 
-    # Count orphans via SQL (replaces O(n^2) in-memory loop)
-    search = SearchService(zettel)
-    orphan_count = len(search.find_orphaned_notes())
+        # Count orphans via SQL (replaces O(n^2) in-memory loop)
+        search = SearchService(zettel)
+        orphan_count = len(search.find_orphaned_notes())
 
-    print(f"Notes: {len(notes)}")
-    print(f"Tags: {len(tags)}")
-    print(f"Orphans: {orphan_count}")
+        print(f"Notes: {len(notes)}")
+        print(f"Tags: {len(tags)}")
+        print(f"Orphans: {orphan_count}")
 
-    if report:
-        active = [c for c in report.clusters if c.id not in report.dismissed_cluster_ids]
-        age = (datetime.now() - report.generated_at).total_seconds() / 3600
-        print(f"Pending clusters: {len(active)}")
-        print(f"Report age: {age:.1f}h")
+        if report:
+            active = [c for c in report.clusters if c.id not in report.dismissed_cluster_ids]
+            age = (datetime.now() - report.generated_at).total_seconds() / 3600
+            print(f"Pending clusters: {len(active)}")
+            print(f"Report age: {age:.1f}h")
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_search(args):
     """Search notes."""
-    zettel = ZettelService()
-    search = SearchService(zettel)
-    results = search.search_by_text(args.query)
+    try:
+        zettel = ZettelService()
+        search = SearchService(zettel)
+        results = search.search_by_text(args.query)
 
-    if not results:
-        print("No results found.")
-        return
+        if not results:
+            print("No results found.")
+            return
 
-    for result in results[:args.limit]:
-        print(format_note_compact(result.note))
+        for result in results[:args.limit]:
+            print(format_note_compact(result.note))
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_clusters(args):
     """Show clusters needing structure notes."""
-    zettel = ZettelService()
-    cluster = ClusterService(zettel)
-    report = cluster.load_report()
+    try:
+        zettel = ZettelService()
+        cluster = ClusterService(zettel)
+        report = cluster.load_report()
 
-    if not report:
-        print("No cluster report. Run: slipbox rebuild --clusters")
-        return
+        if not report:
+            print("No cluster report. Run: slipbox rebuild --clusters")
+            return
 
-    active = [c for c in report.clusters if c.id not in report.dismissed_cluster_ids]
+        active = [c for c in report.clusters if c.id not in report.dismissed_cluster_ids]
 
-    if not active:
-        print("No pending clusters.")
-        return
+        if not active:
+            print("No pending clusters.")
+            return
 
-    for c in active[:args.limit]:
-        print(format_cluster_summary(c))
+        for c in active[:args.limit]:
+            print(format_cluster_summary(c))
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_orphans(args):
     """List orphaned notes."""
-    zettel = ZettelService()
-    search = SearchService(zettel)
-    orphans = search.find_orphaned_notes()
+    try:
+        zettel = ZettelService()
+        search = SearchService(zettel)
+        orphans = search.find_orphaned_notes()
 
-    if not orphans:
-        print("No orphaned notes.")
-        return
+        if not orphans:
+            print("No orphaned notes.")
+            return
 
-    print(f"Found {len(orphans)} orphaned notes:\n")
-    for note in orphans[:args.limit]:
-        print(format_note_compact(note))
+        print(f"Found {len(orphans)} orphaned notes:\n")
+        for note in orphans[:args.limit]:
+            print(format_note_compact(note))
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_rebuild(args):
     """Rebuild the index."""
-    repo = NoteRepository()
-    print("Rebuilding index...")
-    repo.rebuild_index()
-    print("Index rebuilt.")
+    try:
+        repo = NoteRepository()
+        print("Rebuilding index...")
+        repo.rebuild_index()
+        print("Index rebuilt.")
 
-    if args.clusters:
-        print("Refreshing clusters...")
-        zettel = ZettelService()
-        cluster = ClusterService(zettel)
-        report = cluster.detect_clusters()
-        cluster.save_report(report)
-        print(f"Found {report.stats['clusters_needing_structure']} clusters.")
+        if args.clusters:
+            print("Refreshing clusters...")
+            zettel = ZettelService()
+            cluster = ClusterService(zettel)
+            report = cluster.detect_clusters()
+            cluster.save_report(report)
+            print(f"Found {report.stats['clusters_needing_structure']} clusters.")
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_export(args):
     """Export a note to stdout."""
-    zettel = ZettelService()
-    note = zettel.get_note(args.note_id)
-
-    if not note:
-        print(f"Note not found: {args.note_id}", file=sys.stderr)
-        sys.exit(1)
-
     try:
-        print(zettel.export_note(note.id))
-    except ValueError as e:
-        print(f"Export failed: {e}", file=sys.stderr)
+        zettel = ZettelService()
+        note = zettel.get_note(args.note_id)
+
+        if not note:
+            print(f"Note not found: {args.note_id}", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            print(zettel.export_note(note.id))
+        except ValueError as e:
+            print(f"Export failed: {e}", file=sys.stderr)
+            sys.exit(1)
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
 
 def cmd_tags(args):
     """List all tags."""
-    zettel = ZettelService()
-    notes = zettel.get_all_notes()
+    try:
+        zettel = ZettelService()
+        notes = zettel.get_all_notes()
 
-    # Count notes per tag
-    tag_counts = {}
-    for note in notes:
-        for tag in note.tags:
-            tag_counts[tag.name] = tag_counts.get(tag.name, 0) + 1
+        # Count notes per tag
+        tag_counts = {}
+        for note in notes:
+            for tag in note.tags:
+                tag_counts[tag.name] = tag_counts.get(tag.name, 0) + 1
 
-    sorted_tags = sorted(tag_counts.items(), key=lambda x: -x[1])
+        sorted_tags = sorted(tag_counts.items(), key=lambda x: -x[1])
 
-    for name, count in sorted_tags:
-        print(f"{count:4d}  {name}")
+        for name, count in sorted_tags:
+            print(f"{count:4d}  {name}")
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def main():
