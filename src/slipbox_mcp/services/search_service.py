@@ -28,6 +28,39 @@ class SearchService:
     def __init__(self, zettel_service: Optional[ZettelService] = None):
         self.zettel_service = zettel_service or ZettelService()
 
+    def _run_fts5_query(self, fts_query: str) -> list:
+        """Execute an FTS5 MATCH query and return raw result rows.
+
+        Returns list of rows with (id, bm25_score, matched_context).
+        Returns [] on FTS5 syntax errors. Re-raises on missing tables.
+        """
+        repository = self.zettel_service.repository
+        sql = text("""
+            SELECT
+                n.id,
+                bm25(notes_fts) AS bm25_score,
+                snippet(notes_fts, 1, '', '', '...', 8) AS matched_context
+            FROM notes_fts
+            JOIN notes n ON notes_fts.rowid = n.rowid
+            WHERE notes_fts MATCH :query
+            ORDER BY bm25(notes_fts)
+        """)
+        with repository.session_factory() as session:
+            try:
+                return session.execute(sql, {"query": fts_query}).fetchall()
+            except OperationalError as e:
+                err = str(e).lower()
+                if "no such table" in err:
+                    if "notes_fts" in err:
+                        logger.error("FTS5 table 'notes_fts' missing -- run zk_rebuild_index: %s", e)
+                    else:
+                        logger.error("Required table missing from database schema: %s", e)
+                    raise
+                if "fts5" in err or ("unterminated string" in err and "notes_fts" in err):
+                    logger.warning("FTS5 query syntax error for %r: %s", fts_query, e)
+                    return []
+                raise
+
     def search_by_text(
         self, query: str, include_content: bool = True, include_title: bool = True
     ) -> List[SearchResult]:
@@ -45,31 +78,7 @@ class SearchService:
         else:
             fts_query = f'content:"{escaped}"'
 
-        with repository.session_factory() as session:
-            sql = text("""
-                SELECT
-                    n.id,
-                    bm25(notes_fts) AS bm25_score,
-                    snippet(notes_fts, 1, '', '', '...', 8) AS matched_context
-                FROM notes_fts
-                JOIN notes n ON notes_fts.rowid = n.rowid
-                WHERE notes_fts MATCH :query
-                ORDER BY bm25(notes_fts)
-            """)
-            try:
-                rows = session.execute(sql, {"query": fts_query}).fetchall()
-            except OperationalError as e:
-                err = str(e).lower()
-                if "no such table" in err:
-                    if "notes_fts" in err:
-                        logger.error("FTS5 table 'notes_fts' missing — run zk_rebuild_index: %s", e)
-                    else:
-                        logger.error("Required table missing from database schema: %s", e)
-                    raise
-                if "fts5" in err or ("unterminated string" in err and "notes_fts" in err):
-                    logger.warning("FTS5 query syntax error for %r: %s", fts_query, e)
-                    return []
-                raise
+        rows = self._run_fts5_query(fts_query)
 
         results = []
         for row in rows:
@@ -250,42 +259,7 @@ class SearchService:
             escaped = query_text.replace('"', '""')
             fts_query = f'"{escaped}"'
 
-            fts_sql = text("""
-                SELECT
-                    n.id,
-                    bm25(notes_fts) AS bm25_score,
-                    snippet(notes_fts, 1, '', '', '...', 8) AS matched_context
-                FROM notes_fts
-                JOIN notes n ON notes_fts.rowid = n.rowid
-                WHERE notes_fts MATCH :query
-                ORDER BY bm25(notes_fts)
-            """)
-            try:
-                fts_rows = session.execute(fts_sql, {"query": fts_query}).fetchall()
-            except OperationalError as e:
-                err = str(e).lower()
-                if "no such table" in err:
-                    if "notes_fts" in err:
-                        logger.error("FTS5 table 'notes_fts' missing — run zk_rebuild_index: %s", e)
-                    else:
-                        logger.error("Required table missing from database schema: %s", e)
-                    raise
-                if "fts5" in err or ("unterminated string" in err and "notes_fts" in err):
-                    logger.warning(
-                        "FTS5 query syntax error for %r, returning metadata-only results: %s",
-                        fts_query, e,
-                    )
-                    notes = [repository._db_note_to_note(n) for n in db_notes]
-                    return [
-                        SearchResult(
-                            note=n,
-                            score=0.0,
-                            matched_terms=set(),
-                            matched_context="(text search unavailable — showing metadata matches only)",
-                        )
-                        for n in notes
-                    ]
-                raise
+        fts_rows = self._run_fts5_query(fts_query)
 
         results = []
         for row in fts_rows:
