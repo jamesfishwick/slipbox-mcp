@@ -15,6 +15,6 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v4
-      - run: uv venv --python 3.13 && uv pip install -e ".[dev]" && uv pip install ruff
-      - run: source .venv/bin/activate && ruff check src/ evals/
-      - run: source .venv/bin/activate && pytest -q
+      - run: uv venv --python 3.13 && uv pip install -e ".[dev]" ruff
+      - run: uv run ruff check src/ evals/
+      - run: uv run pytest -q
