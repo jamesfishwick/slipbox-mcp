@@ -58,6 +58,25 @@ class LinkType(str, Enum):
     SUPPORTED_BY = "supported_by"  # Current note is supported by another note
     RELATED = "related"            # Notes are related in some way
 
+    @property
+    def inverse(self) -> "LinkType":
+        """Return the inverse link type for bidirectional linking."""
+        _inverse_map = {
+            LinkType.REFERENCE: LinkType.REFERENCE,
+            LinkType.EXTENDS: LinkType.EXTENDED_BY,
+            LinkType.EXTENDED_BY: LinkType.EXTENDS,
+            LinkType.REFINES: LinkType.REFINED_BY,
+            LinkType.REFINED_BY: LinkType.REFINES,
+            LinkType.CONTRADICTS: LinkType.CONTRADICTED_BY,
+            LinkType.CONTRADICTED_BY: LinkType.CONTRADICTS,
+            LinkType.QUESTIONS: LinkType.QUESTIONED_BY,
+            LinkType.QUESTIONED_BY: LinkType.QUESTIONS,
+            LinkType.SUPPORTS: LinkType.SUPPORTED_BY,
+            LinkType.SUPPORTED_BY: LinkType.SUPPORTS,
+            LinkType.RELATED: LinkType.RELATED,
+        }
+        return _inverse_map[self]
+
 class Link(BaseModel):
     """A link between two notes."""
     source_id: str = Field(..., description="ID of the source note")
