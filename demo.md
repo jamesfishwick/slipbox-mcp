@@ -1,10 +1,10 @@
 # slipbox-mcp: Agentic Knowledge Management
 
-slipbox-mcp is a Model Context Protocol server that gives Claude an active role in managing a Zettelkasten knowledge system. Instead of passively assisting with note-taking, Claude creates atomic notes, forms semantic links, and detects emergent knowledge clusters.
+slipbox-mcp is a Model Context Protocol server that gives your AI assistant an active role in managing a Zettelkasten knowledge system. Instead of passively assisting with note-taking, the agent creates atomic notes, forms semantic links, and detects emergent knowledge clusters. It works with any MCP-compatible client.
 
 Notes are stored as plain markdown files with YAML frontmatter — readable and editable in any tool (Obsidian, Foam, Logseq, etc.). A SQLite+FTS5 database provides fast full-text search and is rebuilt from files on demand.
 
-Everything below runs against a real Zettelkasten -- 549 notes accumulated over months of daily use, covering software architecture, poetry, knowledge management, AI development, and whatever else caught my attention. The responses are from Claude connected to the MCP server via `claude -p`, not mocked or edited.
+For the purposes of this demo, all responses are from Claude connected via `claude -p`. Everything runs against a real Zettelkasten -- 549 notes accumulated over months of daily use, covering software architecture, poetry, knowledge management, AI development, and whatever else caught my attention. Responses are not mocked or edited.
 
 ## Note Format
 

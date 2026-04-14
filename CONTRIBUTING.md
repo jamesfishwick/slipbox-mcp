@@ -61,12 +61,12 @@ If you change tool descriptions or prompt templates, run the LLM evals locally:
 uv run pytest evals/llm/ -v
 ```
 
-These send prompts to Claude via the `claude` CLI with the MCP server connected and grade the results. They require a Claude API key and cost ~$3-5 per run.
+These send prompts via the `claude` CLI with the MCP server connected and grade the results. They require an Anthropic API key and cost ~$3-5 per run.
 
 ## Architecture Principles
 
 - **Files are the source of truth.** The SQLite database is an index. Deleting it and running `slipbox_rebuild_index` must always recover the full state.
-- **Claude processes content, not generates it.** The MCP tools help Claude format, link, and integrate the user's ideas -- not create ideas from nothing.
+- **The agent processes content, not generates it.** The MCP tools help the agent format, link, and integrate the user's ideas -- not create ideas from nothing.
 - **Search before create.** Every workflow that creates notes should search for existing related notes first to avoid duplication.
 - **Typed links matter.** Seven link types enable purposeful graph navigation. Generic "related" links are a last resort.
 

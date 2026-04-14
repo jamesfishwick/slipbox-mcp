@@ -14,7 +14,7 @@ The current `slipbox_find_similar_notes` uses shared tags, common links, and con
 
 ### Note templates
 
-Predefined templates for common note types (literature review, meeting notes, project retrospective) that Claude can use when creating notes, with consistent frontmatter and section structure.
+Predefined templates for common note types (literature review, meeting notes, project retrospective) that the agent can use when creating notes, with consistent frontmatter and section structure.
 
 ### Export and visualization
 

@@ -1,8 +1,10 @@
 # Slipbox MCP Server
 
-Give Claude an active role in managing your knowledge. Slipbox is an [MCP server](https://modelcontextprotocol.io/) that turns Claude into a Zettelkasten partner -- creating atomic notes, forming semantic links, detecting emergent clusters, and synthesizing insights from your existing knowledge.
+Give your AI assistant an active role in managing your knowledge. Slipbox is an [MCP server](https://modelcontextprotocol.io/) that turns any MCP-compatible agent into a Zettelkasten partner -- creating atomic notes, forming semantic links, detecting emergent clusters, and synthesizing insights from your existing knowledge.
 
-Your ideas in, structured knowledge out. Claude handles the formatting, linking, and integration. The ideas stay yours.
+Your ideas in, structured knowledge out. The agent handles the formatting, linking, and integration. The ideas stay yours.
+
+Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude Code, OpenCode, Copilot, or anything that speaks MCP).
 
 **Plain files, zero lock-in.** Notes are markdown with YAML frontmatter -- readable in Obsidian, Foam, Logseq, or any editor. The SQLite database is an index, not the source of truth. Delete it and rebuild from files anytime.
 
@@ -18,7 +20,7 @@ Python 3.10+ | macOS or Linux
 
 ### Proactive Maintenance
 
-Claude reads the `slipbox://maintenance-status` resource at session start and surfaces clusters that need organizing.
+The agent reads the `slipbox://maintenance-status` resource at session start and surfaces clusters that need organizing.
 
 ![Proactive Maintenance](assets/screenshots/01-maintenance.png)
 
@@ -36,7 +38,7 @@ BM25-ranked search across 550+ notes via `zk_search_notes`.
 
 ### Direct Idea Capture
 
-Your raw thinking in, a formatted atomic note with tags and links out. Claude formats and integrates -- the ideas stay yours.
+Your raw thinking in, a formatted atomic note with tags and links out. The agent formats and integrates -- the ideas stay yours.
 
 ![Idea Capture](assets/screenshots/04-idea-capture.png)
 
@@ -142,7 +144,11 @@ mkdir -p ~/.local/share/mcp/slipbox/data
 
 The server creates these automatically, but explicit creation helps verify permissions.
 
-### 4. Configure Claude Desktop
+### 4. Connect to Your MCP Client
+
+The example below shows Claude Desktop. For other MCP clients, consult their documentation for how to register an MCP server -- the server command and args are the same.
+
+**Claude Desktop config:**
 
 **macOS** — `~/Library/Application Support/Claude/claude_desktop_config.json`
 
@@ -181,13 +187,13 @@ pipx environment --value VENV
 
 Use `/Users/yourname/.local/share/pipx/venvs/slipbox-mcp/bin/python` as the `command` value.
 
-### 5. Restart Claude Desktop
+### 5. Restart Your Client
 
-Quit and reopen Claude Desktop to load the MCP server.
+Quit and reopen your MCP client to load the server.
 
 ### 6. Verify Installation
 
-In Claude:
+Ask your agent:
 
 - "Create a test note about something"
 - "Search my slipbox for test"
@@ -273,7 +279,7 @@ tail -f ~/.local/share/mcp/slipbox/watcher.log
 
 ## Recommended System Prompt
 
-Add the system prompt from `docs/SYSTEM_PROMPT.md` to your Claude preferences. This enables:
+Add the system prompt from `docs/SYSTEM_PROMPT.md` to your agent's preferences or system prompt. This enables:
 
 - Automatic knowledge capture during conversations
 - Cluster emergence detection at conversation start
@@ -344,7 +350,7 @@ MCP prompts are reusable workflow templates that encode the Zettelkasten method 
 
 ### How to Use Prompts
 
-**Claude Code** supports prompts natively as slash commands:
+MCP clients that support prompts (like Claude Code) expose them as slash commands:
 
 ```text
 /mcp__slipbox-mcp__knowledge_creation
@@ -355,7 +361,7 @@ MCP prompts are reusable workflow templates that encode the Zettelkasten method 
 /mcp__slipbox-mcp__cluster_maintenance
 ```
 
-**Claude Desktop** does not have a prompt picker UI. Invoke prompts conversationally:
+For clients without a prompt picker UI, invoke prompts conversationally:
 
 ```text
 Use the knowledge_creation prompt with this content: [paste text]
@@ -365,7 +371,7 @@ Use the knowledge_exploration prompt for the topic: "poetry and cognitive load"
 Use the cluster_maintenance prompt.
 ```
 
-Claude will call the prompt template behind the scenes and fill in your input.
+The agent calls the prompt template behind the scenes and fills in your input.
 
 ---
 
@@ -584,7 +590,7 @@ ruff check src/ evals/
 
 **Tool contract tests** verify the MCP tool output format that the LLM sees -- parseable structure, chaining (create -> search -> get), and helpful error messages. These are deterministic and don't call any LLM.
 
-**LLM evals** send prompts to Claude via the `claude` CLI with the MCP server connected, then grade results by inspecting the database state (notes created, links made, tags applied). They test whether the LLM actually uses the tools correctly given the tool descriptions.
+**LLM evals** send prompts to an LLM via the `claude` CLI with the MCP server connected, then grade results by inspecting the database state (notes created, links made, tags applied). They test whether the LLM actually uses the tools correctly given the tool descriptions.
 
 ### CI/CD
 

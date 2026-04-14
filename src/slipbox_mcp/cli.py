@@ -3,7 +3,7 @@
 
 This CLI provides mechanical/read-only operations that don't require agent
 intelligence. It complements the MCP server (which handles intelligent note
-creation and linking via Claude) with quick terminal access.
+creation and linking via the MCP server) with quick terminal access.
 
 Philosophy: The CLI handles *what exists*. The agent handles *what should exist*.
 """
