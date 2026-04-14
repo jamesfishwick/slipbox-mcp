@@ -1,0 +1,1 @@
+Read the slipbox://maintenance-status MCP resource and summarize what needs attention in my Zettelkasten right now. Show the pending clusters with their scores, note counts, and suggested titles. Be concise — this is a startup check, not a deep analysis.

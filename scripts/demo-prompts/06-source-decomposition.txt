@@ -1,0 +1,9 @@
+Use the knowledge_creation prompt with this article excerpt:
+
+"The Zettelkasten method's power comes from its constraints. Each note must contain exactly one idea. This forces you to understand what you've read well enough to decompose it. Most people fail not because they don't take notes, but because their notes are grab-bags of loosely related thoughts that can't be recombined later.
+
+The linking requirement adds a second constraint: you must understand how a new idea relates to what you already know. This is where learning actually happens — in the moment of connection, not in the moment of highlight."
+
+— From "Why Most Note-Taking Fails" by Example Author
+
+Extract 2-3 atomic literature notes, search for existing related notes first to avoid duplication, create the notes with proper citation metadata, and link them into the graph. Show me what you created.

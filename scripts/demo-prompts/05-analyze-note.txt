@@ -1,0 +1,5 @@
+Use the analyze_note prompt to evaluate this note:
+
+"Luhmann's slip-box worked because the constraints forced understanding. You can't write an atomic note without decomposing what you read. You can't link it without understanding how it relates to what you already know. The method is a thinking tool disguised as a filing system. But most digital implementations miss this — they optimize for capture speed instead of integration depth. The real bottleneck was never writing notes down."
+
+Run the full analysis: atomicity, connectivity (search for real related notes in my existing graph), tag suggestions from my taxonomy, a clarity rewrite, and any emergent insights.

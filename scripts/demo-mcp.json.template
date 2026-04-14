@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "slipbox-mcp": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "slipbox_mcp.main"],
+      "cwd": "/Users/jamesfishwick/Workspace/slipbox-mcp",
+      "env": {
+        "SLIPBOX_BASE_DIR": "FIXTURE_DIR_PLACEHOLDER",
+        "SLIPBOX_LOG_LEVEL": "WARNING"
+      }
+    }
+  }
+}

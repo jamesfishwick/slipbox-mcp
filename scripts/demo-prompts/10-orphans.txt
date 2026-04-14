@@ -1,0 +1,1 @@
+Find all orphaned notes using zk_find_orphaned_notes. Report the total count, then show the first 10 with their IDs and titles. Be concise -- just the list.

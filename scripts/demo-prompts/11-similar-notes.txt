@@ -1,0 +1,1 @@
+First, find the single most connected note using zk_find_central_notes with limit=1. Then use zk_find_similar_notes on that note's ID with threshold 0.1. Show the seed note title, then the top 10 similar notes with their similarity scores and titles.

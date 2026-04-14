@@ -1,0 +1,1 @@
+List the 10 most recently created notes using zk_list_notes_by_date with no date filters and limit=10. For each note, show the creation date, title, and top 3 tags. Be concise -- just the list.

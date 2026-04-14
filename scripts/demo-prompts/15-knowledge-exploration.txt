@@ -1,0 +1,3 @@
+Use the knowledge_exploration prompt for the topic: "cognitive load in code review"
+
+Don't create any new notes. Map how this topic already connects through my existing graph: find the central notes in this area, trace the link structure around them, identify gaps where you'd expect connections but don't find them, and surface any orphaned notes that belong to this topic. This is discovery, not creation.

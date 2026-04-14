@@ -1,0 +1,1 @@
+Get the current cluster report using zk_get_cluster_report with include_notes set to false. Show the top 5 clusters with their scores, note counts, orphan counts, tags, and suggested titles. Format as a clean summary.

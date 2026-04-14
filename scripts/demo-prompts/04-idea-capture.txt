@@ -1,0 +1,5 @@
+I've been thinking about something. Here's my rough idea:
+
+"When I read technical books, I tend to extract too many notes at once. I end up with 30 fleeting notes from a single chapter and never process them. The bottleneck isn't capture — it's integration. Maybe I should limit myself to 3-5 notes per reading session and immediately link each one before moving on."
+
+Capture this as a permanent note. First search my existing notes for anything related to reading workflows, note-taking bottlenecks, or integration. Then create the note with appropriate tags from my existing taxonomy, and create reference links to the 2-3 most related existing notes. Show me the final note and the links you created.
