@@ -1,6 +1,6 @@
 # Zettelkasten System Prompt
 
-Add this to your Claude system prompt or user preferences.
+Add this to your system prompt or user preferences.
 
 ---
 

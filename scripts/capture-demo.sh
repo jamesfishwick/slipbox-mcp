@@ -131,26 +131,26 @@ echo "=== Coverage check ==="
 # We maintain an explicit map because tier 1 uses the slipbox CLI (wraps tools)
 # and tier 2 prompts describe operations in natural language.
 COVERAGE_MAP="
-zk_search_notes:02-search
-zk_find_central_notes:03-central-notes
-zk_get_cluster_report:07-cluster-report
-zk_find_orphaned_notes:10-orphans
-zk_find_similar_notes:11-similar-notes
-zk_get_linked_notes:12-linked-notes
-zk_get_all_tags:13-tag-taxonomy
-zk_list_notes_by_date:14-date-browsing
-zk_rebuild_index:16-index-rebuild
-zk_create_note:04-idea-capture
-zk_create_link:04-idea-capture
-zk_create_structure_from_cluster:08-structure-note
+slipbox_search_notes:02-search
+slipbox_find_central_notes:03-central-notes
+slipbox_get_cluster_report:07-cluster-report
+slipbox_find_orphaned_notes:10-orphans
+slipbox_find_similar_notes:11-similar-notes
+slipbox_get_linked_notes:12-linked-notes
+slipbox_get_all_tags:13-tag-taxonomy
+slipbox_list_notes_by_date:14-date-browsing
+slipbox_rebuild_index:16-index-rebuild
+slipbox_create_note:04-idea-capture
+slipbox_create_link:04-idea-capture
+slipbox_create_structure_from_cluster:08-structure-note
 "
 
 # Tools intentionally not covered (mechanical CRUD / housekeeping).
-SKIP_TOOLS="zk_update_note zk_delete_note zk_remove_link zk_refresh_clusters zk_dismiss_cluster zk_get_note"
+SKIP_TOOLS="slipbox_update_note slipbox_delete_note slipbox_remove_link slipbox_refresh_clusters slipbox_dismiss_cluster slipbox_get_note"
 
 # Extract all tool names from server code.
 TOOL_DIR="$REPO_ROOT/src/slipbox_mcp/server/tools"
-ALL_TOOLS=$(grep -ohE 'name="(zk_\w+)"' "$TOOL_DIR"/*.py | sed 's/name="//;s/"//' | sort)
+ALL_TOOLS=$(grep -ohE 'name="(slipbox_\w+)"' "$TOOL_DIR"/*.py | sed 's/name="//;s/"//' | sort)
 
 missing_count=0
 for tool in $ALL_TOOLS; do

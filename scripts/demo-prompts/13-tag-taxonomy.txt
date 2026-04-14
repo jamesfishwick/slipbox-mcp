@@ -1,1 +1,1 @@
-Get all tags in my Zettelkasten using zk_get_all_tags. Show the first 30 tags alphabetically. Be concise -- just the tag list.
+Get all tags in my Zettelkasten using slipbox_get_all_tags. Show the first 30 tags alphabetically. Be concise -- just the tag list.

@@ -1,1 +1,1 @@
-Find the 10 most connected notes in my Zettelkasten using zk_find_central_notes. For each, show the note ID (truncated to 13 chars), title, and link count. Present as a clean ranked list, no commentary.
+Find the 10 most connected notes in my Zettelkasten using slipbox_find_central_notes. For each, show the note ID (truncated to 13 chars), title, and link count. Present as a clean ranked list, no commentary.

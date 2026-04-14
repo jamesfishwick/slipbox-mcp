@@ -1,1 +1,1 @@
-First, find the single most connected note using zk_find_central_notes with limit=1. Then use zk_get_linked_notes on that note's ID to get its outgoing links. Group the results by link type (reference, extends, supports, etc.) and show up to 5 notes per type with their titles.
+First, find the single most connected note using slipbox_find_central_notes with limit=1. Then use slipbox_get_linked_notes on that note's ID to get its outgoing links. Group the results by link type (reference, extends, supports, etc.) and show up to 5 notes per type with their titles.

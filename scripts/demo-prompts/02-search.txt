@@ -1,1 +1,1 @@
-Search my notes for "zettelkasten" and show the top 8 results. For each result, show the note ID (truncated to 13 chars), title (truncated to 55 chars), and top 3 tags. Use zk_search_notes. Be concise -- just the ranked list, no commentary.
+Search my notes for "zettelkasten" and show the top 8 results. For each result, show the note ID (truncated to 13 chars), title (truncated to 55 chars), and top 3 tags. Use slipbox_search_notes. Be concise -- just the ranked list, no commentary.

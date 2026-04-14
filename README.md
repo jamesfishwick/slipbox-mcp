@@ -16,6 +16,88 @@ Model Context Protocol server for managing a Zettelkasten knowledge system with 
 - **Cluster Detection**: Identifies emergent knowledge clusters
 - **Structure Note Generation**: Create structure notes from detected clusters
 
+## In Action
+
+### Proactive Maintenance
+
+Claude reads the `slipbox://maintenance-status` resource at session start and surfaces clusters that need organizing.
+
+![Proactive Maintenance](assets/screenshots/01-maintenance.png)
+
+### Full-Text Search
+
+BM25-ranked search across 550+ notes via `zk_search_notes`.
+
+![FTS5 Search](assets/screenshots/02-search.png)
+
+### Knowledge Graph: Central Notes
+
+`zk_find_central_notes` surfaces the structural anchors of the graph -- the notes everything else orbits.
+
+![Central Notes](assets/screenshots/03-central-notes.png)
+
+### Direct Idea Capture
+
+Your raw thinking in, a formatted atomic note with tags and links out. Claude formats and integrates -- the ideas stay yours.
+
+![Idea Capture](assets/screenshots/04-idea-capture.png)
+
+### Note Analysis
+
+The `analyze_note` prompt evaluates atomicity, finds real connections in the existing graph, suggests tags, and rewrites for clarity.
+
+![Note Analysis](assets/screenshots/05-analyze-note.png)
+
+### Source Decomposition
+
+The `knowledge_creation` prompt splits an article into atomic literature notes with proper citation and links.
+
+![Source Decomposition](assets/screenshots/06-source-decomposition.png)
+
+### Cluster Detection
+
+`zk_get_cluster_report` finds groups of co-occurring tags that lack a structure note. Scored by size, orphan ratio, link density, and recency.
+
+![Cluster Report](assets/screenshots/07-cluster-report.png)
+
+### Structure Note Creation
+
+`zk_create_structure_from_cluster` scaffolds a structure note, links all member notes, and dismisses the cluster.
+
+![Structure Note](assets/screenshots/08-structure-note.png)
+
+### Orphaned Notes
+
+`zk_find_orphaned_notes` surfaces unintegrated knowledge -- candidates for connection or deletion.
+
+![Orphans](assets/screenshots/10-orphans.png)
+
+### Similar Notes
+
+`zk_find_similar_notes` computes similarity from shared tags, common links, and content overlap -- three independent signals.
+
+![Similar Notes](assets/screenshots/11-similar-notes.png)
+
+### Graph Traversal
+
+`zk_get_linked_notes` shows typed links from a hub note, grouped by link type.
+
+![Linked Notes](assets/screenshots/12-linked-notes.png)
+
+### Knowledge Synthesis
+
+The `knowledge_synthesis` prompt finds bridges between unconnected areas and proposes synthesis notes from your existing knowledge.
+
+![Knowledge Synthesis](assets/screenshots/17-knowledge-synthesis.png)
+
+### Zero Lock-In: Plain Files in Obsidian
+
+Notes are plain markdown. Open the vault in Obsidian and everything works -- rendered content, backlinks, and the knowledge graph.
+
+<!-- TODO: capture manually -> assets/screenshots/obsidian-graph.png -->
+
+---
+
 ## Quick Start
 
 ### 1. Clone and Install
@@ -33,12 +115,15 @@ Create a `.env` file or set environment variables:
 
 ```bash
 # Where notes are stored as markdown files
+
 export SLIPBOX_NOTES_DIR="~/.local/share/mcp/slipbox/notes"
 
 # SQLite database path
+
 export SLIPBOX_DATABASE_PATH="~/.local/share/mcp/slipbox/data/slipbox.db"
 
 # Optional: Log level (DEBUG, INFO, WARNING, ERROR)
+
 export SLIPBOX_LOG_LEVEL="INFO"
 ```
 
@@ -47,6 +132,7 @@ Or copy the example:
 ```bash
 cp .env.example .env
 # Edit .env with your paths
+
 ```
 
 ### 3. Initialize Data Directories
@@ -90,7 +176,9 @@ Replace `/absolute/path/to/` and `/Users/yourname/` with your actual paths. The 
 ```bash
 pipx environment --value VENV
 # Output: /Users/yourname/.local/share/pipx/venvs/slipbox-mcp
+
 # Append /bin/python to get the full path
+
 ```
 
 Use `/Users/yourname/.local/share/pipx/venvs/slipbox-mcp/bin/python` as the `command` value.
@@ -115,7 +203,7 @@ Cluster analysis scans all notes and computes similarity scores. Running it dail
 
 Run manually after bulk imports, major reorganization, or when you want immediate results.
 
-### Install (macOS)
+### Install Cluster Detection (macOS)
 
 ```bash
 chmod +x scripts/install-cluster-detection.sh
@@ -133,7 +221,7 @@ python scripts/detect_clusters.py
 
 Output saved to `~/.local/share/mcp/slipbox/cluster-analysis.json`.
 
-### Uninstall
+### Uninstall Cluster Detection
 
 ```bash
 ./scripts/install-cluster-detection.sh --uninstall
@@ -149,7 +237,7 @@ The file watcher runs as a background daemon, monitoring your notes directory an
 
 Use it if you frequently edit notes in Obsidian while also using Claude.
 
-### Install (macOS)
+### Install File Watcher (macOS)
 
 ```bash
 chmod +x scripts/install-file-watcher.sh
@@ -173,10 +261,11 @@ Edit a note file—you should see "rebuilding index..." in the watcher output.
 launchctl list | grep slipbox.watcher
 
 # View logs
+
 tail -f ~/.local/share/mcp/slipbox/watcher.log
 ```
 
-### Uninstall
+### Uninstall File Watcher
 
 ```bash
 ./scripts/install-file-watcher.sh --uninstall
@@ -259,7 +348,7 @@ MCP prompts are reusable workflow templates that encode the Zettelkasten method 
 
 **Claude Code** supports prompts natively as slash commands:
 
-```
+```text
 /mcp__slipbox-mcp__knowledge_creation
 /mcp__slipbox-mcp__knowledge_exploration
 /mcp__slipbox-mcp__knowledge_synthesis
@@ -270,7 +359,7 @@ MCP prompts are reusable workflow templates that encode the Zettelkasten method 
 
 **Claude Desktop** does not have a prompt picker UI. Invoke prompts conversationally:
 
-```
+```text
 Use the knowledge_creation prompt with this content: [paste text]
 
 Use the knowledge_exploration prompt for the topic: "poetry and cognitive load"
@@ -332,6 +421,7 @@ updated: "2025-12-17T17:24:32"
 Content here...
 
 ## Links
+
 - reference [[20250728T125429845760000]] Member of structure
 ```
 
@@ -345,7 +435,7 @@ After pulling new versions, restart Claude Desktop. If the release notes mention
 
 **Upgrading to FTS5 search (any version after the FTS5 release):** The full-text search index is created automatically when the server starts against a new database. For existing databases, the FTS5 table will be created on first startup but will be empty until you run:
 
-```
+```text
 slipbox_rebuild_index
 ```
 
@@ -386,7 +476,7 @@ If `start_date` is later than `end_date`, no notes match and an empty result is 
 
 If notes were edited outside the MCP server:
 
-```
+```text
 slipbox_rebuild_index
 ```
 
@@ -397,9 +487,11 @@ launchctl list | grep slipbox.cluster-detection
 # Should show: - 0 com.slipbox.cluster-detection
 
 # Check logs
+
 cat /tmp/slipbox-clusters.log
 
 # Reinstall if needed
+
 ./scripts/install-cluster-detection.sh --uninstall
 ./scripts/install-cluster-detection.sh
 ```
@@ -411,9 +503,11 @@ launchctl list | grep slipbox.watcher
 # Should show: - 0 com.slipbox.watcher
 
 # Check logs
+
 cat ~/.local/share/mcp/slipbox/watcher.log
 
 # Reinstall if needed
+
 ./scripts/install-file-watcher.sh --uninstall
 ./scripts/install-file-watcher.sh
 ```
@@ -468,18 +562,23 @@ The project has three tiers of tests:
 
 ```bash
 # Default: runs unit + contract tests (CI runs this)
+
 pytest
 
 # Run everything except LLM evals
+
 pytest tests/ evals/tool_contracts/
 
 # Run LLM evals (requires claude CLI authenticated)
+
 pytest evals/llm/ -v
 
 # Run LLM evals with a specific model
+
 EVAL_MODEL=sonnet pytest evals/llm/ -v
 
 # Lint
+
 ruff check src/ evals/
 ```
 
@@ -499,6 +598,7 @@ ruff check src/ evals/
 | `LLM Evals` | PRs changing prompt files | Self-hosted | 28 LLM evals via claude CLI |
 
 The LLM eval workflow triggers only when these files change:
+
 - `src/slipbox_mcp/server/descriptions.py` (tool descriptions)
 - `src/slipbox_mcp/server/prompts.py` (prompt templates)
 - `evals/llm/**`, `evals/seed_data.py`, `evals/conftest.py`
@@ -519,9 +619,11 @@ pytest evals/llm/ -v
 
 ```bash
 # Get a registration token
+
 gh api repos/OWNER/REPO/actions/runners/registration-token -X POST -q '.token'
 
 # Download and configure
+
 mkdir -p ~/.github-runners/slipbox-mcp && cd ~/.github-runners/slipbox-mcp
 curl -sL -o actions-runner.tar.gz https://github.com/actions/runner/releases/latest/download/actions-runner-osx-arm64-2.325.0.tar.gz
 tar xzf actions-runner.tar.gz
