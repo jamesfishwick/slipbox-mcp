@@ -26,7 +26,7 @@ The agent reads the `slipbox://maintenance-status` resource at session start and
 
 ### Full-Text Search
 
-BM25-ranked search across 550+ notes via `zk_search_notes`.
+BM25-ranked search across notes via `zk_search_notes`.
 
 ![FTS5 Search](assets/screenshots/02-search.png)
 
