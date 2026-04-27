@@ -9,6 +9,7 @@ Philosophy: The CLI handles *what exists*. The agent handles *what should exist*
 """
 import argparse
 import os
+import re
 import signal
 import sys
 import tempfile
@@ -196,6 +197,32 @@ def _scan_literature_notes_missing_refs(
     return offenders, unparseable
 
 
+_TYPE_LITERATURE_RE = re.compile(
+    r"^type:\s*['\"]?literature['\"]?\s*$",
+    re.MULTILINE,
+)
+
+
+def _rewrite_type_to_permanent(content: str) -> str:
+    """Surgical replacement of `type: literature` with `type: permanent`.
+
+    Operates only inside the leading frontmatter block (between the first two
+    `---` markers) and replaces a single matching line. Avoids round-tripping
+    the whole document through frontmatter.dumps, which would re-serialize
+    other keys and produce noisy diffs in git-tracked slipboxes.
+    """
+    if not content.startswith("---\n"):
+        raise ValueError("Frontmatter block not found (no leading '---')")
+    end_marker = content.find("\n---", 4)
+    if end_marker == -1:
+        raise ValueError("Frontmatter block not terminated (no closing '---')")
+    block = content[4:end_marker]
+    new_block, n = _TYPE_LITERATURE_RE.subn("type: permanent", block, count=1)
+    if n == 0:
+        raise ValueError("No 'type: literature' line found in frontmatter")
+    return "---\n" + new_block + content[end_marker:]
+
+
 def _atomic_write_text(path: Path, text: str) -> None:
     """Write text to path via temp file + os.replace for atomicity.
 
@@ -269,13 +296,12 @@ def cmd_audit_references(args):
         failed: list[tuple[Path, Exception]] = []
         for path, _metadata in offenders:
             try:
-                with open(path, "r", encoding="utf-8") as f:
-                    post = frontmatter.load(f)
-                post.metadata["type"] = "permanent"
-                _atomic_write_text(path, frontmatter.dumps(post))
+                content = path.read_text(encoding="utf-8")
+                rewritten = _rewrite_type_to_permanent(content)
+                _atomic_write_text(path, rewritten)
                 succeeded.append(path)
                 print(f"  downgraded {path.name}")
-            except (OSError, yaml.YAMLError) as e:
+            except (OSError, ValueError) as e:
                 failed.append((path, e))
                 print(f"  failed   {path.name}: {e}", file=sys.stderr)
 

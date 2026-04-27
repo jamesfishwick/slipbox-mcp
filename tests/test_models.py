@@ -117,6 +117,42 @@ class TestNoteModel:
         with pytest.raises(ValidationError):
             note.note_type = NoteType.LITERATURE
 
+    def test_references_reject_empty_string_entries(self):
+        """A literature note with references=[''] is rejected: an empty
+        citation defeats the purpose of the reference field.
+        """
+        with pytest.raises(ValidationError):
+            Note(
+                title="Empty ref",
+                content="x",
+                note_type=NoteType.LITERATURE,
+                references=[""],
+            )
+
+    def test_references_reject_whitespace_only_entries(self):
+        """A literature note with references=['   '] is rejected after
+        whitespace stripping reduces it to empty.
+        """
+        with pytest.raises(ValidationError):
+            Note(
+                title="Whitespace ref",
+                content="x",
+                note_type=NoteType.LITERATURE,
+                references=["   "],
+            )
+
+    def test_references_strip_whitespace_around_valid_entries(self):
+        """Valid citations with leading/trailing whitespace are silently
+        stripped (housekeeping, not rejection).
+        """
+        note = Note(
+            title="Padded ref",
+            content="x",
+            note_type=NoteType.LITERATURE,
+            references=["  https://example.com/source  "],
+        )
+        assert note.references == ["https://example.com/source"]
+
     def test_promoting_to_literature_after_setting_references_passes(self):
         """When references are set first, promotion to LITERATURE is allowed."""
         note = Note(

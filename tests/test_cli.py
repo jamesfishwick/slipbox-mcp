@@ -174,6 +174,52 @@ def test_audit_references_fix_downgrade():
         assert "type: literature" in ok
 
 
+def test_audit_references_fix_preserves_frontmatter_key_order():
+    """--fix downgrade must rewrite ONLY the type: line, leaving every other
+    line byte-identical. Guards against cosmetic git-diff churn from
+    re-serializing the entire frontmatter dict."""
+    with tempfile.TemporaryDirectory() as base:
+        base_path = Path(base)
+        notes_dir = base_path / "data" / "notes"
+        notes_dir.mkdir(parents=True)
+        # Hand-author a note with non-alphabetical key order and a custom
+        # field that frontmatter.dumps would round-trip differently.
+        path = notes_dir / "20260101T000000000000020.md"
+        original = (
+            "---\n"
+            "title: Order Preservation Test\n"
+            "type: literature\n"
+            "id: 20260101T000000000000020\n"
+            "tags:\n"
+            "- ordering\n"
+            "- preservation\n"
+            "created: '2026-01-01T00:00:00.000000'\n"
+            "updated: '2026-01-01T00:00:00.000000'\n"
+            "custom_field: keep-me-here\n"
+            "---\n"
+            "\n"
+            "# Body content\n"
+            "\n"
+            "Some text.\n"
+        )
+        path.write_text(original)
+
+        result = _run_cli(
+            "--base-dir", str(base_path),
+            "audit-references", "--fix", "downgrade",
+        )
+        assert result.returncode == 0, result.stderr
+
+        rewritten = path.read_text()
+        # Only the type: literature line should change.
+        expected = original.replace("type: literature", "type: permanent")
+        assert rewritten == expected, (
+            f"Frontmatter rewrite changed bytes outside the 'type:' line.\n"
+            f"--- expected ---\n{expected}\n"
+            f"--- got ---\n{rewritten}"
+        )
+
+
 def test_audit_references_surfaces_malformed_yaml_on_stdout():
     """Malformed frontmatter must NOT be silently classified as 'not literature'.
     Audit reports unparseable files in stdout (not just stderr) and exits 1.
