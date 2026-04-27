@@ -29,7 +29,7 @@ class ZettelkastenConfig(BaseModel):
     )
     database_path: Path = Field(
         default_factory=lambda: _expand_path(
-            os.getenv("SLIPBOX_DATABASE_PATH", "data/db/slipbox.db")
+            os.getenv("SLIPBOX_DATABASE_PATH", "data/db/zettelkasten.db")
         )
     )
     server_name: str = Field(

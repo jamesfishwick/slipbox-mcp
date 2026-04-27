@@ -14,7 +14,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 PLIST_NAME="com.slipbox.cluster-detection.plist"
-PLIST_SOURCE="$SCRIPT_DIR/$PLIST_NAME"
 PLIST_DEST="$HOME/Library/LaunchAgents/$PLIST_NAME"
 
 # Colors for output
@@ -48,11 +47,6 @@ uninstall() {
 
 install() {
     info "Installing cluster detection LaunchAgent..."
-
-    # Check prerequisites
-    if [ ! -f "$PLIST_SOURCE" ]; then
-        error "Source plist not found: $PLIST_SOURCE"
-    fi
 
     # Detect Python path
     if [ -f "$REPO_DIR/.venv/bin/python" ]; then
