@@ -12,6 +12,12 @@ Currently the server binds to a single `SLIPBOX_BASE_DIR`. Supporting multiple v
 
 The current `slipbox_find_similar_notes` uses shared tags, common links, and content overlap. Adding embedding-based semantic similarity (via a local model or API) would catch conceptual connections that keyword overlap misses.
 
+### Cross-cluster bridge detection
+
+The current cluster tools measure how densely a cluster is linked *internally* and surface orphans, but don't scan between clusters for missing edges. The real drought in most slipboxes is at cluster boundaries -- notes articulating the same structural claim in different vocabularies (e.g. `editorial curation` in a poetry cluster and `context curation` in an AI-coding cluster) stay disconnected because they share no tags.
+
+A `slipbox_find_missing_bridges` operation would, for each pair of tag clusters, return candidate note pairs with no existing link, no short path in the link graph, and content-overlap above a threshold -- ranked by strength. A companion workflow prompt lets the agent run the scan during cluster maintenance, suggest a link type, and submit candidates for user approval -- matching the propose-then-confirm shape of cluster-based structure notes.
+
 ### Note templates
 
 Predefined templates for common note types (literature review, meeting notes, project retrospective) that the agent can use when creating notes, with consistent frontmatter and section structure.

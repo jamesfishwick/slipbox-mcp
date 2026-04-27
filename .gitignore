@@ -56,9 +56,7 @@ repomix-output.txt
 repomix-output.xml
 
 # Data files
-data/db/*.db
-data/notes/*.md
-data/
+/data
 src/data/
 
 # Claude Code local settings
