@@ -73,3 +73,6 @@ docs/TODO/
 
 # Specify
 .specify/
+
+# Asciinema recordings — raw cast files are not committed (GIFs are)
+assets/recordings/*.cast

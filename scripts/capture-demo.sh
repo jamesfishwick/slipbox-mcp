@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
-# capture-demo.sh — Automated screenshot pipeline for slipbox-mcp README.
+# capture-demo.sh — Automated screenshot and recording pipeline for slipbox-mcp README.
 #
-# Produces 17 screenshots demonstrating every differentiating MCP tool and prompt.
-# Three tiers:
+# Produces screenshots (PNG) and animated terminal recordings (GIF) demonstrating
+# every differentiating MCP tool and prompt. Four tiers:
 #   1. Deterministic (slipbox CLI + freeze) — no network/GUI needed
 #   2. Claude subprocess (claude -p + MCP + freeze) — needs API key
 #   3. Obsidian window capture (obsidian-cli + screencapture) — needs macOS GUI
+#   4. Asciinema recordings (asciinema + agg) — animated GIFs for the README
+#
+# Requires: freeze, uv, claude (tier 2), obsidian-cli (tier 3),
+#           asciinema, agg (tier 4)
 #
 # Usage:
 #   ./scripts/capture-demo.sh                        # all tiers (skip obsidian)
 #   ./scripts/capture-demo.sh --tier 1               # deterministic only
 #   ./scripts/capture-demo.sh --tier 2               # claude shots only
+#   ./scripts/capture-demo.sh --tier 4               # recordings only
 #   ./scripts/capture-demo.sh --with-obsidian        # include tier 3
+#   ./scripts/capture-demo.sh --with-recordings      # add tier 4 recordings
+#   ./scripts/capture-demo.sh --demo-vault           # use curated demo vault fixture
 #   ./scripts/capture-demo.sh --update-demo-md       # also refresh demo.md output blocks
 #   ./scripts/capture-demo.sh --fixture-dir /tmp/x   # custom fixture location
 
@@ -26,11 +33,17 @@ TIER="all"
 WITH_OBSIDIAN=false
 UPDATE_DEMO_MD=false
 FIXTURE_DIR="/tmp/slipbox-demo-fixture"
+run_tier1=false
+run_tier2=false
+run_tier4=false
+USE_DEMO_VAULT=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --tier) TIER="$2"; shift 2 ;;
         --with-obsidian) WITH_OBSIDIAN=true; shift ;;
+        --with-recordings) run_tier4=true; shift ;;
+        --demo-vault) USE_DEMO_VAULT=true; shift ;;
         --update-demo-md) UPDATE_DEMO_MD=true; shift ;;
         --fixture-dir) FIXTURE_DIR="$2"; shift 2 ;;
         --output-dir) OUTPUT_DIR="$2"; shift 2 ;;
@@ -53,9 +66,6 @@ check_cmd() {
 check_cmd freeze
 check_cmd uv
 
-run_tier1=false
-run_tier2=false
-
 case "$TIER" in
     1)   run_tier1=true ;;
     2)   run_tier2=true ;;
@@ -65,12 +75,24 @@ case "$TIER" in
             exit 1
         fi
         ;;
-    all) run_tier1=true; run_tier2=true ;;
-    *)   echo "Unknown tier: $TIER (expected 1, 2, 3, or all)" >&2; exit 1 ;;
+    4)   run_tier4=true ;;
+    all) run_tier1=true; run_tier2=true; run_tier4=true ;;
+    *)   echo "Unknown tier: $TIER (expected 1, 2, 3, 4, or all)" >&2; exit 1 ;;
 esac
 
 if $run_tier2; then
     check_cmd claude
+fi
+
+if $run_tier4; then
+    check_cmd asciinema
+    if ! command -v agg &>/dev/null || [[ "$(command -v agg)" == *"rg"* ]]; then
+        # Shell alias 'agg' shadows the real binary; check by path directly.
+        if [[ ! -x /opt/homebrew/bin/agg ]]; then
+            echo "ERROR: 'agg' not found. Run: brew install agg" >&2
+            exit 1
+        fi
+    fi
 fi
 
 if $WITH_OBSIDIAN; then
@@ -82,11 +104,17 @@ fi
 mkdir -p "$OUTPUT_DIR"
 
 # Fixture is needed by tier 2 (mutating shots). Tier 1 reads live data directly.
+RECORDINGS_DIR="$REPO_ROOT/assets/recordings"
 FIXTURE_READY=false
 ensure_fixture() {
     if ! $FIXTURE_READY; then
-        echo "Snapshotting fixture..."
-        bash "$LIB_DIR/snapshot-fixture.sh" "$FIXTURE_DIR"
+        if $USE_DEMO_VAULT; then
+            echo "Building demo vault fixture..."
+            bash "$LIB_DIR/build-demo-fixture.sh" "$FIXTURE_DIR"
+        else
+            echo "Snapshotting fixture..."
+            bash "$LIB_DIR/snapshot-fixture.sh" "$FIXTURE_DIR"
+        fi
         FIXTURE_READY=true
     fi
 }
@@ -116,6 +144,13 @@ if $WITH_OBSIDIAN; then
     bash "$LIB_DIR/tier3-obsidian.sh" "$OUTPUT_DIR"
 fi
 
+# ── Tier 4: Asciinema recordings ──────────────────────────────
+if $run_tier4; then
+    ensure_fixture
+    mkdir -p "$RECORDINGS_DIR"
+    bash "$LIB_DIR/tier4-asciinema.sh" "$FIXTURE_DIR" "$RECORDINGS_DIR"
+fi
+
 # ── Showboat block refresh ─────────────────────────────────────
 if $UPDATE_DEMO_MD; then
     echo ""
@@ -143,10 +178,12 @@ slipbox_rebuild_index:16-index-rebuild
 slipbox_create_note:04-idea-capture
 slipbox_create_link:04-idea-capture
 slipbox_create_structure_from_cluster:08-structure-note
+# NOTE: 00-status is a CLI-only recording (slipbox status subcommand); it has no
+# MCP tool counterpart and is intentionally excluded from the tool-coverage loop.
 "
 
 # Tools intentionally not covered (mechanical CRUD / housekeeping).
-SKIP_TOOLS="slipbox_update_note slipbox_delete_note slipbox_remove_link slipbox_refresh_clusters slipbox_dismiss_cluster slipbox_get_note"
+SKIP_TOOLS="slipbox_update_note slipbox_delete_note slipbox_remove_link slipbox_delete_link slipbox_refresh_clusters slipbox_dismiss_cluster slipbox_get_note"
 
 # Extract all tool names from server code.
 TOOL_DIR="$REPO_ROOT/src/slipbox_mcp/server/tools"
@@ -161,13 +198,20 @@ for tool in $ALL_TOOLS; do
     done
     $skip && continue
 
-    # Look up in coverage map.
-    shot=$(echo "$COVERAGE_MAP" | grep "^${tool}:" | head -1 | cut -d: -f2)
+    # Look up in coverage map. `|| true` prevents pipefail from killing the
+    # script when grep finds no match (which is a valid "not in map" signal,
+    # not an error).
+    shot=$(echo "$COVERAGE_MAP" | { grep "^${tool}:" || true; } | head -1 | cut -d: -f2)
     if [[ -z "$shot" ]]; then
         echo "  WARN: $tool not covered by any screenshot" >&2
         missing_count=$((missing_count + 1))
-    elif [[ ! -f "$OUTPUT_DIR/${shot}.png" ]]; then
-        echo "  NOTE: $tool -> ${shot}.png (not yet generated)"
+    else
+        if [[ ! -f "$OUTPUT_DIR/${shot}.png" ]]; then
+            echo "  NOTE: $tool -> ${shot}.png (not yet generated)"
+        fi
+        if $run_tier4 && [[ ! -f "$RECORDINGS_DIR/${shot}.gif" ]]; then
+            echo "  NOTE: $tool -> ${shot}.gif (not yet generated)"
+        fi
     fi
 done
 
@@ -186,6 +230,17 @@ find "$OUTPUT_DIR" -name '*.png' -type f | sort | while read -r f; do
     echo "  $SIZE  $(basename "$f")"
 done
 echo ""
+
+if $run_tier4; then
+    REC_COUNT=$(find "$RECORDINGS_DIR" -name '*.gif' -type f 2>/dev/null | wc -l | tr -d ' ')
+    echo "  Recordings: $REC_COUNT in $RECORDINGS_DIR"
+    echo ""
+    find "$RECORDINGS_DIR" -name '*.gif' -type f 2>/dev/null | sort | while read -r f; do
+        SIZE=$(du -h "$f" | cut -f1)
+        echo "  $SIZE  $(basename "$f")"
+    done
+    echo ""
+fi
 
 # Verify fixture isolation — live data/ must be unchanged.
 if ! git -C "$REPO_ROOT" diff --quiet data/ 2>/dev/null; then
