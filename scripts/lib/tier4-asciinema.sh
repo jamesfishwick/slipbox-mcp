@@ -16,8 +16,9 @@ SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 PROMPTS_DIR="$SCRIPTS_DIR/demo-prompts"
 
-# Use full path — shell alias 'agg' may shadow the binary.
+# Use full paths — shell aliases may shadow these binaries.
 AGG=/opt/homebrew/bin/agg
+GIFSICLE=/opt/homebrew/bin/gifsicle
 
 # Safety: refuse to run against live data.
 case "$FIXTURE_DIR" in
@@ -31,16 +32,23 @@ esac
 mkdir -p "$OUTPUT_DIR"
 
 # Shared agg flags — matches freeze/dracula styling used for PNGs.
-# --idle-time-limit 3: cap pauses at 3s so long MCP calls don't stall the GIF
-# --last-frame-duration 5: pause 5s on final frame so the output is readable
+# --speed 1.0: real-time playback so the slow-print reveal in the wrapper
+#   scripts isn't re-accelerated.
+# --idle-time-limit 1: cap pauses at 1s (the wrappers fill dead time with
+#   a "thinking" indicator).
+# --last-frame-duration 5: pause 5s on final frame so the viewer can read.
+# --font-size 11 / cols 88 / rows 32: smaller cell size keeps GIFs slim
+#   (~70% size reduction vs 14pt/100x40, ~30% vs 12pt/96x36) while staying
+#   readable. For the worst-case 70+ line response this is the difference
+#   between a 5.1MB and a 1.6MB GIF.
 AGG_FLAGS=(
     --theme dracula
-    --font-size 14
-    --speed 1.5
-    --idle-time-limit 3
+    --font-size 11
+    --speed 1.0
+    --idle-time-limit 1
     --last-frame-duration 5
-    --cols 100
-    --rows 30
+    --cols 88
+    --rows 32
 )
 
 # ── record_shot <cast> <gif> <wrapper-script> [title] ──────────
@@ -58,8 +66,8 @@ record_shot() {
         --overwrite \
         --quiet \
         --output-format asciicast-v2 \
-        --idle-time-limit 3 \
-        --window-size "100x30" \
+        --idle-time-limit 1 \
+        --window-size "88x32" \
         --title "$title" \
         --command "bash $wrapper" \
         "$cast_file"
@@ -67,10 +75,20 @@ record_shot() {
     echo "  [tier4] converting $(basename "$cast_file") -> $(basename "$gif_file") ..."
     "$AGG" "${AGG_FLAGS[@]}" "$cast_file" "$gif_file"
 
+    # gifsicle -O3 deduplicates frames and tightens encoding (~19% savings).
+    # --lossy is omitted intentionally: agg emits local colormaps per frame,
+    # which prevents lossy color reduction from helping (often INCREASES size).
+    local before_size
+    before_size=$(du -k "$gif_file" | cut -f1)
+    "$GIFSICLE" -O3 --batch "$gif_file"
+
     if [[ -s "$gif_file" ]]; then
         local size
         size=$(du -h "$gif_file" | cut -f1)
-        echo "  [tier4] done: $(basename "$gif_file") ($size)"
+        local after_size
+        after_size=$(du -k "$gif_file" | cut -f1)
+        local pct=$(( 100 * (before_size - after_size) / (before_size > 0 ? before_size : 1) ))
+        echo "  [tier4] done: $(basename "$gif_file") ($size, ${pct}% smaller after gifsicle)"
     else
         echo "  [tier4] ERROR: empty GIF for $(basename "$gif_file")" >&2
         return 1
@@ -90,10 +108,16 @@ record_tier1() {
     wrapper="$(mktemp /tmp/tier4-wrapper-XXXXXX.sh)"
     trap 'rm -f "$wrapper"' RETURN
 
-    # 16-index-rebuild
+    # 16-index-rebuild — show the command being typed, then run it
     cat > "$wrapper" <<SCRIPT
 #!/usr/bin/env bash
+B_CYAN=\$'\e[1;36m'
+RESET=\$'\e[0m'
+printf '%s\$ slipbox rebuild%s\n' "\$B_CYAN" "\$RESET"
+echo
+sleep 0.6
 SLIPBOX_BASE_DIR='$base_dir' uv run --project '$REPO_ROOT' slipbox --base-dir '$base_dir' rebuild
+echo
 SCRIPT
     record_shot \
         "/tmp/tier4-16-index-rebuild.cast" \
@@ -101,10 +125,16 @@ SCRIPT
         "$wrapper" \
         "Index Rebuild"
 
-    # 00-status
+    # 00-status — same pattern
     cat > "$wrapper" <<SCRIPT
 #!/usr/bin/env bash
+B_CYAN=\$'\e[1;36m'
+RESET=\$'\e[0m'
+printf '%s\$ slipbox status%s\n' "\$B_CYAN" "\$RESET"
+echo
+sleep 0.6
 SLIPBOX_BASE_DIR='$base_dir' uv run --project '$REPO_ROOT' slipbox --base-dir '$base_dir' status
+echo
 SCRIPT
     record_shot \
         "/tmp/tier4-00-status.cast" \
@@ -155,18 +185,41 @@ PYEOF
         fi
 
         # Write a per-shot wrapper so prompt content never needs shell-escaping.
-        # Note: --bare is intentionally omitted; it breaks auth when claude is called
-        # as a subprocess (e.g. from asciinema). The plain output format records fine.
-        # --model: Sonnet has a more generous rate limit than Opus for batch runs
-        # and produces equivalent quality for these demo prompts.
+        # The wrapper shows the prompt to the viewer, then slow-prints claude's
+        # response line by line so the recording reveals content progressively
+        # instead of dumping it all in one frame.
+        # Notes on flag choices:
+        #   --bare:  intentionally omitted; breaks auth when claude runs as a
+        #            subprocess (e.g. from asciinema).
+        #   --model: Sonnet has more generous rate limits than Opus for batch
+        #            runs and produces equivalent quality for these prompts.
         cat > "$wrapper" <<SCRIPT
 #!/usr/bin/env bash
+B_CYAN=\$'\e[1;36m'
+DIM=\$'\e[2m'
+RESET=\$'\e[0m'
+
+# Show what the user is asking
+printf '%s\$ slipbox-mcp%s %s(claude -p, headless mode)%s\n' "\$B_CYAN" "\$RESET" "\$DIM" "\$RESET"
+echo
+printf '%s> %s%s\n' "\$B_CYAN" "\$RESET" "\$(cat '$prompt_file' | fold -s -w 90 | sed '2,\$s/^/  /')"
+echo
+sleep 1.0
+printf '%s... thinking ...%s\n' "\$DIM" "\$RESET"
+echo
+
+# Slow-print the response so the GIF reveals content progressively
 claude -p "\$(cat '$prompt_file')" \\
     --model claude-sonnet-4-6 \\
     --strict-mcp-config \\
     --mcp-config '$mcp_config' \\
     --allowedTools 'mcp__slipbox-mcp__*' \\
-    --output-format text
+    --output-format text 2>/dev/null \\
+| while IFS= read -r line; do
+    printf '%s\n' "\$line"
+    sleep 0.03
+  done
+echo
 SCRIPT
 
         record_shot \
