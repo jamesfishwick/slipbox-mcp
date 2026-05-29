@@ -1209,7 +1209,22 @@ Claude's responses in the Demo Script sections above are captured automatically 
 ./scripts/capture-demo.sh --tier 2              # regenerate Claude responses + README PNGs
 ./scripts/capture-demo.sh --tier 1              # rebuild index screenshot only
 ./scripts/capture-demo.sh --update-demo-md      # also refresh the bash output blocks above
-
 ```
+
+### Animated GIF Recordings
+
+The README "In Action" section uses animated GIF recordings (tier 4) generated from a curated demo vault — a set of notes engineered to produce compelling, full-throated responses for each prompt.
+
+```bash
+# Generate recordings against the curated demo vault:
+./scripts/capture-demo.sh --tier 4 --demo-vault
+
+# Or include recordings as part of a full pipeline run:
+./scripts/capture-demo.sh --with-recordings --demo-vault
+```
+
+- `--demo-vault` builds the fixture from `scripts/demo-vault/notes/` instead of snapshotting the live vault. The demo vault's note graph is designed to produce high-quality responses for every recorded prompt.
+- `--with-recordings` (or `--tier 4`) invokes `scripts/lib/tier4-asciinema.sh`, which records each shot with `asciinema` and converts to GIF via `agg`. Output: `assets/recordings/*.gif`.
+- Raw `.cast` files are excluded from git (see `.gitignore`); only the final GIFs are committed.
 
 The Obsidian screenshots (`obsidian-note.png`, `obsidian-graph.png`, `obsidian-local-graph.png`) are captured manually.

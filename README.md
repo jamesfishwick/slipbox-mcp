@@ -22,73 +22,73 @@ Python 3.10+ | macOS or Linux
 
 The agent reads the `slipbox://maintenance-status` resource at session start and surfaces clusters that need organizing.
 
-![Proactive Maintenance](assets/screenshots/01-maintenance.png)
+![Proactive Maintenance](assets/recordings/01-maintenance.gif)
 
 ### Full-Text Search
 
 BM25-ranked search across notes via `zk_search_notes`.
 
-![FTS5 Search](assets/screenshots/02-search.png)
+![FTS5 Search](assets/recordings/02-search.gif)
 
 ### Knowledge Graph: Central Notes
 
 `zk_find_central_notes` surfaces the structural anchors of the graph -- the notes everything else orbits.
 
-![Central Notes](assets/screenshots/03-central-notes.png)
+![Central Notes](assets/recordings/03-central-notes.gif)
 
 ### Direct Idea Capture
 
 Your raw thinking in, a formatted atomic note with tags and links out. The agent formats and integrates -- the ideas stay yours.
 
-![Idea Capture](assets/screenshots/04-idea-capture.png)
+![Idea Capture](assets/recordings/04-idea-capture.gif)
 
 ### Note Analysis
 
 The `analyze_note` prompt evaluates atomicity, finds real connections in the existing graph, suggests tags, and rewrites for clarity.
 
-![Note Analysis](assets/screenshots/05-analyze-note.png)
+![Note Analysis](assets/recordings/05-analyze-note.gif)
 
 ### Source Decomposition
 
 The `knowledge_creation` prompt splits an article into atomic literature notes with proper citation and links.
 
-![Source Decomposition](assets/screenshots/06-source-decomposition.png)
+![Source Decomposition](assets/recordings/06-source-decomposition.gif)
 
 ### Cluster Detection
 
 `zk_get_cluster_report` finds groups of co-occurring tags that lack a structure note. Scored by size, orphan ratio, link density, and recency.
 
-![Cluster Report](assets/screenshots/07-cluster-report.png)
+![Cluster Report](assets/recordings/07-cluster-report.gif)
 
 ### Structure Note Creation
 
 `zk_create_structure_from_cluster` scaffolds a structure note, links all member notes, and dismisses the cluster.
 
-![Structure Note](assets/screenshots/08-structure-note.png)
+![Structure Note](assets/recordings/08-structure-note.gif)
 
 ### Orphaned Notes
 
 `zk_find_orphaned_notes` surfaces unintegrated knowledge -- candidates for connection or deletion.
 
-![Orphans](assets/screenshots/10-orphans.png)
+![Orphans](assets/recordings/10-orphans.gif)
 
 ### Similar Notes
 
 `zk_find_similar_notes` computes similarity from shared tags, common links, and content overlap -- three independent signals.
 
-![Similar Notes](assets/screenshots/11-similar-notes.png)
+![Similar Notes](assets/recordings/11-similar-notes.gif)
 
 ### Graph Traversal
 
 `zk_get_linked_notes` shows typed links from a hub note, grouped by link type.
 
-![Linked Notes](assets/screenshots/12-linked-notes.png)
+![Linked Notes](assets/recordings/12-linked-notes.gif)
 
 ### Knowledge Synthesis
 
 The `knowledge_synthesis` prompt finds bridges between unconnected areas and proposes synthesis notes from your existing knowledge.
 
-![Knowledge Synthesis](assets/screenshots/17-knowledge-synthesis.png)
+![Knowledge Synthesis](assets/recordings/17-knowledge-synthesis.gif)
 
 ### Zero Lock-In: Plain Files in Obsidian
 
