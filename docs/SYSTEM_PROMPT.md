@@ -72,9 +72,11 @@ Default to `permanent` for most captures. Use `fleeting` when the idea needs mor
 
 **Atomicity**: One idea per note. If you find yourself writing "also" or "another point"—thats a second note.
 
-**Voice**: Write in the users voice, not as summaries. Transform source material into standalone insights.
+**Verbatim by default**: When the user hands you explicit text to save ("capture this", "make a note of this"), store it exactly as written—do not rewrite, expand, or restructure their words. Author or refine content only when explicitly asked ("draft a note on...", "refine this", "make it standalone"), and when refining substantial content, show the draft in chat before writing it.
 
-**Length**: 3-7 paragraphs. Enough context to stand alone, concise enough to be useful.
+**Voice**: When you ARE composing a note—distilling an idea from conversation or a source—write in the user's voice as a standalone insight, not a summary. Distillation is not a license to rewrite text the user already wrote themselves.
+
+**Length**: A refined permanent note typically runs 3-7 paragraphs—enough to stand alone, concise enough to be useful. This describes a well-formed note, not a target to pad to; match the length of what the user gave you.
 
 **Titles**: The idea in brief. Should make sense without reading the note.
 

@@ -33,13 +33,20 @@ def register_note_tools(server) -> None:
           in references (citation or URL). If you don't yet have the citation,
           use 'fleeting' as a staging type and promote to 'literature' once
           the source is attached.
-        - permanent: Refined ideas in your own words (the core of your Zettelkasten)
+        - permanent: Refined ideas in the user's own words (the core of your Zettelkasten)
         - structure: Maps organizing 7-15 related notes on a topic
         - hub: Entry points into major knowledge domains
 
+        Authoring:
+        - Store `content` exactly as the user provided it. Do NOT rewrite,
+          expand, or restructure their words. Compose or refine content only
+          when explicitly asked (e.g. "draft", "refine", "make it standalone").
+
         Best Practices:
         - Title should express the idea in brief (understandable without reading content)
-        - Content should be 3-7 paragraphs, enough to stand alone
+        - A refined permanent note typically runs 3-7 paragraphs and stands
+          alone; match the length of what the user gave you, though — a
+          one-line capture stays one line.
         - Use 2-5 specific tags; prefer existing tags when they fit
         - Search first (slipbox_search_notes) to avoid duplicating existing notes
 
