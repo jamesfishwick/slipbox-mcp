@@ -29,13 +29,20 @@ def _build_fts_match(query: str, column: Optional[str] = None) -> str:
     in order. That is why multi-word searches previously returned nothing.
 
     ``column`` optionally scopes each term to a single FTS5 column
-    (e.g. ``title`` or ``content``).
+    (e.g. ``title`` or ``content``). Phrase search is intentionally
+    unsupported -- every token is matched independently.
     """
     tokens = query.split()
     if not tokens:
         return ""
     prefix = f"{column}:" if column else ""
-    return " OR ".join(f'{prefix}"{tok.replace(chr(34), chr(34) * 2)}"' for tok in tokens)
+    quoted = []
+    for tok in tokens:
+        # Inside an FTS5 double-quoted string the only character needing
+        # escaping is the double quote itself, escaped by doubling it.
+        escaped = tok.replace('"', '""')
+        quoted.append(f'{prefix}"{escaped}"')
+    return " OR ".join(quoted)
 
 
 @dataclass
