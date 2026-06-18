@@ -96,6 +96,33 @@ def test_search_by_text_fts_special_chars_do_not_crash(zettel_service, search_se
     assert isinstance(search_service.search_by_text("*wildcard"), list)
 
 
+def test_search_by_text_multi_word_query_matches_any_term(zettel_service, search_service):
+    """Multi-word queries must OR their terms, not require an exact phrase.
+
+    Regression: queries were wrapped in quotes and run as a single FTS5 phrase,
+    so any multi-word search ("writing thinking", "poetry craft writing")
+    returned nothing unless the words appeared contiguously and in order.
+    """
+    writing_note = zettel_service.create_note(
+        title="On Writing",
+        content="A note about the craft of writing prose.",
+        tags=[],
+    )
+    thinking_note = zettel_service.create_note(
+        title="On Thinking",
+        content="A note about thinking clearly and reasoning.",
+        tags=[],
+    )
+
+    # The two words never appear adjacent in either note, so a phrase query
+    # would return []. An OR query must surface both notes.
+    results = search_service.search_by_text("writing thinking")
+    found_ids = {r.note.id for r in results}
+
+    assert writing_note.id in found_ids
+    assert thinking_note.id in found_ids
+
+
 def test_search_combined_text_uses_bm25(zettel_service, search_service):
     """search_combined with text must return BM25-ranked results, not Python-scored."""
     note_a = zettel_service.create_note(

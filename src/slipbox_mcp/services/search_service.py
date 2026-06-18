@@ -14,6 +14,30 @@ from slipbox_mcp.storage.note_repository import _NOTE_EAGER_LOADS
 
 logger = logging.getLogger(__name__)
 
+
+def _build_fts_match(query: str, column: Optional[str] = None) -> str:
+    """Build an FTS5 MATCH expression from a free-text query.
+
+    Each whitespace-separated token is wrapped in double quotes (so any FTS5
+    special characters inside a token are treated as literal text) and the
+    tokens are combined with OR. OR maximizes recall -- a note matches if it
+    contains *any* term -- while BM25 ranking still floats notes that match
+    more terms to the top.
+
+    Wrapping the whole query in quotes instead would produce a single FTS5
+    phrase query, which only matches when the tokens appear contiguously and
+    in order. That is why multi-word searches previously returned nothing.
+
+    ``column`` optionally scopes each term to a single FTS5 column
+    (e.g. ``title`` or ``content``).
+    """
+    tokens = query.split()
+    if not tokens:
+        return ""
+    prefix = f"{column}:" if column else ""
+    return " OR ".join(f'{prefix}"{tok.replace(chr(34), chr(34) * 2)}"' for tok in tokens)
+
+
 @dataclass
 class SearchResult:
     """A search result with a note and its relevance score."""
@@ -70,13 +94,12 @@ class SearchService:
 
         repository = self.zettel_service.repository
 
-        escaped = query.replace('"', '""')
         if include_title and include_content:
-            fts_query = f'"{escaped}"'
+            fts_query = _build_fts_match(query)
         elif include_title:
-            fts_query = f'title:"{escaped}"'
+            fts_query = _build_fts_match(query, column="title")
         else:
-            fts_query = f'content:"{escaped}"'
+            fts_query = _build_fts_match(query, column="content")
 
         rows = self._run_fts5_query(fts_query)
 
@@ -172,8 +195,7 @@ class SearchService:
                     for n in notes
                 ]
 
-            escaped = query_text.replace('"', '""')
-            fts_query = f'"{escaped}"'
+            fts_query = _build_fts_match(query_text)
 
         fts_rows = self._run_fts5_query(fts_query)
 
