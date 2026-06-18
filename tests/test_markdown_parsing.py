@@ -110,3 +110,15 @@ class TestParseFrontmatterDates:
         created, updated = _parse_frontmatter_dates({})
         after = datetime.now()
         assert before <= created <= after
+
+    def test_from_datetime_objects(self):
+        # PyYAML's SafeLoader auto-parses unquoted ISO-8601 timestamps into
+        # datetime objects, so _parse_frontmatter_dates must accept them
+        # rather than only strings.
+        metadata = {
+            "created": datetime(2025, 6, 22, 13, 47, 59),
+            "updated": datetime(2025, 6, 22, 13, 49, 4),
+        }
+        created, updated = _parse_frontmatter_dates(metadata)
+        assert created == datetime(2025, 6, 22, 13, 47, 59)
+        assert updated == datetime(2025, 6, 22, 13, 49, 4)
