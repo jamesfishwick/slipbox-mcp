@@ -80,21 +80,31 @@ def _parse_links_section(content: str, source_id: str) -> list[Link]:
     return links
 
 
+def _coerce_frontmatter_datetime(value: Any) -> Optional[datetime.datetime]:
+    """Coerce a frontmatter date value into a datetime.
+
+    PyYAML auto-parses unquoted ISO-8601 timestamps into datetime objects,
+    while quoted values arrive as strings. Accept both so a hand-edited or
+    externally-generated note doesn't break indexing.
+    """
+    if isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, str) and value:
+        return datetime.datetime.fromisoformat(value)
+    return None
+
+
 def _parse_frontmatter_dates(
     metadata: dict[str, Any],
 ) -> tuple[datetime.datetime, datetime.datetime]:
     """Parse created/updated datetimes from frontmatter metadata."""
-    created_str = metadata.get("created")
     created_at = (
-        datetime.datetime.fromisoformat(created_str)
-        if created_str
-        else datetime.datetime.now()
+        _coerce_frontmatter_datetime(metadata.get("created"))
+        or datetime.datetime.now()
     )
-    updated_str = metadata.get("updated")
     updated_at = (
-        datetime.datetime.fromisoformat(updated_str)
-        if updated_str
-        else created_at
+        _coerce_frontmatter_datetime(metadata.get("updated"))
+        or created_at
     )
     return created_at, updated_at
 
