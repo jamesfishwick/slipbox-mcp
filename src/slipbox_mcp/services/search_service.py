@@ -101,6 +101,12 @@ class SearchService:
         else:
             fts_query = _build_fts_match(query, column="content")
 
+        # A whitespace-only query yields no tokens; return [] explicitly rather
+        # than letting an empty MATCH expression fall through to the FTS5
+        # syntax-error catch (which would log a misleading "syntax error").
+        if not fts_query:
+            return []
+
         rows = self._run_fts5_query(fts_query)
 
         results = []
@@ -188,7 +194,10 @@ class SearchService:
             db_notes = session.execute(query).unique().scalars().all()
             candidate_ids = {db_note.id: db_note for db_note in db_notes}
 
-            if not query_text:
+            # Treat a missing or whitespace-only query_text as "no text filter":
+            # return the metadata-matched candidates rather than running an empty
+            # MATCH (which would swallow a misleading FTS5 syntax error to []).
+            if not query_text or not query_text.strip():
                 notes = [repository._db_note_to_note(n) for n in db_notes]
                 return [
                     SearchResult(note=n, score=1.0, matched_terms=set(), matched_context="")

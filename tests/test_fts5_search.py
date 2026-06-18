@@ -123,6 +123,33 @@ def test_search_by_text_multi_word_query_matches_any_term(zettel_service, search
     assert thinking_note.id in found_ids
 
 
+def test_search_by_text_whitespace_only_query_returns_empty(zettel_service, search_service):
+    """A whitespace-only query has no tokens and must return [] without hitting FTS5.
+
+    Regression: such a query is truthy, so it bypasses the `if not query` guard,
+    builds an empty MATCH expression, and previously relied on the FTS5
+    syntax-error catch (which logged a misleading "syntax error") to return [].
+    """
+    zettel_service.create_note(title="Any Note", content="Some content.", tags=[])
+    assert search_service.search_by_text("   ") == []
+    assert search_service.search_by_text("\t\n") == []
+
+
+def test_search_combined_whitespace_text_treated_as_no_text(zettel_service, search_service):
+    """Whitespace-only query_text must behave like no text: return metadata matches."""
+    note = zettel_service.create_note(
+        title="Tagged Note",
+        content="Some content.",
+        note_type=NoteType.PERMANENT,
+        tags=["unique-ws-tag"],
+    )
+    results = search_service.search_combined(query_text="   ", tags=["unique-ws-tag"])
+
+    assert len(results) == 1
+    assert results[0].note.id == note.id
+    assert results[0].score == 1.0
+
+
 def test_search_combined_text_uses_bm25(zettel_service, search_service):
     """search_combined with text must return BM25-ranked results, not Python-scored."""
     note_a = zettel_service.create_note(
