@@ -14,6 +14,37 @@ from slipbox_mcp.storage.note_repository import _NOTE_EAGER_LOADS
 
 logger = logging.getLogger(__name__)
 
+
+def _build_fts_match(query: str, column: Optional[str] = None) -> str:
+    """Build an FTS5 MATCH expression from a free-text query.
+
+    Each whitespace-separated token is wrapped in double quotes (so any FTS5
+    special characters inside a token are treated as literal text) and the
+    tokens are combined with OR. OR maximizes recall -- a note matches if it
+    contains *any* term -- while BM25 ranking still floats notes that match
+    more terms to the top.
+
+    Wrapping the whole query in quotes instead would produce a single FTS5
+    phrase query, which only matches when the tokens appear contiguously and
+    in order. That is why multi-word searches previously returned nothing.
+
+    ``column`` optionally scopes each term to a single FTS5 column
+    (e.g. ``title`` or ``content``). Phrase search is intentionally
+    unsupported -- every token is matched independently.
+    """
+    tokens = query.split()
+    if not tokens:
+        return ""
+    prefix = f"{column}:" if column else ""
+    quoted = []
+    for tok in tokens:
+        # Inside an FTS5 double-quoted string the only character needing
+        # escaping is the double quote itself, escaped by doubling it.
+        escaped = tok.replace('"', '""')
+        quoted.append(f'{prefix}"{escaped}"')
+    return " OR ".join(quoted)
+
+
 @dataclass
 class SearchResult:
     """A search result with a note and its relevance score."""
@@ -70,13 +101,18 @@ class SearchService:
 
         repository = self.zettel_service.repository
 
-        escaped = query.replace('"', '""')
         if include_title and include_content:
-            fts_query = f'"{escaped}"'
+            fts_query = _build_fts_match(query)
         elif include_title:
-            fts_query = f'title:"{escaped}"'
+            fts_query = _build_fts_match(query, column="title")
         else:
-            fts_query = f'content:"{escaped}"'
+            fts_query = _build_fts_match(query, column="content")
+
+        # A whitespace-only query yields no tokens; return [] explicitly rather
+        # than letting an empty MATCH expression fall through to the FTS5
+        # syntax-error catch (which would log a misleading "syntax error").
+        if not fts_query:
+            return []
 
         rows = self._run_fts5_query(fts_query)
 
@@ -165,15 +201,17 @@ class SearchService:
             db_notes = session.execute(query).unique().scalars().all()
             candidate_ids = {db_note.id: db_note for db_note in db_notes}
 
-            if not query_text:
+            # Treat a missing or whitespace-only query_text as "no text filter":
+            # return the metadata-matched candidates rather than running an empty
+            # MATCH (which would swallow a misleading FTS5 syntax error to []).
+            if not query_text or not query_text.strip():
                 notes = [repository._db_note_to_note(n) for n in db_notes]
                 return [
                     SearchResult(note=n, score=1.0, matched_terms=set(), matched_context="")
                     for n in notes
                 ]
 
-            escaped = query_text.replace('"', '""')
-            fts_query = f'"{escaped}"'
+            fts_query = _build_fts_match(query_text)
 
         fts_rows = self._run_fts5_query(fts_query)
 
