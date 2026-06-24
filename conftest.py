@@ -1,4 +1,23 @@
 """Root conftest -- shared fixtures available to both tests/ and evals/."""
+# Path shim: force this tree's src/ to the front of sys.path BEFORE any
+# slipbox_mcp import resolves. The repo is installed editable in a shared
+# .venv whose .pth points at the MAIN checkout, so a worktree's pytest run
+# would otherwise import main's source while collecting the worktree's tests
+# -- silently testing the wrong code. Prepending the local src/ overrides
+# that. No-op when src/ isn't beside this file.
+import sys as _sys
+from pathlib import Path as _Path
+
+_local_src = _Path(__file__).resolve().parent / "src"
+if _local_src.is_dir():
+    _src_str = str(_local_src)
+    if _sys.path and _sys.path[0] == _src_str:
+        pass
+    else:
+        # Drop any existing occurrence, then pin to front.
+        _sys.path = [p for p in _sys.path if p != _src_str]
+        _sys.path.insert(0, _src_str)
+
 import tempfile
 from pathlib import Path
 
