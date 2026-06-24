@@ -562,12 +562,23 @@ class NoteRepository(Repository[Note]):
         return note
 
     def delete(self, id: str) -> None:
-        """Delete a note by ID."""
+        """Delete a note by ID.
+
+        Also sweeps inbound references: any note whose ``## Links`` section
+        points at the deleted note is rewritten without that link. The
+        filesystem is the source of truth, so leaving a dangling ``[[id]]``
+        in a referrer's body would let rebuild_index resurrect the link into
+        the DB on the next rebuild.
+        """
         file_path = self.notes_dir / f"{id}.md"
         if not file_path.exists():
             raise ValueError(f"Note with ID {id} does not exist")
 
         with self.file_lock:
+            # Collect referrers BEFORE deleting, while the DB index still
+            # knows who links to this note.
+            referrers = self.find_linked_notes(id, direction="incoming")
+
             original_content = file_path.read_text(encoding="utf-8")
 
             try:
@@ -590,6 +601,27 @@ class NoteRepository(Repository[Note]):
                     logger.error("Failed to restore file %s after DB error", file_path)
                 logger.error("DB cleanup failed for note %s, file restored: %s", id, e)
                 raise
+
+            # Sweep dead links out of each referrer. Re-read from disk so we
+            # rewrite the authoritative full link set, then let update()
+            # regenerate the ## Links block via note_to_markdown.
+            for referrer in referrers:
+                if referrer.id == id:
+                    continue
+                fresh = self.get(referrer.id)
+                if fresh is None:
+                    continue
+                remaining = [lnk for lnk in fresh.links if lnk.target_id != id]
+                if len(remaining) == len(fresh.links):
+                    continue
+                fresh.links = remaining
+                try:
+                    self.update(fresh)
+                except Exception as e:
+                    logger.error(
+                        "Failed to sweep dead link to %s from referrer %s: %s",
+                        id, referrer.id, e,
+                    )
 
     def search(self, **kwargs: Any) -> List[Note]:
         """Search for notes based on criteria."""
@@ -772,3 +804,47 @@ class NoteRepository(Repository[Note]):
                 continue
             result.append((self._db_note_to_note(db_note), rank_map[note_id]))
         return result
+
+    def find_dangling_links(self) -> List[tuple]:
+        """Find links whose target note no longer exists on disk.
+
+        Read-only. Returns (source_id, target_id, link_type) tuples for every
+        link pointing at a note id with no corresponding markdown file. These
+        are the stubs left behind by deletes that predate referrer-sweeping,
+        or by hand-editing.
+        """
+        existing = {p.stem for p in self.notes_dir.glob("*.md")}
+        dangling: List[tuple] = []
+        for note in self.get_all():
+            for link in note.links:
+                if link.target_id not in existing:
+                    dangling.append(
+                        (note.id, link.target_id, link.link_type.value)
+                    )
+        return dangling
+
+    def prune_dangling_links(self) -> List[tuple]:
+        """Remove links pointing at non-existent notes; return what was pruned.
+
+        Rewrites each affected note via update(), which regenerates the
+        ## Links block from the surviving links. Returns the same
+        (source_id, target_id, link_type) tuples that find_dangling_links
+        would report, for the notes actually rewritten.
+        """
+        existing = {p.stem for p in self.notes_dir.glob("*.md")}
+        pruned: List[tuple] = []
+        for note in self.get_all():
+            live = [lnk for lnk in note.links if lnk.target_id in existing]
+            if len(live) == len(note.links):
+                continue
+            for lnk in note.links:
+                if lnk.target_id not in existing:
+                    pruned.append((note.id, lnk.target_id, lnk.link_type.value))
+            note.links = live
+            try:
+                self.update(note)
+            except Exception as e:
+                logger.error(
+                    "Failed to prune dangling links from note %s: %s", note.id, e
+                )
+        return pruned

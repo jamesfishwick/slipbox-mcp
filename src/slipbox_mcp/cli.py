@@ -325,6 +325,41 @@ def cmd_audit_references(args):
         sys.exit(1)
 
 
+def cmd_prune_links(args):
+    """Find links pointing at deleted notes; optionally remove them.
+
+    Without --fix, lists every dangling link (source -> missing target).
+    With --fix, rewrites the affected notes to drop those links. Exits
+    non-zero when dangling links are found in dry-run mode, so the command
+    is usable as a CI gate.
+    """
+    try:
+        repo = NoteRepository()
+
+        if not args.fix:
+            dangling = repo.find_dangling_links()
+            if not dangling:
+                print("No dangling links found.")
+                return
+            print(f"Found {len(dangling)} dangling link(s):\n")
+            for source_id, target_id, link_type in dangling:
+                print(f"  {source_id}  --{link_type}-->  {target_id} (missing)")
+            print("\nRun with --fix to remove them.")
+            sys.exit(1)
+
+        pruned = repo.prune_dangling_links()
+        if not pruned:
+            print("No dangling links found.")
+            return
+        print(f"Pruned {len(pruned)} dangling link(s):\n")
+        for source_id, target_id, link_type in pruned:
+            print(f"  {source_id}  --{link_type}-->  {target_id}")
+        print("\nDone.")
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_tags(args):
     """List all tags."""
     try:
@@ -393,6 +428,17 @@ def main():
         help="Apply a fix: 'downgrade' converts offenders to type=permanent",
     )
 
+    # prune-links
+    p_prune = subparsers.add_parser(
+        "prune-links",
+        help="Find and remove links pointing at deleted notes"
+    )
+    p_prune.add_argument(
+        "--fix",
+        action="store_true",
+        help="Remove the dangling links (default: list only)",
+    )
+
     args = parser.parse_args()
 
     from slipbox_mcp.config import config
@@ -414,6 +460,7 @@ def main():
         "export": cmd_export,
         "tags": cmd_tags,
         "audit-references": cmd_audit_references,
+        "prune-links": cmd_prune_links,
     }
 
     commands[args.command](args)
