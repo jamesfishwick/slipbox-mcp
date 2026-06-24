@@ -44,6 +44,19 @@ class ReferrerSweepError(Exception):
         )
 
 
+# Note IDs become filenames (``{id}.md``). Constrain them to a path-safe
+# alphabet so a crafted id (``../../etc/x``, ``/etc/x``) cannot escape the
+# notes dir. This mirrors the validator on Note.id; it is repeated here so the
+# filesystem layer is safe even for ids that bypassed model validation (e.g.
+# Note.model_construct on the schema-violation hydration path).
+_NOTE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _is_safe_note_id(note_id: Any) -> bool:
+    """Return True if note_id is a non-empty, path-safe filename stem."""
+    return isinstance(note_id, str) and bool(_NOTE_ID_PATTERN.fullmatch(note_id))
+
+
 # ---------------------------------------------------------------------------
 # Markdown parsing helpers (module-level, no instance state needed)
 # ---------------------------------------------------------------------------
@@ -236,6 +249,15 @@ class NoteRepository(Repository[Note]):
 
         note_id = metadata.get("id")
         if not note_id:
+            return None
+        if not _is_safe_note_id(note_id):
+            # A note file whose frontmatter id is not a path-safe stem is
+            # corrupt or hostile (path traversal). Refuse to hydrate it rather
+            # than let it reach the model_construct fallback below, which would
+            # bypass the id validator and make the bad id writable.
+            logger.warning(
+                "Skipping note with unsafe id %r (not a path-safe stem)", note_id
+            )
             return None
 
         title = metadata.get("title")
@@ -470,6 +492,21 @@ class NoteRepository(Repository[Note]):
         post = frontmatter.Post(content, **metadata)
         return frontmatter.dumps(post)
 
+    def _note_path(self, note_id: str) -> Path:
+        """Resolve the markdown path for a note id, refusing any escape.
+
+        Defense-in-depth against path traversal: even if a crafted id reaches
+        this layer (bad frontmatter, a model_construct'd Note), the resolved
+        path must stay inside notes_dir or we raise rather than touch the file.
+        """
+        if not _is_safe_note_id(note_id):
+            raise ValueError(f"Unsafe note id (not a path-safe stem): {note_id!r}")
+        path = (self.notes_dir / f"{note_id}.md").resolve()
+        notes_root = self.notes_dir.resolve()
+        if not path.is_relative_to(notes_root):
+            raise ValueError(f"Refusing path outside notes dir for id {note_id!r}")
+        return path
+
     def create(self, note: Note) -> Note:
         """Create a new note."""
         if not note.id:
@@ -477,7 +514,7 @@ class NoteRepository(Repository[Note]):
             note.id = generate_id()
 
         markdown = self.note_to_markdown(note)
-        file_path = self.notes_dir / f"{note.id}.md"
+        file_path = self._note_path(note.id)
 
         with self.file_lock:
             try:
@@ -496,7 +533,9 @@ class NoteRepository(Repository[Note]):
 
     def get(self, id: str) -> Optional[Note]:
         """Get a note by ID."""
-        file_path = self.notes_dir / f"{id}.md"
+        if not _is_safe_note_id(id):
+            return None
+        file_path = self._note_path(id)
         if not file_path.exists():
             return None
         try:
@@ -534,7 +573,7 @@ class NoteRepository(Repository[Note]):
 
         note.updated_at = datetime.datetime.now()
 
-        file_path = self.notes_dir / f"{note.id}.md"
+        file_path = self._note_path(note.id)
         markdown = self.note_to_markdown(note)
 
         with self.file_lock:
@@ -596,7 +635,7 @@ class NoteRepository(Repository[Note]):
                 referrers could not be swept and still carry dangling links.
                 Run ``slipbox prune-links --fix`` to clean them.
         """
-        file_path = self.notes_dir / f"{id}.md"
+        file_path = self._note_path(id)
         if not file_path.exists():
             raise ValueError(f"Note with ID {id} does not exist")
 
