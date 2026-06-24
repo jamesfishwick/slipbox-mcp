@@ -264,3 +264,77 @@ def test_audit_references_fix_makes_subsequent_runs_clean():
         rerun = _run_cli("--base-dir", str(base_path), "audit-references")
         assert rerun.returncode == 0, rerun.stderr
         assert "All literature notes have references" in rerun.stdout
+
+
+def _write_note_with_link(notes_dir: Path, note_id: str, target_id: str,
+                          link_type: str = "extends") -> Path:
+    """Write a permanent note carrying a single ## Links entry to target_id."""
+    path = _write_note(notes_dir, note_id, "permanent")
+    body = path.read_text()
+    body += f"\n## Links\n\n- {link_type} [[{target_id}]]\n"
+    path.write_text(body)
+    return path
+
+
+def test_prune_links_clean_corpus_exits_zero():
+    """No dangling links: the gate must pass (exit 0)."""
+    with tempfile.TemporaryDirectory() as base:
+        base_path = Path(base)
+        notes_dir = base_path / "data" / "notes"
+        notes_dir.mkdir(parents=True)
+        target = "20260101T000000000000101"
+        _write_note(notes_dir, target, "permanent")
+        _write_note_with_link(notes_dir, "20260101T000000000000102", target)
+
+        result = _run_cli("--base-dir", str(base_path), "prune-links")
+        assert result.returncode == 0, result.stderr
+        assert "No dangling links found." in result.stdout
+
+
+def test_prune_links_dry_run_lists_and_exits_nonzero():
+    """Dangling link present: dry-run lists it, exits 1, and does NOT mutate."""
+    with tempfile.TemporaryDirectory() as base:
+        base_path = Path(base)
+        notes_dir = base_path / "data" / "notes"
+        notes_dir.mkdir(parents=True)
+        missing = "20260101T000000000000199"
+        referrer = _write_note_with_link(
+            notes_dir, "20260101T000000000000103", missing
+        )
+        before = referrer.read_text()
+
+        result = _run_cli("--base-dir", str(base_path), "prune-links")
+        assert result.returncode == 1, result.stderr
+        assert missing in result.stdout
+        # Dry run must not rewrite the referrer.
+        assert referrer.read_text() == before, "dry run mutated a note"
+
+
+def test_prune_links_fix_removes_and_exits_zero():
+    """--fix removes the dangling link from disk and exits 0."""
+    with tempfile.TemporaryDirectory() as base:
+        base_path = Path(base)
+        notes_dir = base_path / "data" / "notes"
+        notes_dir.mkdir(parents=True)
+        missing = "20260101T000000000000199"
+        referrer = _write_note_with_link(
+            notes_dir, "20260101T000000000000104", missing
+        )
+
+        result = _run_cli("--base-dir", str(base_path), "prune-links", "--fix")
+        assert result.returncode == 0, result.stderr
+        assert "Pruned 1 dangling link(s)" in result.stdout
+        assert f"[[{missing}]]" not in referrer.read_text()
+
+
+def test_prune_links_fix_clean_corpus_exits_zero():
+    """--fix with nothing to do is a clean no-op (exit 0)."""
+    with tempfile.TemporaryDirectory() as base:
+        base_path = Path(base)
+        notes_dir = base_path / "data" / "notes"
+        notes_dir.mkdir(parents=True)
+        _write_note(notes_dir, "20260101T000000000000105", "permanent")
+
+        result = _run_cli("--base-dir", str(base_path), "prune-links", "--fix")
+        assert result.returncode == 0, result.stderr
+        assert "No dangling links found." in result.stdout

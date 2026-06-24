@@ -347,13 +347,26 @@ def cmd_prune_links(args):
             print("\nRun with --fix to remove them.")
             sys.exit(1)
 
-        pruned = repo.prune_dangling_links()
-        if not pruned:
+        pruned, failed = repo.prune_dangling_links()
+        if not pruned and not failed:
             print("No dangling links found.")
             return
-        print(f"Pruned {len(pruned)} dangling link(s):\n")
-        for source_id, target_id, link_type in pruned:
-            print(f"  {source_id}  --{link_type}-->  {target_id}")
+        if pruned:
+            print(f"Pruned {len(pruned)} dangling link(s):\n")
+            for source_id, target_id, link_type in pruned:
+                print(f"  {source_id}  --{link_type}-->  {target_id}")
+        if failed:
+            print(
+                f"\nWARNING: {len(failed)} dangling link(s) could NOT be removed "
+                f"(note rewrite failed); they are still on disk:",
+                file=sys.stderr,
+            )
+            for source_id, target_id, link_type in failed:
+                print(
+                    f"  {source_id}  --{link_type}-->  {target_id} (STILL DANGLING)",
+                    file=sys.stderr,
+                )
+            sys.exit(1)
         print("\nDone.")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

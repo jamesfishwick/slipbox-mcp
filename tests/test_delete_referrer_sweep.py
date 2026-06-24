@@ -6,7 +6,10 @@ pointed at it. Because the filesystem is the source of truth and
 rebuild_index re-parses ## Links from every file, those orphaned links were
 resurrected into the DB on the next rebuild.
 """
+import pytest
+
 from slipbox_mcp.models.schema import LinkType
+from slipbox_mcp.storage.note_repository import ReferrerSweepError
 
 
 class TestDeleteSweepsReferrers:
@@ -93,3 +96,67 @@ class TestDeleteSweepsReferrers:
         body = (note_repository.notes_dir / f"{referrer.id}.md").read_text()
         assert f"[[{target.id}]]" not in body
         assert f"[[{survivor.id}]]" in body, "Deleting one target wrongly removed an unrelated link"
+
+    def test_sweeps_all_referrers(self, note_repository, zettel_service):
+        """The sweep is a loop; every referrer must lose the dead link.
+
+        A single-referrer test cannot catch a sweep that only handles the
+        first (or last) referrer, so exercise iteration explicitly.
+        """
+        target = zettel_service.create_note(title="Hub", content="Linked from many.")
+        referrers = [
+            zettel_service.create_note(title=f"Ref {i}", content="points")
+            for i in range(3)
+        ]
+        for referrer in referrers:
+            zettel_service.create_link(
+                source_id=referrer.id, target_id=target.id, link_type=LinkType.EXTENDS
+            )
+
+        note_repository.delete(target.id)
+        note_repository.rebuild_index()
+
+        for referrer in referrers:
+            body = (note_repository.notes_dir / f"{referrer.id}.md").read_text()
+            assert f"[[{target.id}]]" not in body, (
+                f"Referrer {referrer.id} kept the dead link after sweep"
+            )
+
+    def test_sweep_failure_is_surfaced_not_swallowed(
+        self, note_repository, zettel_service, monkeypatch
+    ):
+        """If a referrer's rewrite fails, delete() must raise, not report success.
+
+        Regression guard for the swallow-and-continue path: a failed sweep
+        left a dangling [[id]] that rebuild_index would resurrect, while the
+        caller saw a clean delete. delete() now raises ReferrerSweepError, and
+        the OTHER referrers are still swept (one failure does not abort the rest).
+        """
+        target = zettel_service.create_note(title="Hub", content="Linked from many.")
+        bad = zettel_service.create_note(title="Bad Referrer", content="rewrite fails")
+        good = zettel_service.create_note(title="Good Referrer", content="rewrite ok")
+        for referrer in (bad, good):
+            zettel_service.create_link(
+                source_id=referrer.id, target_id=target.id, link_type=LinkType.EXTENDS
+            )
+
+        real_update = note_repository.update
+
+        def flaky_update(note):
+            if note.id == bad.id:
+                raise IOError("disk full")
+            return real_update(note)
+
+        monkeypatch.setattr(note_repository, "update", flaky_update)
+
+        with pytest.raises(ReferrerSweepError) as excinfo:
+            note_repository.delete(target.id)
+
+        # The error names the deleted note and the un-swept referrer.
+        assert target.id in str(excinfo.value)
+        assert bad.id in str(excinfo.value)
+        assert excinfo.value.failures == [(bad.id, "disk full")]
+
+        # The healthy referrer was still swept despite the other's failure.
+        good_body = (note_repository.notes_dir / f"{good.id}.md").read_text()
+        assert f"[[{target.id}]]" not in good_body

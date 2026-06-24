@@ -46,8 +46,9 @@ class TestFindDanglingLinks:
 class TestPruneDanglingLinks:
     def test_removes_stub_from_file(self, note_repository, zettel_service):
         referrer_id, target_id = _orphan_a_link(note_repository, zettel_service)
-        pruned = note_repository.prune_dangling_links()
+        pruned, failed = note_repository.prune_dangling_links()
         assert (referrer_id, target_id, "extends") in pruned
+        assert failed == []
         body = (note_repository.notes_dir / f"{referrer_id}.md").read_text()
         assert f"[[{target_id}]]" not in body
 
@@ -80,3 +81,64 @@ class TestPruneDanglingLinks:
         body = (note_repository.notes_dir / f"{referrer.id}.md").read_text()
         assert f"[[{target.id}]]" not in body
         assert f"[[{survivor.id}]]" in body
+
+    def test_failed_update_reported_as_failed_not_pruned(
+        self, note_repository, zettel_service, monkeypatch
+    ):
+        """A note whose rewrite throws must land in `failed`, never `pruned`.
+
+        Regression guard: the original code appended to `pruned` before the
+        write, so a failed update() was reported as a successful prune. The
+        return value must never claim a prune that did not happen.
+        """
+        referrer_id, target_id = _orphan_a_link(note_repository, zettel_service)
+
+        def boom(note):
+            raise IOError("disk full")
+
+        monkeypatch.setattr(note_repository, "update", boom)
+        pruned, failed = note_repository.prune_dangling_links()
+
+        assert (referrer_id, target_id, "extends") not in pruned
+        assert (referrer_id, target_id, "extends") in failed
+        # The stub is still on disk because the rewrite failed.
+        body = (note_repository.notes_dir / f"{referrer_id}.md").read_text()
+        assert f"[[{target_id}]]" in body
+
+    def test_reports_multiple_dead_links_in_one_note(
+        self, note_repository, zettel_service
+    ):
+        """One note linking to two deleted targets prunes both."""
+        dead_a = zettel_service.create_note(title="Dead A", content="x")
+        dead_b = zettel_service.create_note(title="Dead B", content="y")
+        referrer = zettel_service.create_note(title="Ref", content="z")
+        zettel_service.create_link(
+            source_id=referrer.id, target_id=dead_a.id, link_type=LinkType.EXTENDS
+        )
+        zettel_service.create_link(
+            source_id=referrer.id, target_id=dead_b.id, link_type=LinkType.REFERENCE
+        )
+        (note_repository.notes_dir / f"{dead_a.id}.md").unlink()
+        (note_repository.notes_dir / f"{dead_b.id}.md").unlink()
+        note_repository.rebuild_index()
+
+        pruned, failed = note_repository.prune_dangling_links()
+        assert failed == []
+        assert (referrer.id, dead_a.id, "extends") in pruned
+        assert (referrer.id, dead_b.id, "reference") in pruned
+        body = (note_repository.notes_dir / f"{referrer.id}.md").read_text()
+        assert f"[[{dead_a.id}]]" not in body
+        assert f"[[{dead_b.id}]]" not in body
+
+    def test_reports_actual_link_type(self, note_repository, zettel_service):
+        """The reported link_type reflects the real link, not a hardcoded value."""
+        target = zettel_service.create_note(title="Target", content="x")
+        referrer = zettel_service.create_note(title="Ref", content="y")
+        zettel_service.create_link(
+            source_id=referrer.id, target_id=target.id, link_type=LinkType.CONTRADICTS
+        )
+        (note_repository.notes_dir / f"{target.id}.md").unlink()
+        note_repository.rebuild_index()
+
+        dangling = note_repository.find_dangling_links()
+        assert (referrer.id, target.id, "contradicts") in dangling

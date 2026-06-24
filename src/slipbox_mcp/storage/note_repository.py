@@ -23,6 +23,27 @@ from slipbox_mcp.storage.base import Repository
 logger = logging.getLogger(__name__)
 
 
+class ReferrerSweepError(Exception):
+    """A note was deleted, but one or more referrers could not be swept.
+
+    The deletion itself succeeded (file removed, DB rows gone), but at least
+    one referrer still carries a dangling ``[[id]]`` that would be resurrected
+    on the next rebuild_index. The message names the affected referrers and
+    the recovery command. Callers should surface this rather than treat the
+    delete as fully clean.
+    """
+
+    def __init__(self, deleted_id: str, failures: List[tuple]):
+        self.deleted_id = deleted_id
+        self.failures = failures
+        detail = "; ".join(f"{ref} ({reason})" for ref, reason in failures)
+        super().__init__(
+            f"Note {deleted_id} was deleted, but {len(failures)} referrer(s) "
+            f"still carry dead links and will reappear on rebuild: {detail}. "
+            f"Run `slipbox prune-links --fix` to clean them."
+        )
+
+
 # ---------------------------------------------------------------------------
 # Markdown parsing helpers (module-level, no instance state needed)
 # ---------------------------------------------------------------------------
@@ -604,12 +625,23 @@ class NoteRepository(Repository[Note]):
 
             # Sweep dead links out of each referrer. Re-read from disk so we
             # rewrite the authoritative full link set, then let update()
-            # regenerate the ## Links block via note_to_markdown.
+            # regenerate the ## Links block via note_to_markdown. A failure on
+            # one referrer must not abort the others, so collect failures and
+            # raise once at the end rather than swallowing them silently.
+            sweep_failures: List[tuple] = []
             for referrer in referrers:
                 if referrer.id == id:
                     continue
                 fresh = self.get(referrer.id)
                 if fresh is None:
+                    # The index named this referrer, but its file is gone: a
+                    # DB/filesystem desync. There is no file to clean, but the
+                    # stale state is worth a signal rather than a silent skip.
+                    logger.error(
+                        "Index lists %s as a referrer of %s but its file is "
+                        "missing (DB/filesystem desync); skipping sweep",
+                        referrer.id, id,
+                    )
                     continue
                 remaining = [lnk for lnk in fresh.links if lnk.target_id != id]
                 if len(remaining) == len(fresh.links):
@@ -622,6 +654,10 @@ class NoteRepository(Repository[Note]):
                         "Failed to sweep dead link to %s from referrer %s: %s",
                         id, referrer.id, e,
                     )
+                    sweep_failures.append((referrer.id, str(e)))
+
+            if sweep_failures:
+                raise ReferrerSweepError(id, sweep_failures)
 
     def search(self, **kwargs: Any) -> List[Note]:
         """Search for notes based on criteria."""
@@ -823,28 +859,37 @@ class NoteRepository(Repository[Note]):
                     )
         return dangling
 
-    def prune_dangling_links(self) -> List[tuple]:
-        """Remove links pointing at non-existent notes; return what was pruned.
+    def prune_dangling_links(self) -> tuple[List[tuple], List[tuple]]:
+        """Remove links pointing at non-existent notes.
 
         Rewrites each affected note via update(), which regenerates the
-        ## Links block from the surviving links. Returns the same
-        (source_id, target_id, link_type) tuples that find_dangling_links
-        would report, for the notes actually rewritten.
+        ## Links block from the surviving links.
+
+        Returns ``(pruned, failed)``: two lists of
+        (source_id, target_id, link_type) tuples. A tuple lands in ``pruned``
+        only after its note is successfully rewritten; if update() throws, the
+        note's dead links go to ``failed`` instead. The return value never
+        reports a prune that did not actually happen.
         """
         existing = {p.stem for p in self.notes_dir.glob("*.md")}
         pruned: List[tuple] = []
+        failed: List[tuple] = []
         for note in self.get_all():
-            live = [lnk for lnk in note.links if lnk.target_id in existing]
-            if len(live) == len(note.links):
+            dead = [
+                (note.id, lnk.target_id, lnk.link_type.value)
+                for lnk in note.links
+                if lnk.target_id not in existing
+            ]
+            if not dead:
                 continue
-            for lnk in note.links:
-                if lnk.target_id not in existing:
-                    pruned.append((note.id, lnk.target_id, lnk.link_type.value))
-            note.links = live
+            note.links = [lnk for lnk in note.links if lnk.target_id in existing]
             try:
                 self.update(note)
             except Exception as e:
                 logger.error(
                     "Failed to prune dangling links from note %s: %s", note.id, e
                 )
-        return pruned
+                failed.extend(dead)
+                continue
+            pruned.extend(dead)
+        return pruned, failed
