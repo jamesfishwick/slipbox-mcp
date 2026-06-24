@@ -101,53 +101,68 @@ def _smuggled_note(bad_id: str) -> Note:
 
 
 class TestFilesystemBoundary:
-    @pytest.mark.parametrize("bad", ["../pwned_sentinel", "..", "foo/bar"])
-    def test_create_refuses_unsafe_id_and_writes_nothing(self, note_repository, bad):
-        outside = note_repository.notes_dir.parent / "pwned_sentinel.md"
+    # Planted "outside" files use a name derived from the unique per-test
+    # notes_dir stem, so concurrent runs (or a leftover from a crashed run)
+    # cannot collide on a shared-temp-root filename and flake or false-pass.
+
+    @pytest.mark.parametrize("bad", ["..", "foo/bar", "a\\b"])
+    def test_create_refuses_unsafe_id(self, note_repository, bad):
+        # Shapes that can't form a writable outside path on their own.
         with pytest.raises(ValueError):
             note_repository.create(_smuggled_note(bad))
+
+    def test_create_refuses_relative_traversal_and_writes_nothing(self, note_repository):
+        uniq = note_repository.notes_dir.name
+        outside = note_repository.notes_dir.parent / f"pwned_{uniq}.md"
+        with pytest.raises(ValueError):
+            note_repository.create(_smuggled_note(f"../pwned_{uniq}"))
         assert not outside.exists(), "create() wrote a file outside the notes dir"
 
     def test_create_refuses_absolute_id_and_writes_nothing(self, note_repository):
         # The worst case: Path(notes_dir) / "/abs/x.md" discards notes_dir
         # entirely (operand discard). Use an absolute path inside the temp tree.
-        target = note_repository.notes_dir.parent / "abs_create_payload"
+        uniq = note_repository.notes_dir.name
+        target = note_repository.notes_dir.parent / f"abs_create_{uniq}"
         with pytest.raises(ValueError):
             note_repository.create(_smuggled_note(str(target)))
-        assert not target.parent.joinpath("abs_create_payload.md").exists()
+        assert not note_repository.notes_dir.parent.joinpath(f"abs_create_{uniq}.md").exists()
 
     def test_update_refuses_unsafe_id_and_overwrites_nothing(self, note_repository):
         # The highest-stakes path: a smuggled traversal id must not clobber a
         # file outside the notes dir. Assert no side effect, not merely a raise.
-        victim = note_repository.notes_dir.parent / "update_victim.md"
+        uniq = note_repository.notes_dir.name
+        victim = note_repository.notes_dir.parent / f"update_victim_{uniq}.md"
         victim.write_text("original")
         with pytest.raises(ValueError):
-            note_repository.update(_smuggled_note("../update_victim"))
+            note_repository.update(_smuggled_note(f"../update_victim_{uniq}"))
         assert victim.read_text() == "original", "update() wrote outside the notes dir"
         victim.unlink()
 
     def test_update_refuses_absolute_id(self, note_repository):
-        target = note_repository.notes_dir.parent / "abs_update_payload"
+        uniq = note_repository.notes_dir.name
+        target = note_repository.notes_dir.parent / f"abs_update_{uniq}"
         with pytest.raises(ValueError):
             note_repository.update(_smuggled_note(str(target)))
-        assert not target.parent.joinpath("abs_update_payload.md").exists()
+        assert not note_repository.notes_dir.parent.joinpath(f"abs_update_{uniq}.md").exists()
 
-    @pytest.mark.parametrize("bad", ["../victim", None])  # None -> absolute, set below
-    def test_delete_refuses_unsafe_id_and_deletes_nothing(self, note_repository, bad):
-        outside = note_repository.notes_dir.parent / "victim.md"
+    @pytest.mark.parametrize("absolute", [False, True])
+    def test_delete_refuses_unsafe_id_and_deletes_nothing(self, note_repository, absolute):
+        uniq = note_repository.notes_dir.name
+        outside = note_repository.notes_dir.parent / f"victim_{uniq}.md"
         outside.write_text("do not delete me")
-        delete_id = bad if bad is not None else str(note_repository.notes_dir.parent / "victim")
+        delete_id = (str(note_repository.notes_dir.parent / f"victim_{uniq}")
+                     if absolute else f"../victim_{uniq}")
         with pytest.raises(ValueError):
             note_repository.delete(delete_id)
         assert outside.exists(), "delete() removed a file outside the notes dir"
         outside.unlink()
 
     def test_get_returns_none_for_unsafe_id(self, note_repository):
-        # Plant a readable file just outside the notes dir.
-        outside = note_repository.notes_dir.parent / "secret.md"
-        outside.write_text("---\nid: secret\ntitle: Secret\n---\ntop secret")
-        assert note_repository.get("../secret") is None
-        assert note_repository.get(str(note_repository.notes_dir.parent / "secret")) is None
+        uniq = note_repository.notes_dir.name
+        outside = note_repository.notes_dir.parent / f"secret_{uniq}.md"
+        outside.write_text("---\nid: s\ntitle: Secret\n---\ntop secret")
+        assert note_repository.get(f"../secret_{uniq}") is None
+        assert note_repository.get(str(note_repository.notes_dir.parent / f"secret_{uniq}")) is None
         outside.unlink()
 
     def test_symlink_with_valid_stem_resolving_outside_is_refused(self, note_repository):
@@ -158,8 +173,9 @@ class TestFilesystemBoundary:
         refactor that drops it fails loudly.
         """
         import os
-        secret = note_repository.notes_dir.parent / "symlink_secret.md"
-        secret.write_text("---\nid: symlink_secret\ntitle: S\n---\nsecret")
+        uniq = note_repository.notes_dir.name
+        secret = note_repository.notes_dir.parent / f"symlink_secret_{uniq}.md"
+        secret.write_text("---\nid: s\ntitle: S\n---\nsecret")
         link = note_repository.notes_dir / "evil.md"
         try:
             os.symlink(secret, link)
@@ -227,3 +243,21 @@ class TestRebuildIndexVector:
         )
         # Only the safe note counts; the parser-skipped file must not.
         assert note_repository._count_indexable_files() == 1
+
+    @pytest.mark.parametrize("frontmatter_id", ["12345", '"foo bar"', "'a b'", "../x"])
+    def test_count_matches_parser_for_tricky_ids(self, note_repository, frontmatter_id):
+        """The count must extract the id the SAME way the parser does.
+
+        A token-regex extraction diverges from frontmatter.loads on YAML-typed
+        ids (`id: 12345` -> int) and quoted ids with spaces, counting a file the
+        parser skips -> db_count != indexable_count -> rebuild thrash. Pin parity.
+        """
+        (note_repository.notes_dir / "tricky.md").write_text(
+            f"---\nid: {frontmatter_id}\ntitle: Tricky\n---\nbody\n"
+        )
+        note_repository.rebuild_index()
+        from sqlalchemy import select
+        from slipbox_mcp.models.db_models import DBNote
+        with note_repository.session_factory() as session:
+            db_count = len(session.scalars(select(DBNote.id)).all())
+        assert note_repository._count_indexable_files() == db_count

@@ -202,13 +202,19 @@ class NoteRepository(Repository[Note]):
                 end = header.find("\n---", 3)
                 if end == -1:
                     continue
-                frontmatter_block = header[3:end]
-                m = re.search(r"^id:\s*(\S+)", frontmatter_block, re.MULTILINE)
-                # Count only files the parser will actually index. _parse_note_
-                # from_markdown skips unsafe ids, so counting them here would make
-                # db_count != indexable_count permanently true and thrash a full
-                # rebuild on every construction. Keep the two paths in lockstep.
-                if m and _is_safe_note_id(m.group(1).strip().strip('"').strip("'")):
+                # Extract the id EXACTLY as _parse_note_from_markdown does --
+                # via frontmatter (YAML), not a token regex -- so the count and
+                # the parser agree on what is indexable. A token regex diverges
+                # on YAML-typed ids (`id: 12345` -> int, parser skips) and
+                # quoted ids with spaces (`id: "foo bar"`), and any divergence
+                # makes db_count != indexable_count permanently true, thrashing a
+                # full rebuild on every construction. Count only what the parser
+                # will actually index: a present, path-safe id.
+                try:
+                    meta = frontmatter.loads(header[:end] + "\n---\n").metadata
+                except Exception:
+                    continue
+                if _is_safe_note_id(meta.get("id")):
                     count += 1
             except (OSError, UnicodeDecodeError) as e:
                 logger.warning("Could not read %s during indexable count; skipping: %s", file_path, e)
