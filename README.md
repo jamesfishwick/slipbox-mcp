@@ -94,7 +94,13 @@ The `knowledge_synthesis` prompt finds bridges between unconnected areas and pro
 
 Notes are plain markdown. Open the vault in Obsidian and everything works -- rendered content, backlinks, and the knowledge graph.
 
-<!-- TODO: capture manually -> assets/screenshots/obsidian-graph.png -->
+For a graph that renders the *typed* links in color (supports, extends, refines, ...) rather than Obsidian's untyped built-in graph, install the companion plugin **[Slipbox Semantic Graph](https://github.com/jamesfishwick/obsidian-slipbox-graph)** -- a force-directed view with human-readable titles and color-coded semantic link types. Install it from **Community plugins** (search "Slipbox Semantic Graph"), or manually from the [0.1.0 release](https://github.com/jamesfishwick/obsidian-slipbox-graph/releases/tag/0.1.0) by copying `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/slipbox-graph/`. It reads the same frontmatter `id` and `## Links` section the server writes, so no extra configuration is needed.
+
+![Slipbox Semantic Graph — the full vault, with typed links color-coded by relationship](assets/screenshots/obsidian-graph.png)
+
+The legend across the top maps each color to a link type (extends, refines, supports, contradicts, questions, related). Focus a structure note and its constellation comes into view — here, `Contract Testing Knowledge Map` with its member notes orbiting it:
+
+![Slipbox Semantic Graph — a structure note and its member-note constellation](assets/screenshots/obsidian-graph-structure-note.png)
 
 ---
 
