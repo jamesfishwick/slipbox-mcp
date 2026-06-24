@@ -116,7 +116,13 @@ class Tag(BaseModel):
 
 class Note(BaseModel):
     """A Zettelkasten note."""
-    id: str = Field(default_factory=generate_id, description="Unique ID of the note")
+    id: Annotated[
+        str,
+        StringConstraints(pattern=r"^[A-Za-z0-9_-]+$", min_length=1, max_length=255),
+    ] = Field(
+        default_factory=generate_id,
+        description="Unique ID of the note (filename stem; no path separators)",
+    )
     title: str = Field(..., description="Title of the note")
     content: str = Field(..., description="Content of the note")
     note_type: NoteType = Field(default=NoteType.PERMANENT, description="Type of note")

@@ -44,6 +44,20 @@ class ReferrerSweepError(Exception):
         )
 
 
+# Note IDs become filenames (``{id}.md``). Constrain them to a path-safe
+# alphabet so a crafted id (``../../etc/x``, ``/etc/x``) cannot escape the
+# notes dir. This mirrors the validator on Note.id exactly -- same alphabet AND
+# the same 1..255 length bound -- and is repeated here so the filesystem layer
+# is safe even for ids that bypassed model validation (e.g. Note.model_construct
+# on the schema-violation hydration path).
+_NOTE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,255}$")
+
+
+def _is_safe_note_id(note_id: Any) -> bool:
+    """Return True if note_id is a non-empty, path-safe filename stem."""
+    return isinstance(note_id, str) and bool(_NOTE_ID_PATTERN.fullmatch(note_id))
+
+
 # ---------------------------------------------------------------------------
 # Markdown parsing helpers (module-level, no instance state needed)
 # ---------------------------------------------------------------------------
@@ -188,8 +202,19 @@ class NoteRepository(Repository[Note]):
                 end = header.find("\n---", 3)
                 if end == -1:
                     continue
-                frontmatter_block = header[3:end]
-                if re.search(r"^id:\s*\S", frontmatter_block, re.MULTILINE):
+                # Extract the id EXACTLY as _parse_note_from_markdown does --
+                # via frontmatter (YAML), not a token regex -- so the count and
+                # the parser agree on what is indexable. A token regex diverges
+                # on YAML-typed ids (`id: 12345` -> int, parser skips) and
+                # quoted ids with spaces (`id: "foo bar"`), and any divergence
+                # makes db_count != indexable_count permanently true, thrashing a
+                # full rebuild on every construction. Count only what the parser
+                # will actually index: a present, path-safe id.
+                try:
+                    meta = frontmatter.loads(header[:end] + "\n---\n").metadata
+                except Exception:
+                    continue
+                if _is_safe_note_id(meta.get("id")):
                     count += 1
             except (OSError, UnicodeDecodeError) as e:
                 logger.warning("Could not read %s during indexable count; skipping: %s", file_path, e)
@@ -236,6 +261,21 @@ class NoteRepository(Repository[Note]):
 
         note_id = metadata.get("id")
         if not note_id:
+            return None
+        if not _is_safe_note_id(note_id):
+            # The id is not an accepted stem: either a path-traversal attempt
+            # (``../../etc/x``, ``/etc/x``) or merely a legacy id using chars
+            # outside [A-Za-z0-9_-] (e.g. a dot or space from before the id was
+            # constrained). Skip it rather than let it reach the model_construct
+            # fallback below, which would bypass the id validator and make a
+            # traversal id writable. Skipping is loud and actionable so a benign
+            # legacy note is not lost silently -- rename its id to re-index it.
+            logger.warning(
+                "Skipping note %s: id %r is not an accepted stem "
+                "(allowed: [A-Za-z0-9_-], 1-255 chars). If this is a legacy "
+                "note, rename its frontmatter id to re-index it.",
+                metadata.get("title", "<untitled>"), note_id,
+            )
             return None
 
         title = metadata.get("title")
@@ -470,6 +510,21 @@ class NoteRepository(Repository[Note]):
         post = frontmatter.Post(content, **metadata)
         return frontmatter.dumps(post)
 
+    def _note_path(self, note_id: str) -> Path:
+        """Resolve the markdown path for a note id, refusing any escape.
+
+        Defense-in-depth against path traversal: even if a crafted id reaches
+        this layer (bad frontmatter, a model_construct'd Note), the resolved
+        path must stay inside notes_dir or we raise rather than touch the file.
+        """
+        if not _is_safe_note_id(note_id):
+            raise ValueError(f"Unsafe note id (not a path-safe stem): {note_id!r}")
+        path = (self.notes_dir / f"{note_id}.md").resolve()
+        notes_root = self.notes_dir.resolve()
+        if not path.is_relative_to(notes_root):
+            raise ValueError(f"Refusing path outside notes dir for id {note_id!r}")
+        return path
+
     def create(self, note: Note) -> Note:
         """Create a new note."""
         if not note.id:
@@ -477,7 +532,7 @@ class NoteRepository(Repository[Note]):
             note.id = generate_id()
 
         markdown = self.note_to_markdown(note)
-        file_path = self.notes_dir / f"{note.id}.md"
+        file_path = self._note_path(note.id)
 
         with self.file_lock:
             try:
@@ -496,7 +551,13 @@ class NoteRepository(Repository[Note]):
 
     def get(self, id: str) -> Optional[Note]:
         """Get a note by ID."""
-        file_path = self.notes_dir / f"{id}.md"
+        # Intentional double-check (do not collapse): a reader asking for a bad
+        # id gets "not found" (None), while _note_path below re-checks and would
+        # raise for any id that slipped past -- the write-path's loud failure.
+        # The two layers are deliberate; removing either weakens the guard.
+        if not _is_safe_note_id(id):
+            return None
+        file_path = self._note_path(id)
         if not file_path.exists():
             return None
         try:
@@ -528,13 +589,17 @@ class NoteRepository(Repository[Note]):
 
     def update(self, note: Note) -> Note:
         """Update a note."""
+        # Resolve+contain the path first, so a smuggled traversal id (one that
+        # bypassed model validation via model_construct) is refused loudly here
+        # rather than being masked by the "does not exist" check below.
+        file_path = self._note_path(note.id)
+
         existing_note = self.get(note.id)
         if not existing_note:
             raise ValueError(f"Note with ID {note.id} does not exist")
 
         note.updated_at = datetime.datetime.now()
 
-        file_path = self.notes_dir / f"{note.id}.md"
         markdown = self.note_to_markdown(note)
 
         with self.file_lock:
@@ -596,7 +661,7 @@ class NoteRepository(Repository[Note]):
                 referrers could not be swept and still carry dangling links.
                 Run ``slipbox prune-links --fix`` to clean them.
         """
-        file_path = self.notes_dir / f"{id}.md"
+        file_path = self._note_path(id)
         if not file_path.exists():
             raise ValueError(f"Note with ID {id} does not exist")
 
