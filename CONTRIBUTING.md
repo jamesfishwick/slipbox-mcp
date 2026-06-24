@@ -16,6 +16,21 @@ Run the test suite to verify your setup:
 uv run pytest tests/
 ```
 
+### Working in a git worktree
+
+This package is installed editable, so each worktree needs its own venv;
+otherwise it imports the main checkout's source and you test the wrong code.
+Use the helper, which creates the worktree under `.worktrees/` and syncs it:
+
+```bash
+scripts/new-worktree.sh fix/my-change            # branches from origin/main
+scripts/new-worktree.sh fix/my-change my-base    # or from another ref
+```
+
+Then `cd` into the printed path and run `uv run pytest`. (A `conftest.py`
+path shim guards the case where the venv hasn't been synced, but a per-worktree
+venv is the real fix.)
+
 ## Project Structure
 
 ```text
