@@ -1,6 +1,7 @@
 """MCP prompt registrations for knowledge workflows."""
 
 from slipbox_mcp.server.descriptions import (
+    PROMPT_ANALYZE_NOTE,
     PROMPT_CLUSTER_MAINTENANCE,
     PROMPT_CLUSTER_MAINTENANCE_ALL_DISMISSED,
     PROMPT_CLUSTER_MAINTENANCE_EMPTY,
@@ -99,3 +100,16 @@ def register_prompts(server) -> None:
             content: Information or context that might spark synthesis opportunities
         """
         return PROMPT_KNOWLEDGE_SYNTHESIS.format(content=content)
+
+    @mcp.prompt()
+    def analyze_note(content: str) -> str:
+        """Analyze and improve a note for Zettelkasten integration.
+
+        Use this workflow to evaluate a note's fitness for your slipbox.
+        Checks atomicity, finds real connections using your existing notes,
+        suggests tags from your taxonomy, and surfaces emergent insights.
+
+        Args:
+            content: The note content to analyze (or note ID for existing notes)
+        """
+        return PROMPT_ANALYZE_NOTE.format(content=content)

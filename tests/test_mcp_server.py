@@ -1535,3 +1535,64 @@ class TestClusterMaintenancePromptAllDismissed(MockServerWithPromptsBase):
         )
 
 
+# ---------------------------------------------------------------------------
+# Prompt registration parity
+#
+# Guards the prompt<->skill symmetry: every parameterized workflow in
+# descriptions.py is exposed as an MCP prompt. cluster_maintenance is the one
+# runtime-rendered prompt -- it takes no input argument and renders live
+# cluster state instead. analyze_note's registration used to live inline in
+# mcp_server.py, separate from its five siblings here, which made it easy to
+# miss and to duplicate; these tests fail loud if any prompt goes missing or an
+# extra one drifts in.
+# ---------------------------------------------------------------------------
+
+EXPECTED_PROMPTS = {
+    "cluster_maintenance",
+    "knowledge_creation",
+    "knowledge_creation_batch",
+    "knowledge_exploration",
+    "knowledge_synthesis",
+    "analyze_note",
+}
+
+# Prompts that interpolate the caller's input verbatim. cluster_maintenance is
+# excluded: it takes no argument and renders live cluster state instead.
+INPUT_PROMPTS = [
+    "knowledge_creation",
+    "knowledge_creation_batch",
+    "knowledge_exploration",
+    "knowledge_synthesis",
+    "analyze_note",
+]
+
+
+class TestPromptRegistration(MockServerWithPromptsBase):
+    """Every expected MCP prompt registers, and no extras drift in."""
+
+    def test_registered_prompts_match_expected_set(self):
+        # Exact-set equality (not membership) so a missing registration AND an
+        # unexpected extra both fail -- the missing-analyze_note gap is the case
+        # that motivated this guard.
+        assert set(self.registered_prompts) == EXPECTED_PROMPTS, (
+            "Registered prompts drifted from the expected set. "
+            f"Registered: {sorted(self.registered_prompts)}; "
+            f"expected: {sorted(EXPECTED_PROMPTS)}"
+        )
+
+
+class TestPromptInputRoundTrip(MockServerWithPromptsBase):
+    """Input-taking prompts interpolate the caller's text verbatim."""
+
+    def test_input_is_interpolated_into_rendered_prompt(self):
+        sentinel = "ZZZ-sentinel-input-7Q4"
+        for name in INPUT_PROMPTS:
+            # Each input prompt takes exactly one positional argument
+            # (content or topic), so positional invocation works uniformly.
+            result = self._prompt(name)(sentinel)
+            assert sentinel in result, (
+                f"Prompt '{name}' did not interpolate its input argument; "
+                "sentinel missing from rendered output"
+            )
+
+
