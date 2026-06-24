@@ -590,6 +590,11 @@ class NoteRepository(Repository[Note]):
         filesystem is the source of truth, so leaving a dangling ``[[id]]``
         in a referrer's body would let rebuild_index resurrect the link into
         the DB on the next rebuild.
+
+        Raises:
+            ReferrerSweepError: the note was deleted, but one or more
+                referrers could not be swept and still carry dangling links.
+                Run ``slipbox prune-links --fix`` to clean them.
         """
         file_path = self.notes_dir / f"{id}.md"
         if not file_path.exists():
