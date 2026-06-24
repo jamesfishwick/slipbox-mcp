@@ -350,21 +350,25 @@ MCP prompts are reusable workflow templates that encode the Zettelkasten method 
 
 ### How to Invoke: Slash Commands and Skills
 
-Each workflow ships two ways, both generated from one source (`src/slipbox_mcp/server/descriptions.py`) so they can't drift:
+Each workflow ships two ways:
 
 - **MCP prompts** — served by the running server.
 - **Skills** — standalone bundles (`skills/<name>/`) that run the same workflow and add natural-language triggering.
 
-**Slash commands** are the reliable path. In Claude Code, type `/slipbox-mcp:` for the prompt picker:
+Five of the six skills are generated from the same `PROMPT_*` templates the server uses (`src/slipbox_mcp/server/descriptions.py`), and CI fails if the committed `skills/` drift from those templates. The sixth, `cluster-maintenance`, is authored directly in `scripts/build_skills.py` because its MCP prompt is a runtime-rendered status message rather than a reusable workflow.
+
+**Slash commands** are the reliable path. Claude Code surfaces MCP prompts as `/mcp__<server>__<prompt>`; type `/mcp__slipbox-mcp__` for the picker:
 
 ```text
-/slipbox-mcp:knowledge_creation
-/slipbox-mcp:knowledge_exploration
-/slipbox-mcp:knowledge_synthesis
-/slipbox-mcp:knowledge_creation_batch
-/slipbox-mcp:analyze_note
-/slipbox-mcp:cluster_maintenance
+/mcp__slipbox-mcp__knowledge_creation
+/mcp__slipbox-mcp__knowledge_exploration
+/mcp__slipbox-mcp__knowledge_synthesis
+/mcp__slipbox-mcp__knowledge_creation_batch
+/mcp__slipbox-mcp__analyze_note
+/mcp__slipbox-mcp__cluster_maintenance
 ```
+
+(Installed skills also expose their own slash commands by directory name, e.g. `/slipbox-analyze-note`.)
 
 **Natural language** works once the matching skill is installed — just describe what you want:
 
@@ -380,7 +384,13 @@ Prose triggering depends on the skill being installed and your phrasing matching
 
 ### Installing Skills
 
-**Claude Code** discovers the `skills/<name>/SKILL.md` directories from the repo — nothing to install.
+**Claude Code** discovers skills from `.claude/skills/` (per project) or `~/.claude/skills/` (global), not from a bare top-level `skills/`. Symlink or copy the ones you want into a discovery path — e.g. for this project:
+
+```bash
+mkdir -p .claude/skills
+ln -s ../../skills/slipbox-analyze-note .claude/skills/slipbox-analyze-note
+# ...or copy the directories, or symlink all six
+```
 
 **Claude Desktop** needs each skill as a `.skill` bundle. Build them, then upload:
 

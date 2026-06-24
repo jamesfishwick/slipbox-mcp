@@ -15,9 +15,13 @@ Run:  python scripts/build_skills.py
 
 from __future__ import annotations
 
+import json
+import shutil
 import sys
 import zipfile
 from pathlib import Path
+
+import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
@@ -47,14 +51,16 @@ def workflow_body(template: str) -> str:
     for token in ("{content}", "{topic}"):
         body = body.split(token, 1)[0]
     body = body.rstrip()
-    suffixes = ("---", "Note to analyze:", "Topic/concept to explore:")
-    changed = True
-    while changed:
-        changed = False
-        for suffix in suffixes:
-            if body.endswith(suffix):
-                body = body[: -len(suffix)].rstrip()
-                changed = True
+    # Strip the optional input label, then EXACTLY ONE trailing `---` separator
+    # (the scaffold that introduced the input block). Stripping one -- not the
+    # old loop over every trailing `---` -- preserves a `---` that is genuine
+    # body content (a thematic break a section legitimately ends on).
+    for label in ("Note to analyze:", "Topic/concept to explore:"):
+        if body.endswith(label):
+            body = body[: -len(label)].rstrip()
+            break
+    if body.endswith("---"):
+        body = body[: -len("---")].rstrip()
     return body
 
 
@@ -149,26 +155,53 @@ SKILLS = [
 
 
 def render(skill: dict) -> str:
-    return (
+    name, description, body = skill["name"], skill["description"], skill["body"]
+    # Fail loud rather than emit a structurally-valid-but-useless skill (an
+    # empty body, or one whose source template degraded to scaffolding).
+    if not name or not description.strip() or not body.strip():
+        raise ValueError(
+            f"Refusing to render skill {name!r}: name/description/body must all be "
+            f"non-empty (description={description!r:.40}, body_len={len(body.strip())})."
+        )
+    # json.dumps(ensure_ascii=False) is a valid YAML double-quoted scalar that
+    # escapes quotes/backslashes/newlines correctly while keeping unicode (em
+    # dashes) literal -- so a description can't silently corrupt the frontmatter.
+    content = (
         "---\n"
-        f"name: {skill['name']}\n"
-        f"description: \"{skill['description']}\"\n"
+        f"name: {name}\n"
+        f"description: {json.dumps(description, ensure_ascii=False)}\n"
         "---\n\n"
         f"{GENERATED_NOTICE}\n\n"
         f"# {skill['title']}\n\n"
-        f"{skill['body']}\n"
+        f"{body}\n"
     )
+    # Belt-and-suspenders: the rendered frontmatter must round-trip.
+    front = content.split("---\n", 2)[1]
+    parsed = yaml.safe_load(front)
+    if parsed.get("name") != name or not parsed.get("description"):
+        raise ValueError(f"Rendered frontmatter for {name!r} did not round-trip: {parsed!r}")
+    return content
 
 
 def main() -> None:
     skills_dir = REPO / "skills"
     dist_dir = REPO / "dist"
-    dist_dir.mkdir(exist_ok=True)
 
-    for skill in SKILLS:
-        name = skill["name"]
-        content = render(skill)
+    # Render + validate every skill BEFORE touching the filesystem, so a failure
+    # on one is all-or-nothing -- never a half-updated mix of new and stale.
+    rendered = {skill["name"]: render(skill) for skill in SKILLS}
+    expected = set(rendered)
 
+    # Prune stale skill dirs / bundles from a prior rename or removal.
+    if skills_dir.exists():
+        for d in skills_dir.glob("slipbox-*"):
+            if d.is_dir() and d.name not in expected:
+                shutil.rmtree(d)
+    if dist_dir.exists():
+        shutil.rmtree(dist_dir)
+    dist_dir.mkdir(parents=True)
+
+    for name, content in rendered.items():
         md_path = skills_dir / name / "SKILL.md"
         md_path.parent.mkdir(parents=True, exist_ok=True)
         md_path.write_text(content)
@@ -179,7 +212,7 @@ def main() -> None:
 
         print(f"  {name}: skills/{name}/SKILL.md + dist/{name}.skill")
 
-    print(f"Generated {len(SKILLS)} skills.")
+    print(f"Generated {len(rendered)} skills.")
 
 
 if __name__ == "__main__":
