@@ -4,6 +4,10 @@ Live source of truth for the cluster tools wired in via
 @mcp.tool(description=...) in server/tools/cluster_tools.py, and for the
 MCP prompts registered in server/prompts.py and server/mcp_server.py.
 
+The PROMPT_* templates also generate the standalone skills via
+scripts/build_skills.py (-> skills/<name>/SKILL.md and dist/*.skill).
+Re-run that build after editing a template so the skills don't drift.
+
 Note/link/search tool descriptions live as docstrings on the function
 bodies in server/tools/{note_tools,link_tools,search_tools}.py — those
 docstrings ARE the description the LLM sees, so this file deliberately

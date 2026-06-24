@@ -18,3 +18,8 @@ jobs:
       - run: uv venv --python 3.13 && uv pip install -e ".[dev]" ruff
       - run: uv run ruff check src/ evals/
       - run: uv run pytest -q
+      - name: Skills are regenerated from the prompt templates (no drift)
+        run: |
+          uv run python scripts/build_skills.py
+          git diff --exit-code skills/ \
+            || { echo "::error::skills/ is out of date. Run 'python scripts/build_skills.py' and commit."; exit 1; }

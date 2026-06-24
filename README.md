@@ -9,7 +9,7 @@ Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude 
 **Plain files, zero lock-in.** Notes are markdown with YAML frontmatter -- readable in Obsidian, Foam, Logseq, or any editor. The SQLite database is an index, not the source of truth. Delete it and rebuild from files anytime.
 
 - **19 MCP tools** for notes, links, search, graph analysis, and cluster management
-- **6 workflow prompts** encoding the Zettelkasten method so you don't re-explain it every session
+- **6 workflow prompts** (plus matching skills) encoding the Zettelkasten method so you don't re-explain it every session
 - **BM25 full-text search** across titles and content via SQLite FTS5
 - **Cluster detection** finds emergent topic groups and scaffolds structure notes
 - **Seven typed links** (reference, extends, refines, contradicts, questions, supports, related)
@@ -348,9 +348,16 @@ MCP prompts are reusable workflow templates that encode the Zettelkasten method 
 | `analyze_note` | Evaluate a note's fitness for the slipbox | Reviewing a new or existing note |
 | `cluster_maintenance` | Surface pending housekeeping | Start of a working session |
 
-### How to Use Prompts
+### How to Invoke: Slash Commands and Skills
 
-MCP clients that support prompts (like Claude Code) expose them as slash commands:
+Each workflow ships two ways:
+
+- **MCP prompts** — served by the running server.
+- **Skills** — standalone bundles (`skills/<name>/`) that run the same workflow and add natural-language triggering.
+
+Five of the six skills are generated from the same `PROMPT_*` templates the server uses (`src/slipbox_mcp/server/descriptions.py`), and CI fails if the committed `skills/` drift from those templates. The sixth, `cluster-maintenance`, is authored directly in `scripts/build_skills.py` because its MCP prompt is a runtime-rendered status message rather than a reusable workflow.
+
+**Slash commands** are the reliable path. Claude Code surfaces MCP prompts as `/mcp__<server>__<prompt>`; type `/mcp__slipbox-mcp__` for the picker:
 
 ```text
 /mcp__slipbox-mcp__knowledge_creation
@@ -361,17 +368,39 @@ MCP clients that support prompts (like Claude Code) expose them as slash command
 /mcp__slipbox-mcp__cluster_maintenance
 ```
 
-For clients without a prompt picker UI, invoke prompts conversationally:
+(Installed skills also expose their own slash commands by directory name, e.g. `/slipbox-analyze-note`.)
+
+**Natural language** works once the matching skill is installed — just describe what you want:
 
 ```text
-Use the knowledge_creation prompt with this content: [paste text]
+Analyze this note for my slipbox: [paste note]
 
-Use the knowledge_exploration prompt for the topic: "poetry and cognitive load"
+Add this to my slipbox: [paste article]
 
-Use the cluster_maintenance prompt.
+Synthesize my notes on attention and memory.
 ```
 
-The agent calls the prompt template behind the scenes and fills in your input.
+Prose triggering depends on the skill being installed and your phrasing matching its description; fall back to the slash command if it doesn't fire. Asking the model to "use the analyze_note prompt" by name does **not** work — the model can't invoke an MCP prompt by name. Use a slash command, or let a skill trigger from natural language.
+
+### Installing Skills
+
+**Claude Code** discovers skills from `.claude/skills/` (per project) or `~/.claude/skills/` (global), not from a bare top-level `skills/`. Symlink or copy the ones you want into a discovery path — e.g. for this project:
+
+```bash
+mkdir -p .claude/skills
+ln -s ../../skills/slipbox-analyze-note .claude/skills/slipbox-analyze-note
+# ...or copy the directories, or symlink all six
+```
+
+**Claude Desktop** needs each skill as a `.skill` bundle. Build them, then upload:
+
+```bash
+python scripts/build_skills.py     # writes dist/*.skill
+```
+
+Go to Settings → Skills → Upload skill and select the bundles from `dist/` you want. Each installs as both a slash command and a natural-language trigger.
+
+After editing a prompt template in `descriptions.py`, re-run the build to regenerate the skills.
 
 ---
 
