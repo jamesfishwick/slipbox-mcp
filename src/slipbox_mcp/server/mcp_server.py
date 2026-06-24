@@ -5,7 +5,6 @@ from datetime import datetime
 from mcp.server.fastmcp import FastMCP
 from pydantic import ValidationError
 from slipbox_mcp.config import config
-from slipbox_mcp.server.descriptions import PROMPT_ANALYZE_NOTE
 from slipbox_mcp.services.search_service import SearchService
 from slipbox_mcp.services.cluster_service import ClusterService
 from slipbox_mcp.services.zettel_service import ZettelService
@@ -91,19 +90,6 @@ class ZettelkastenMcpServer:
         """Register MCP prompts for knowledge workflows."""
         from slipbox_mcp.server.prompts import register_prompts
         register_prompts(self)
-
-        @self.mcp.prompt()
-        def analyze_note(content: str) -> str:
-            """Analyze and improve a note for Zettelkasten integration.
-
-            Use this workflow to evaluate a note's fitness for your slipbox.
-            Checks atomicity, finds real connections using your existing notes,
-            suggests tags from your taxonomy, and surfaces emergent insights.
-
-            Args:
-                content: The note content to analyze (or note ID for existing notes)
-            """
-            return PROMPT_ANALYZE_NOTE.format(content=content)
 
     def run(self) -> None:
         """Run the MCP server."""
