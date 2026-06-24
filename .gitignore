@@ -76,3 +76,6 @@ docs/TODO/
 
 # Asciinema recordings — raw cast files are not committed (GIFs are)
 assets/recordings/*.cast
+
+# Personal recording script — not part of the shipped server
+demo-script.md
