@@ -1,17 +1,25 @@
 name: LLM Evals
 
+# Opt-in only. This suite is expensive (~$3-5, ~10 min) and runs on a
+# self-hosted runner, so it never triggers automatically — a path-based trigger
+# can't tell a real prompt change from a cosmetic reformat, and would queue
+# (or bill) on incidental edits. Run it deliberately instead:
+#   - add the `run-llm-evals` label to a PR (re-runs on each push while labeled), or
+#   - trigger it manually from the Actions tab (workflow_dispatch).
+# For a quick local check without the runner: `pytest evals/llm/ -v`.
+
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
-    paths:
-      - src/slipbox_mcp/server/descriptions.py
-      - src/slipbox_mcp/server/prompts.py
-      - evals/llm/**
-      - evals/seed_data.py
-      - evals/conftest.py
+    types: [opened, synchronize, reopened, labeled]
 
 jobs:
   llm-evals:
+    # Skipped (no runner allocated) unless explicitly requested.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'run-llm-evals')
     runs-on: self-hosted
     timeout-minutes: 20
     steps:
