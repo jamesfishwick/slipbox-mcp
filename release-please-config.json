@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "slipbox-mcp",
+      "extra-files": ["src/slipbox_mcp/__init__.py"]
+    }
+  }
+}
