@@ -15,11 +15,18 @@ import pytest
 
 from slipbox_mcp import __version__
 
+# Distribution name on PyPI (note: differs from the import name slipbox_mcp).
+DIST_NAME = "slipbox-mcp"
+# Simple PEP 440 release shape: N.N.N with an optional pre/post/dev suffix.
+PEP440_RELEASE_RE = r"^\d+\.\d+\.\d+([.\-+].*)?$"
+
 
 def test_version_is_pep440_shaped():
     # The release workflow strips a leading `v` from the git tag and compares
     # the remainder to __version__; a malformed value would break that compare.
-    assert re.match(r"^\d+\.\d+\.\d+([.\-+].*)?$", __version__), __version__
+    assert re.match(PEP440_RELEASE_RE, __version__), (
+        f"__version__ {__version__!r} is not a PEP 440 release string"
+    )
 
 
 def test_installed_metadata_matches_dunder():
@@ -27,10 +34,13 @@ def test_installed_metadata_matches_dunder():
     # __version__. CI installs the package (editable), so metadata is present;
     # skip cleanly if the tree was never installed.
     try:
-        installed = version("slipbox-mcp")
+        installed = version(DIST_NAME)
     except PackageNotFoundError:
-        pytest.skip("slipbox-mcp not installed; run `pip install -e .`")
-    assert installed == __version__
+        pytest.skip(f"{DIST_NAME} not installed; run `pip install -e .`")
+    assert installed == __version__, (
+        f"built metadata {installed!r} != __version__ {__version__!r}; "
+        "dynamic-version wiring is out of sync"
+    )
 
 
 def test_server_version_derives_from_dunder():
