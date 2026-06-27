@@ -110,16 +110,17 @@ The legend across the top maps each color to a link type (extends, refines, supp
 
 ## Quick Start
 
-### 1. Clone and Install
+### 1. Install
 
 ```bash
-git clone https://github.com/jamesfishwick/slipbox-mcp.git
-cd slipbox-mcp
-
-pipx install --editable .
+pipx install slipbox-mcp
+# or, with uv:
+uv tool install slipbox-mcp
 ```
 
-`pipx install` puts a `slipbox-mcp` launcher on your PATH (in `~/.local/bin`). That single command is the whole MCP server — no `PYTHONPATH`, no hardcoded venv Python path. Everything below uses it.
+This puts a `slipbox-mcp` launcher on your PATH (in `~/.local/bin`). That single command is the whole MCP server — no clone, no `PYTHONPATH`, no hardcoded venv Python path. Everything below uses it. To try it without installing at all, `uvx slipbox-mcp` runs the server in a throwaway environment.
+
+(Working on Slipbox itself? See [Development](#development) for the clone + editable-install setup.)
 
 ### 2. Pick a Data Directory
 
