@@ -673,7 +673,7 @@ git tag v1.2.2
 git push origin v1.2.2
 ```
 
-The workflow verifies the tag matches the package version, builds the sdist + wheel, runs `twine check`, and publishes to PyPI. To rehearse without publishing for real, point a manual run at [TestPyPI](https://test.pypi.org) first.
+The workflow verifies the tag matches the package version, builds the sdist + wheel, runs `twine check`, and publishes to PyPI. To rehearse without publishing for real, build and upload to [TestPyPI](https://test.pypi.org) by hand first — `python -m build && twine upload --repository testpypi dist/*` (needs a TestPyPI token); the tagged workflow itself only targets production PyPI.
 
 > The version is defined once, in `src/slipbox_mcp/__init__.py`. `pyproject.toml` (`dynamic = ["version"]`) and the MCP server's reported `server_version` both read from it, so there is nothing to keep in sync.
 
