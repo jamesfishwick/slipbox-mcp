@@ -4,6 +4,8 @@
 import logging
 from unittest.mock import patch
 
+import pytest
+
 from slipbox_mcp.models.schema import LinkType, NoteType, Tag
 from slipbox_mcp.utils import (
     atomic_write_text,
@@ -253,4 +255,32 @@ class TestAtomicWriteText:
     def test_leaves_no_temp_file(self, tmp_path):
         target = tmp_path / "note.md"
         atomic_write_text(target, "data")
-        assert [p.name for p in tmp_path.iterdir()] == ["note.md"]
+        survivors = [p.name for p in tmp_path.iterdir()]
+        assert survivors == ["note.md"], f"leaked temp file(s): {survivors}"
+
+    def test_failure_cleans_up_temp_and_propagates(self, tmp_path):
+        # The replace is what publishes the temp file; force it to fail so we
+        # exercise the cleanup branch the helper exists for.
+        target = tmp_path / "note.md"
+
+        with patch("slipbox_mcp.utils.os.replace", side_effect=OSError("boom")):
+            with pytest.raises(OSError, match="boom"):
+                atomic_write_text(target, "data")
+
+        assert not target.exists(), "target created despite failed write"
+        survivors = [p.name for p in tmp_path.iterdir()]
+        assert survivors == [], f"temp file leaked on failure: {survivors}"
+
+    def test_failure_leaves_original_intact(self, tmp_path):
+        # Atomicity: a write that fails mid-flight must not corrupt or truncate
+        # the existing file -- the reader still sees the old, complete content.
+        target = tmp_path / "note.md"
+        target.write_text("original", encoding="utf-8")
+
+        with patch("slipbox_mcp.utils.os.replace", side_effect=OSError("boom")):
+            with pytest.raises(OSError):
+                atomic_write_text(target, "replacement")
+
+        assert target.read_text(encoding="utf-8") == "original"
+        survivors = [p.name for p in tmp_path.iterdir()]
+        assert survivors == ["note.md"], f"temp file leaked on failure: {survivors}"

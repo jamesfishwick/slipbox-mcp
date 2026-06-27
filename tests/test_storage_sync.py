@@ -148,22 +148,33 @@ class TestLockScope:
 class TestIndexableCount:
     """Verify the indexable-file count matches what the parser indexes."""
 
+    # _count_indexable_files() first reads this many bytes looking for the
+    # closing frontmatter fence; the bug was skipping notes whose fence fell
+    # beyond it. The padding below deliberately pushes the fence past this.
+    INITIAL_READ_BYTES = 2048
+
     def test_counts_note_with_frontmatter_over_read_buffer(self, note_repository):
-        """A note whose frontmatter exceeds the initial 2048-byte read is still
-        counted, so file/DB counts don't diverge and thrash a full rebuild."""
-        big_value = "x" * 3000  # pushes the closing fence well past 2048 bytes
+        """A note whose frontmatter exceeds the initial read is still counted,
+        so file/DB counts don't diverge and thrash a full rebuild."""
+        # Arrange: a valid note whose closing fence sits past the initial read.
+        padding = "x" * (self.INITIAL_READ_BYTES + 1000)
         content = (
             "---\n"
             "id: 20250101T120000000000000\n"
             "title: Big Frontmatter\n"
             "type: permanent\n"
-            f"note: '{big_value}'\n"
+            f"note: '{padding}'\n"
             "---\n\nbody\n"
         )
-        assert content.index("\n---", 3) > 2048  # the scenario under test
+        fence_pos = content.index("\n---", 3)
+        assert fence_pos > self.INITIAL_READ_BYTES, (
+            f"test setup invalid: fence at {fence_pos} is within the initial read"
+        )
 
+        # Act: count before and after dropping the big-frontmatter note in.
         before = note_repository._count_indexable_files()
         (note_repository.notes_dir / "big.md").write_text(content, encoding="utf-8")
         after = note_repository._count_indexable_files()
 
-        assert after == before + 1
+        # Assert: the note is counted (would be skipped by the pre-fix reader).
+        assert after == before + 1, "large-frontmatter note was not counted"
