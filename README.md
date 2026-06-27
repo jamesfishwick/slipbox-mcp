@@ -664,6 +664,17 @@ Releases are automated. The `Release` workflow (`.github/workflows/release.yml`)
 
 So cutting a release is one click: merge the bot's PR. Nothing else.
 
+**Commit types decide the version — so type accurately.** The bump is computed mechanically from the Conventional Commit prefixes since the last release, not from the size of the change. Reserve `feat:`/`fix:` for changes to the **shipped package**; use the non-releasing types for everything else:
+
+| Prefix | Version effect | Use for |
+|---|---|---|
+| `feat:` | minor (1.3.0 → 1.4.0) | new runtime capability in the package |
+| `fix:` | patch (1.3.0 → 1.3.1) | bug fix in the package |
+| `feat!:` / `BREAKING CHANGE:` | major (1.3.0 → 2.0.0) | backwards-incompatible change |
+| `docs:` `ci:` `build:` `chore:` `test:` `refactor:` | **none** | docs, tooling, CI, packaging, internal-only changes |
+
+A batch of only non-releasing commits produces **no release PR at all**. The squash-merge title is the commit release-please reads, so the PR title's prefix is what counts — label it for what the *package* gains, not for the effort spent.
+
 **One-time setup** (already done for this repo, documented for forks):
 
 1. On PyPI, register a [pending trusted publisher](https://pypi.org/manage/account/publishing/) for project `slipbox-mcp` — **Owner:** `jamesfishwick` · **Repository:** `slipbox-mcp` · **Workflow:** `release.yml` · **Environment:** `release`. All four must match exactly.
