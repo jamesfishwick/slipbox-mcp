@@ -16,20 +16,31 @@ Run the test suite to verify your setup:
 uv run pytest tests/
 ```
 
+### Inspecting the server
+
+To poke at the MCP server interactively (tools, prompts, resources) with the
+MCP Inspector:
+
+```bash
+mcp dev src/slipbox_mcp/dev.py
+```
+
+`dev.py` just exposes the server object the Inspector looks for.
+
 ### Working in a git worktree
 
 This package is installed editable, so each worktree needs its own venv;
 otherwise it imports the main checkout's source and you test the wrong code.
-Use the helper, which creates the worktree under `.worktrees/` and syncs it:
+Create the worktree under `.worktrees/` and sync a dedicated venv inside it:
 
 ```bash
-scripts/new-worktree.sh fix/my-change            # branches from origin/main
-scripts/new-worktree.sh fix/my-change my-base    # or from another ref
+git worktree add .worktrees/fix-my-change -b fix/my-change origin/main
+cd .worktrees/fix-my-change
+uv venv --python 3.13 && uv sync --all-extras
 ```
 
-Then `cd` into the printed path and run `uv run pytest`. (A `conftest.py`
-path shim guards the case where the venv hasn't been synced, but a per-worktree
-venv is the real fix.)
+Then run `uv run pytest` from that path. (A `conftest.py` path shim guards the
+case where the venv hasn't been synced, but a per-worktree venv is the real fix.)
 
 ## Project Structure
 
