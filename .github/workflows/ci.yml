@@ -23,3 +23,17 @@ jobs:
           uv run python scripts/build_skills.py
           git diff --exit-code skills/ \
             || { echo "::error::skills/ is out of date. Run 'python scripts/build_skills.py' and commit."; exit 1; }
+
+  build:
+    name: Package builds and passes twine check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build sdist and wheel, then verify metadata
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*
