@@ -4,7 +4,7 @@ import logging
 from typing import Optional
 
 from slipbox_mcp.models.schema import NoteType
-from slipbox_mcp.utils import format_tags, parse_refs, parse_tags
+from slipbox_mcp.utils import format_tags, parse_enum, parse_refs, parse_tags
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +59,9 @@ def register_note_tools(server) -> None:
             references: Newline-separated citations to external sources (e.g. "Ahrens, S. (2017). How to Take Smart Notes.\nhttps://zettelkasten.de")
         """
         try:
-            try:
-                note_type_enum = NoteType(note_type.lower())
-            except ValueError:
-                return f"Invalid note type: {note_type}. Valid types are: {', '.join(t.value for t in NoteType)}"
+            note_type_enum, type_err = parse_enum(note_type, NoteType, "note type")
+            if type_err:
+                return type_err
 
             tag_list = parse_tags(tags)
             ref_list = parse_refs(references)
@@ -146,10 +145,9 @@ def register_note_tools(server) -> None:
 
             note_type_enum = None
             if note_type:
-                try:
-                    note_type_enum = NoteType(note_type.lower())
-                except ValueError:
-                    return f"Invalid note type: {note_type}. Valid types are: {', '.join(t.value for t in NoteType)}"
+                note_type_enum, type_err = parse_enum(note_type, NoteType, "note type")
+                if type_err:
+                    return type_err
 
             tag_list = None
             if tags is not None:  # Allow empty string to clear tags

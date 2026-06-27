@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import exc as sqlalchemy_exc
 
 from slipbox_mcp.models.schema import LinkType
-from slipbox_mcp.utils import format_tags
+from slipbox_mcp.utils import format_tags, parse_enum
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +52,9 @@ def register_link_tools(server) -> None:
             bidirectional: If true, creates inverse link from target to source
         """
         try:
-            try:
-                link_type_enum = LinkType(link_type.lower())
-            except ValueError:
-                return f"Invalid link type: {link_type}. Valid types are: {', '.join(t.value for t in LinkType)}"
+            link_type_enum, type_err = parse_enum(link_type, LinkType, "link type")
+            if type_err:
+                return type_err
 
             source_note, target_note = zettel_service.create_link(
                 source_id=source_id,
