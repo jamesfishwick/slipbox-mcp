@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 from slipbox_mcp.models.schema import NoteType
-from slipbox_mcp.utils import content_preview, format_tags, parse_tags
+from slipbox_mcp.utils import content_preview, format_tags, parse_enum, parse_tags
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +45,9 @@ def register_search_tools(server) -> None:
 
             note_type_enum = None
             if note_type:
-                try:
-                    note_type_enum = NoteType(note_type.lower())
-                except ValueError:
-                    return f"Invalid note type: {note_type}. Valid types are: {', '.join(t.value for t in NoteType)}"
+                note_type_enum, type_err = parse_enum(note_type, NoteType, "note type")
+                if type_err:
+                    return type_err
 
             results = search_service.search_combined(
                 query_text=query, tags=tag_list, note_type=note_type_enum

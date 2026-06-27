@@ -4,10 +4,11 @@
 import logging
 from unittest.mock import patch
 
-from slipbox_mcp.models.schema import Tag
+from slipbox_mcp.models.schema import LinkType, NoteType, Tag
 from slipbox_mcp.utils import (
     content_preview,
     format_tags,
+    parse_enum,
     parse_refs,
     parse_tags,
     setup_logging,
@@ -205,3 +206,29 @@ class TestFormatTags:
     def test_multiple_tags(self):
         tags = [Tag(name="poetry"), Tag(name="craft")]
         assert format_tags(tags) == "poetry, craft"
+
+
+# parse_enum
+class TestParseEnum:
+    """Tests for the parse_enum helper shared by the MCP tools."""
+
+    def test_valid_value_returns_member_and_no_error(self):
+        member, err = parse_enum("permanent", NoteType, "note type")
+        assert member is NoteType.PERMANENT
+        assert err is None
+
+    def test_case_insensitive(self):
+        member, err = parse_enum("REFERENCE", LinkType, "link type")
+        assert member is LinkType.REFERENCE
+        assert err is None
+
+    def test_invalid_value_returns_error_message(self):
+        member, err = parse_enum("bogus", NoteType, "note type")
+        assert member is None
+        # Message must match what the tools have always returned.
+        assert err.startswith("Invalid note type: bogus. Valid types are: ")
+        assert "permanent" in err
+
+    def test_label_appears_in_error(self):
+        _, err = parse_enum("nope", LinkType, "link type")
+        assert err.startswith("Invalid link type: nope.")

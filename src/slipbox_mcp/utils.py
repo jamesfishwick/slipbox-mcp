@@ -2,7 +2,10 @@
 
 import logging
 import sys
-from typing import Optional
+from enum import Enum
+from typing import Optional, TypeVar
+
+E = TypeVar("E", bound=Enum)
 
 
 def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
@@ -51,3 +54,19 @@ def content_preview(text: str, max_length: int = 100) -> str:
 def format_tags(tags: list) -> str:
     """Format a list of Tag objects as a comma-separated string."""
     return ", ".join(tag.name for tag in tags)
+
+
+def parse_enum(
+    value: str, enum_cls: type[E], label: str
+) -> tuple[Optional[E], Optional[str]]:
+    """Parse a string into an enum member (case-insensitive by value).
+
+    Returns ``(member, None)`` on success and ``(None, error_message)`` on
+    failure. The error message matches what the MCP tools have always returned
+    for an invalid type, so tool output is unchanged.
+    """
+    try:
+        return enum_cls(value.lower()), None
+    except ValueError:
+        valid = ", ".join(t.value for t in enum_cls)
+        return None, f"Invalid {label}: {value}. Valid types are: {valid}"
