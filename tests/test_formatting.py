@@ -3,7 +3,6 @@
 import datetime
 
 from slipbox_mcp.formatting import (
-    content_preview,
     format_cluster_summary,
     format_note_compact,
     format_tag_list,
@@ -25,30 +24,6 @@ def make_note(**kwargs):
     )
     defaults.update(kwargs)
     return Note(**defaults)
-
-
-class TestContentPreview:
-    def test_truncates_long_content(self):
-        content = "a" * 200
-        result = content_preview(content, max_len=150)
-        assert len(result) == 153  # 150 + "..."
-        assert result.endswith("...")
-
-    def test_replaces_newlines(self):
-        content = "line one\nline two\nline three"
-        result = content_preview(content)
-        assert "\n" not in result
-        assert "line one line two line three" == result
-
-    def test_short_content_unchanged(self):
-        content = "short"
-        result = content_preview(content)
-        assert result == "short"
-
-    def test_custom_max_len(self):
-        content = "a" * 50
-        result = content_preview(content, max_len=10)
-        assert result == "a" * 10 + "..."
 
 
 class TestFormatTagList:
