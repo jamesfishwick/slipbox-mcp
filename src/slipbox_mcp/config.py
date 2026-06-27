@@ -5,6 +5,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, ValidationError
 
+from slipbox_mcp import __version__
+
 load_dotenv()
 
 
@@ -35,7 +37,7 @@ class ZettelkastenConfig(BaseModel):
     server_name: str = Field(
         default=os.getenv("SLIPBOX_SERVER_NAME", "slipbox-mcp")
     )
-    server_version: str = Field(default="1.2.1")
+    server_version: str = Field(default=__version__)
     id_date_format: str = Field(default="%Y%m%dT%H%M%S")
 
     def get_absolute_path(self, path: Path) -> Path:
