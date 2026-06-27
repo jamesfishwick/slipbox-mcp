@@ -3,11 +3,25 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, TypedDict
 
 MIN_CLUSTER_SIZE = 5
 CO_OCCURRENCE_THRESHOLD = 3
 REPORT_PATH = Path("~/.local/share/mcp/slipbox/cluster-analysis.json").expanduser()
+
+
+class ClusterStats(TypedDict):
+    """Aggregate counts attached to a cluster report.
+
+    A TypedDict (not a model) because every producer, consumer, and the JSON
+    round-trip treat it as a plain dict; this just pins the keys and value
+    types for static checking.
+    """
+
+    total_notes: int
+    total_orphans: int
+    clusters_detected: int
+    clusters_needing_structure: int
 
 
 @dataclass
@@ -32,5 +46,5 @@ class ClusterReport:
 
     generated_at: datetime
     clusters: List[ClusterCandidate]
-    stats: Dict[str, Any]
+    stats: ClusterStats
     dismissed_cluster_ids: List[str] = field(default_factory=list)
