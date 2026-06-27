@@ -158,19 +158,24 @@ def register_link_tools(server) -> None:
             output = (
                 f"Found {len(linked_notes)} {direction} linked notes for {note_id}:\n\n"
             )
+            # The source (hub) note is the same for every row, so fetch it once
+            # rather than re-reading it from disk on each iteration.
+            source_note = (
+                zettel_service.get_note(str(note_id))
+                if direction in ["outgoing", "both"]
+                else None
+            )
             for i, note in enumerate(linked_notes, 1):
                 output += f"{i}. {note.title} (ID: {note.id})\n"
                 if note.tags:
                     output += f"   Tags: {format_tags(note.tags)}\n"
-                if direction in ["outgoing", "both"]:
-                    source_note = zettel_service.get_note(str(note_id))
-                    if source_note:
-                        for link in source_note.links:
-                            if str(link.target_id) == str(note.id):
-                                output += f"   Link type: {link.link_type.value}\n"
-                                if link.description:
-                                    output += f"   Description: {link.description}\n"
-                                break
+                if source_note:
+                    for link in source_note.links:
+                        if str(link.target_id) == str(note.id):
+                            output += f"   Link type: {link.link_type.value}\n"
+                            if link.description:
+                                output += f"   Description: {link.description}\n"
+                            break
                 if direction in ["incoming", "both"]:
                     for link in note.links:
                         if str(link.target_id) == str(note_id):
