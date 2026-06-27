@@ -5,14 +5,6 @@ from __future__ import annotations
 from slipbox_mcp.models.schema import Note
 
 
-def content_preview(content: str, max_len: int = 150) -> str:
-    """Truncate content to max_len, replacing newlines with spaces."""
-    preview = content[:max_len].replace("\n", " ")
-    if len(content) > max_len:
-        preview += "..."
-    return preview
-
-
 def format_tag_list(tags) -> str:
     """Format tags as comma-separated string. Accepts Note.tags or plain strings."""
     if not tags:
