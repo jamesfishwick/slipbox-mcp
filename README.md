@@ -614,25 +614,23 @@ ruff check src/ evals/
 
 | Workflow | Trigger | Runner | What |
 |----------|---------|--------|------|
-| `CI` | Every PR + push to main | GitHub-hosted | Unit + contract tests, ruff |
-| `LLM Evals` | PRs changing prompt files | Self-hosted | 28 LLM evals via claude CLI |
+| `CI` | Every PR + push to main | GitHub-hosted | Unit + contract tests, ruff lint + format |
+| `LLM Evals` | Opt-in (label or manual) | Self-hosted | 28 LLM evals via claude CLI |
 | `Release` | Push to `main` | GitHub-hosted | release-please PR; on its merge, build + publish to PyPI |
 
-The LLM eval workflow triggers only when these files change:
+The LLM eval suite is expensive (~$3-5, ~10 min) and self-hosted, so it **never runs automatically** — a path-based trigger can't distinguish a real prompt change from a cosmetic reformat. Run it deliberately when you change prompt or tool-description semantics:
 
-- `src/slipbox_mcp/server/descriptions.py` (tool descriptions)
-- `src/slipbox_mcp/server/prompts.py` (prompt templates)
-- `evals/llm/**`, `evals/seed_data.py`, `evals/conftest.py`
+- **Add the `run-llm-evals` label** to the PR — it runs, and re-runs on each push while the label is present.
+- **Or trigger it manually** from the Actions tab (`workflow_dispatch`).
+- **Or run it locally** without the runner: `pytest evals/llm/ -v`.
+
+Without a label or manual dispatch, the job is skipped (no runner allocated, no cost).
 
 ### Customizing the eval setup
 
-**If you don't want a self-hosted runner:** Remove `.github/workflows/llm-evals.yml` and run LLM evals locally before merging prompt changes:
+**If you don't want a self-hosted runner:** remove `.github/workflows/llm-evals.yml` and run `pytest evals/llm/ -v` locally before merging prompt changes.
 
-```bash
-pytest evals/llm/ -v
-```
-
-**If you want LLM evals on every PR** (not just prompt changes): Edit `.github/workflows/llm-evals.yml` and remove the `paths:` filter.
+**If you want LLM evals on every PR automatically:** add a `pull_request` trigger with the relevant `paths:` filter and drop the label gate in the job's `if:` — but expect incidental triggers from formatting-only edits.
 
 **To change the default eval model:** Set `EVAL_MODEL` in your environment or in the workflow file. Default is `haiku` for speed/cost.
 
