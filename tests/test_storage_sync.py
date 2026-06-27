@@ -143,3 +143,27 @@ class TestLockScope:
         assert lock_held_during_index == [True], (
             "file_lock was not held during DB indexing"
         )
+
+
+class TestIndexableCount:
+    """Verify the indexable-file count matches what the parser indexes."""
+
+    def test_counts_note_with_frontmatter_over_read_buffer(self, note_repository):
+        """A note whose frontmatter exceeds the initial 2048-byte read is still
+        counted, so file/DB counts don't diverge and thrash a full rebuild."""
+        big_value = "x" * 3000  # pushes the closing fence well past 2048 bytes
+        content = (
+            "---\n"
+            "id: 20250101T120000000000000\n"
+            "title: Big Frontmatter\n"
+            "type: permanent\n"
+            f"note: '{big_value}'\n"
+            "---\n\nbody\n"
+        )
+        assert content.index("\n---", 3) > 2048  # the scenario under test
+
+        before = note_repository._count_indexable_files()
+        (note_repository.notes_dir / "big.md").write_text(content, encoding="utf-8")
+        after = note_repository._count_indexable_files()
+
+        assert after == before + 1

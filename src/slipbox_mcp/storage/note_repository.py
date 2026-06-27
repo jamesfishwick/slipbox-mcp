@@ -25,8 +25,14 @@ from slipbox_mcp.models.db_models import (
 )
 from slipbox_mcp.models.schema import Link, LinkType, Note, NoteType, Tag
 from slipbox_mcp.storage.base import Repository
+from slipbox_mcp.utils import atomic_write_text
 
 logger = logging.getLogger(__name__)
+
+# Upper bound on how far the indexable-file count reads looking for the closing
+# frontmatter fence. Real frontmatter is well under this; the cap just stops a
+# malformed file (opening '---' with no close) from being read end-to-end.
+_MAX_FRONTMATTER_BYTES = 65536
 
 
 class ReferrerSweepError(Exception):
@@ -201,8 +207,21 @@ class NoteRepository(Repository[Note]):
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     header = f.read(2048)
-                if not header.startswith("---"):
-                    continue
+                    if not header.startswith("---"):
+                        continue
+                    # The closing fence usually falls within the first read, but
+                    # keep reading (bounded) if it hasn't yet -- otherwise a note
+                    # with large frontmatter is skipped here while the full parser
+                    # still indexes it, so the counts diverge and thrash a full
+                    # rebuild on every construction.
+                    while (
+                        header.find("\n---", 3) == -1
+                        and len(header) < _MAX_FRONTMATTER_BYTES
+                    ):
+                        chunk = f.read(2048)
+                        if not chunk:
+                            break
+                        header += chunk
                 end = header.find("\n---", 3)
                 if end == -1:
                     continue
@@ -558,9 +577,8 @@ class NoteRepository(Repository[Note]):
 
         with self.file_lock:
             try:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(markdown)
-            except IOError as e:
+                atomic_write_text(file_path, markdown)
+            except OSError as e:
                 raise IOError(f"Failed to write note to {file_path}: {e}")
 
             try:
@@ -626,8 +644,7 @@ class NoteRepository(Repository[Note]):
             original_content = file_path.read_text(encoding="utf-8")
 
             try:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(markdown)
+                atomic_write_text(file_path, markdown)
 
                 with self.session_factory() as session:
                     db_note = session.scalar(select(DBNote).where(DBNote.id == note.id))
@@ -663,9 +680,8 @@ class NoteRepository(Repository[Note]):
                         self._index_note(note)
             except Exception:
                 try:
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        f.write(original_content)
-                except IOError:
+                    atomic_write_text(file_path, original_content)
+                except OSError:
                     logger.error(
                         "Failed to roll back file %s after DB error", file_path
                     )
@@ -712,9 +728,8 @@ class NoteRepository(Repository[Note]):
             except Exception as e:
                 # Restore file to maintain sync
                 try:
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        f.write(original_content)
-                except IOError:
+                    atomic_write_text(file_path, original_content)
+                except OSError:
                     logger.error("Failed to restore file %s after DB error", file_path)
                 logger.error("DB cleanup failed for note %s, file restored: %s", id, e)
                 raise
