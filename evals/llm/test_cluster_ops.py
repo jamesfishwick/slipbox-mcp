@@ -7,13 +7,14 @@ NOTE: The seed data may or may not produce clusters depending on the algorithm.
 If cluster tools return "no clusters found", that is still valid tool usage --
 we grade on whether the LLM used the right tools, not on cluster content.
 """
+
 import pytest
+
 from evals.conftest import run_claude_eval
 
 
 @pytest.mark.eval
 class TestClusterOps:
-
     def test_refreshes_clusters(self, seeded_slipbox, test_config):
         """LLM should use cluster tools to analyze the slipbox."""
         svc, refs = seeded_slipbox
@@ -63,9 +64,7 @@ class TestClusterOps:
         # a reasonable explanation in the output.
         all_notes = svc.get_all_notes()
         new_notes = [n for n in all_notes if n.id not in existing_ids]
-        new_structure = [
-            n for n in new_notes if n.note_type.value == "structure"
-        ]
+        new_structure = [n for n in new_notes if n.note_type.value == "structure"]
 
         output = result["output"].lower()
         if new_structure:
@@ -100,11 +99,7 @@ class TestClusterOps:
         # Grade: output should mention dismissing a cluster or no clusters found
         # NOTE: Non-deterministic -- if no clusters exist, the LLM should say so.
         output = result["output"].lower()
-        assert (
-            "dismiss" in output
-            or "no cluster" in output
-            or "cluster" in output
-        ), (
+        assert "dismiss" in output or "no cluster" in output or "cluster" in output, (
             f"Expected mention of cluster dismissal or no clusters. "
             f"Output: {output[:500]}"
         )

@@ -1,7 +1,9 @@
 """Utility functions for the Zettelkasten MCP server."""
+
 import logging
 import sys
 from typing import Optional
+
 
 def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
     """Set up logging configuration."""
@@ -22,6 +24,7 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
         log_config["stream"] = sys.stderr
 
     logging.basicConfig(**log_config)
+
 
 def parse_tags(tags_str: Optional[str]) -> list[str]:
     """Parse a comma-separated list of tags into a list of tag strings."""
@@ -48,4 +51,3 @@ def content_preview(text: str, max_length: int = 100) -> str:
 def format_tags(tags: list) -> str:
     """Format a list of Tag objects as a comma-separated string."""
     return ", ".join(tag.name for tag in tags)
-

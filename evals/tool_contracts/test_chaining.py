@@ -1,4 +1,5 @@
 """Tool chaining contracts -- verify tools compose correctly."""
+
 import pytest
 
 from evals.tool_contracts.conftest import extract_note_id
@@ -54,11 +55,15 @@ class TestUpdateThenSearch:
         tool("slipbox_rebuild_index")()
 
         # Update content
-        tool("slipbox_update_note")(note_id=note_id, content="Revised content about quantum entanglement.")
+        tool("slipbox_update_note")(
+            note_id=note_id, content="Revised content about quantum entanglement."
+        )
         tool("slipbox_rebuild_index")()
 
         search_result = tool("slipbox_search_notes")(query="quantum entanglement")
-        assert note_id in search_result, "Updated note should appear in search for new content"
+        assert note_id in search_result, (
+            "Updated note should appear in search for new content"
+        )
 
 
 class TestDeleteThenGet:

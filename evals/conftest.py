@@ -1,4 +1,5 @@
 """Eval test configuration and helpers."""
+
 import json
 import os
 import subprocess
@@ -15,6 +16,7 @@ EVALS_DIR = Path(__file__).parent
 # ---------------------------------------------------------------------------
 # Eval-specific fixtures (shared fixtures live in root conftest.py)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def seeded_slipbox(zettel_service):
@@ -36,6 +38,7 @@ def run_claude_eval(
     """
     # Use the venv's python so the MCP server subprocess can find slipbox_mcp
     import sys
+
     python_path = sys.executable
 
     mcp_config = {
@@ -54,11 +57,17 @@ def run_claude_eval(
 
     result = subprocess.run(
         [
-            "claude", "-p", prompt,
-            "--model", model,
-            "--output-format", "json",
-            "--max-budget-usd", str(max_budget_usd),
-            "--mcp-config", mcp_config_json,
+            "claude",
+            "-p",
+            prompt,
+            "--model",
+            model,
+            "--output-format",
+            "json",
+            "--max-budget-usd",
+            str(max_budget_usd),
+            "--mcp-config",
+            mcp_config_json,
             "--strict-mcp-config",
             "--dangerously-skip-permissions",
         ],

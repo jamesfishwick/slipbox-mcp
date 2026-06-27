@@ -12,6 +12,7 @@ Example:
     python3 inject-responses.py demo.md /tmp/demo-shot
     # Reads /tmp/demo-shot-01-maintenance.txt, /tmp/demo-shot-02-search.txt, etc.
 """
+
 import re
 import sys
 from pathlib import Path
@@ -29,6 +30,7 @@ def main():
 
     # Collect all available response files.
     import glob
+
     response_files = {}
     for f in glob.glob(f"{prefix}-*.txt"):
         # Extract shot name: /tmp/demo-shot-01-maintenance.txt -> 01-maintenance
@@ -37,9 +39,9 @@ def main():
 
     # Pattern 1: Replace existing <details> blocks.
     details_pattern = re.compile(
-        r'<details>\s*\n<summary>Claude\'s response</summary>\n\n'
-        r'(.*?)'
-        r'\n</details>',
+        r"<details>\s*\n<summary>Claude\'s response</summary>\n\n"
+        r"(.*?)"
+        r"\n</details>",
         re.DOTALL,
     )
 
@@ -53,7 +55,7 @@ def main():
 
         # Try replacing image reference first.
         img_pattern = re.compile(
-            rf'!\[[^\]]*\]\(assets/screenshots/{re.escape(name)}\.png\)'
+            rf"!\[[^\]]*\]\(assets/screenshots/{re.escape(name)}\.png\)"
         )
         if img_pattern.search(text):
             replacement = f"""<details>
@@ -77,12 +79,11 @@ def main():
     # We scan for each details block, look backwards for clues about which shot it is.
     def replace_details(match):
         nonlocal count
-        old_content = match.group(1)
         # Look at first ~100 chars of old content for identifying info
         # and try to match against response files.
         start_pos = match.start()
         # Get preceding 500 chars for context
-        preceding = text[max(0, start_pos - 500):start_pos]
+        preceding = text[max(0, start_pos - 500) : start_pos]
 
         for name, txt_path in list(response_files.items()):
             # Check if this response file's content is already used
@@ -90,7 +91,9 @@ def main():
 
             # Match by checking if the old content starts similarly,
             # or if the preceding text contains keywords from the prompt file.
-            prompt_file = Path(f"/Users/jamesfishwick/Workspace/slipbox-mcp/scripts/demo-prompts/{name}.txt")
+            prompt_file = Path(
+                f"/Users/jamesfishwick/Workspace/slipbox-mcp/scripts/demo-prompts/{name}.txt"
+            )
             if prompt_file.exists():
                 prompt_keywords = prompt_file.read_text()[:100].lower()
                 preceding_lower = preceding.lower()

@@ -3,21 +3,20 @@
 Tests that Claude correctly uses MCP tools to query tags and date-based
 note listings. Requires claude CLI to be installed and authenticated.
 """
+
 import pytest
+
 from evals.conftest import run_claude_eval
 
 
 @pytest.mark.eval
 class TestTagsAndDates:
-
     def test_lists_tags(self, seeded_slipbox, test_config):
         """LLM should list tags from the slipbox when asked for an overview."""
         svc, refs = seeded_slipbox
 
         result = run_claude_eval(
-            prompt=(
-                "What tags am I using in my slipbox? Give me an overview."
-            ),
+            prompt=("What tags am I using in my slipbox? Give me an overview."),
             notes_dir=svc.repository.notes_dir,
             db_path=test_config.get_absolute_path(test_config.database_path),
         )
@@ -37,9 +36,7 @@ class TestTagsAndDates:
         svc, refs = seeded_slipbox
 
         result = run_claude_eval(
-            prompt=(
-                "What notes have I added most recently?"
-            ),
+            prompt=("What notes have I added most recently?"),
             notes_dir=svc.repository.notes_dir,
             db_path=test_config.get_absolute_path(test_config.database_path),
         )
@@ -66,9 +63,7 @@ class TestTagsAndDates:
         svc, refs = seeded_slipbox
 
         result = run_claude_eval(
-            prompt=(
-                "Which notes in my slipbox have the most connections?"
-            ),
+            prompt=("Which notes in my slipbox have the most connections?"),
             notes_dir=svc.repository.notes_dir,
             db_path=test_config.get_absolute_path(test_config.database_path),
         )

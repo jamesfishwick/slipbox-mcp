@@ -179,7 +179,9 @@ def render(skill: dict) -> str:
     front = content.split("---\n", 2)[1]
     parsed = yaml.safe_load(front)
     if parsed.get("name") != name or not parsed.get("description"):
-        raise ValueError(f"Rendered frontmatter for {name!r} did not round-trip: {parsed!r}")
+        raise ValueError(
+            f"Rendered frontmatter for {name!r} did not round-trip: {parsed!r}"
+        )
     return content
 
 

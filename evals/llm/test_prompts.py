@@ -4,13 +4,14 @@ Tests that Claude correctly uses the MCP prompts (knowledge_creation_batch,
 knowledge_synthesis, analyze_note) to perform higher-level knowledge workflows.
 Requires claude CLI to be installed and authenticated.
 """
+
 import pytest
+
 from evals.conftest import run_claude_eval
 
 
 @pytest.mark.eval
 class TestPrompts:
-
     def test_knowledge_creation_batch(self, seeded_slipbox, test_config):
         """LLM should process multiple related ideas into the slipbox as a batch."""
         svc, refs = seeded_slipbox
@@ -44,9 +45,7 @@ class TestPrompts:
             if linked:
                 any_linked = True
                 break
-        assert any_linked, (
-            "Expected at least some links among the batch-created notes"
-        )
+        assert any_linked, "Expected at least some links among the batch-created notes"
 
     def test_knowledge_synthesis(self, seeded_slipbox, test_config):
         """LLM should synthesize connections between panpsychism and Wittgenstein."""
@@ -64,12 +63,12 @@ class TestPrompts:
 
         # Grade: output should mention notes from both clusters
         output = result["output"].lower()
-        has_panpsychism = (
-            "panpsych" in output or "faggin" in output or "iit" in output
-        )
+        has_panpsychism = "panpsych" in output or "faggin" in output or "iit" in output
         has_wittgenstein = (
-            "wittgenstein" in output or "private language" in output
-            or "language game" in output or "investigations" in output
+            "wittgenstein" in output
+            or "private language" in output
+            or "language game" in output
+            or "investigations" in output
         )
         assert has_panpsychism, (
             f"Expected mention of panpsychism-related notes. Output: {output[:500]}"

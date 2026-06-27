@@ -15,8 +15,9 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v4
-      - run: uv venv --python 3.13 && uv pip install -e ".[dev]" ruff
-      - run: uv run ruff check src/ evals/
+      - run: uv venv --python 3.13 && uv pip install -e ".[dev]"
+      - run: uv run ruff check src/ evals/ tests/ scripts/
+      - run: uv run ruff format --check src/ evals/ tests/ scripts/
       - run: uv run pytest -q
       - name: Skills are regenerated from the prompt templates (no drift)
         run: |

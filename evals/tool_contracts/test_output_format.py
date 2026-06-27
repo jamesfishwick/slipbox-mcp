@@ -1,4 +1,5 @@
 """Tool output format contracts -- verify tools return parseable, useful output."""
+
 import pytest
 
 from evals.tool_contracts.conftest import extract_note_id
@@ -13,7 +14,9 @@ class TestNoteToolOutputs:
         assert "ID:" in result
 
     def test_get_note_returns_markdown_heading(self, tool):
-        create_result = tool("slipbox_create_note")(title="My Title", content="Body here")
+        create_result = tool("slipbox_create_note")(
+            title="My Title", content="Body here"
+        )
         note_id = extract_note_id(create_result)
         get_result = tool("slipbox_get_note")(identifier=note_id)
         assert "# My Title" in get_result
@@ -23,7 +26,9 @@ class TestNoteToolOutputs:
         assert "not found" in result.lower()
 
     def test_delete_note_confirms(self, tool):
-        create_result = tool("slipbox_create_note")(title="To Delete", content="Goodbye")
+        create_result = tool("slipbox_create_note")(
+            title="To Delete", content="Goodbye"
+        )
         note_id = extract_note_id(create_result)
         delete_result = tool("slipbox_delete_note")(note_id=note_id)
         assert "deleted" in delete_result.lower()
@@ -45,7 +50,9 @@ class TestSearchToolOutputs:
         assert "no" in result.lower() or "0" in result
 
     def test_find_orphaned_notes(self, tool):
-        tool("slipbox_create_note")(title="Lonely Note", content="No links", tags="orphan")
+        tool("slipbox_create_note")(
+            title="Lonely Note", content="No links", tags="orphan"
+        )
         result = tool("slipbox_find_orphaned_notes")()
         assert "Lonely Note" in result or "orphan" in result.lower()
 
@@ -82,7 +89,9 @@ class TestLinkToolOutputs:
 class TestUpdateToolOutputs:
     def test_update_note_title(self, tool):
         """Create a note, update its title, verify get returns the new title."""
-        create_result = tool("slipbox_create_note")(title="Old Title", content="Body text")
+        create_result = tool("slipbox_create_note")(
+            title="Old Title", content="Body text"
+        )
         note_id = extract_note_id(create_result)
         update_result = tool("slipbox_update_note")(note_id=note_id, title="New Title")
         assert "updated" in update_result.lower()
@@ -107,7 +116,9 @@ class TestRemoveLinkOutputs:
         # Remove and verify
         remove_result = tool("slipbox_remove_link")(source_id=id1, target_id=id2)
         assert "removed" in remove_result.lower()
-        linked_after = tool("slipbox_get_linked_notes")(note_id=id1, direction="outgoing")
+        linked_after = tool("slipbox_get_linked_notes")(
+            note_id=id1, direction="outgoing"
+        )
         assert "No" in linked_after or "Right Note" not in linked_after
 
 
@@ -133,7 +144,9 @@ class TestSimilarNotesOutputs:
             title="Note About Dogs", content="Dogs are great pets", tags="animals,pets"
         )
         tool("slipbox_create_note")(
-            title="Note About Cats", content="Cats are also great pets", tags="animals,pets"
+            title="Note About Cats",
+            content="Cats are also great pets",
+            tags="animals,pets",
         )
         id1 = extract_note_id(r1)
         result = tool("slipbox_find_similar_notes")(note_id=id1, threshold=0.1)

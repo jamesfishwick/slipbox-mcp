@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Main entry point for the Zettelkasten MCP server."""
+
 import argparse
 import logging
 import os
@@ -28,7 +29,8 @@ def _warn_renamed_env_vars() -> None:
             _logger.warning(
                 "Env var %s is set but no longer read. Rename it to %s. "
                 "Your configuration is NOT being applied.",
-                old, new,
+                old,
+                new,
             )
 
 
@@ -39,21 +41,22 @@ def parse_args():
         "--notes-dir",
         help="Directory for storing note files",
         type=str,
-        default=os.environ.get("SLIPBOX_NOTES_DIR")
+        default=os.environ.get("SLIPBOX_NOTES_DIR"),
     )
     parser.add_argument(
         "--database-path",
         help="SQLite database file path",
         type=str,
-        default=os.environ.get("SLIPBOX_DATABASE_PATH")
+        default=os.environ.get("SLIPBOX_DATABASE_PATH"),
     )
     parser.add_argument(
         "--log-level",
         help="Logging level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default=os.environ.get("SLIPBOX_LOG_LEVEL", "INFO")
+        default=os.environ.get("SLIPBOX_LOG_LEVEL", "INFO"),
     )
     return parser.parse_args()
+
 
 def update_config(args):
     """Update the global config with command line arguments."""
@@ -61,6 +64,7 @@ def update_config(args):
         config.notes_dir = Path(args.notes_dir)
     if args.database_path:
         config.database_path = Path(args.database_path)
+
 
 def main():
     """Run the Zettelkasten MCP server."""
@@ -90,6 +94,7 @@ def main():
     except Exception as e:
         logger.error("Error running server: %s", e)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

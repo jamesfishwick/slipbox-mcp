@@ -3,13 +3,14 @@
 Tests that Claude correctly uses MCP tools to modify and remove knowledge
 in the slipbox. Requires claude CLI to be installed and authenticated.
 """
+
 import pytest
+
 from evals.conftest import run_claude_eval
 
 
 @pytest.mark.eval
 class TestUpdateDelete:
-
     def test_updates_note_content(self, seeded_slipbox, test_config):
         """LLM should update the existing Spinoza note rather than creating a new one."""
         svc, refs = seeded_slipbox

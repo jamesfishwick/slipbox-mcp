@@ -1,10 +1,22 @@
 """SQLAlchemy database models for the Zettelkasten MCP server."""
+
 import datetime
 import json
 import logging
 
-from sqlalchemy import (Column, DateTime, Engine, ForeignKey, Integer, String,
-                       Table, Text, UniqueConstraint, create_engine, text)
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Engine,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    create_engine,
+    text,
+)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
@@ -22,13 +34,17 @@ note_tags = Table(
     Column("tag_id", Integer, ForeignKey("tags.id"), primary_key=True),
 )
 
+
 class DBNote(Base):
     """Database model for a note."""
+
     __tablename__ = "notes"
     id = Column(String(255), primary_key=True, index=True)
     title = Column(String(255), nullable=False, index=True)
     content = Column(Text, nullable=False)
-    note_type = Column(String(50), default=NoteType.PERMANENT.value, nullable=False, index=True)
+    note_type = Column(
+        String(50), default=NoteType.PERMANENT.value, nullable=False, index=True
+    )
     references_json = Column(Text, nullable=False, default="[]")
     created_at = Column(DateTime, default=datetime.datetime.now, nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.now, nullable=False)
@@ -42,13 +58,17 @@ class DBNote(Base):
         except (ValueError, TypeError) as e:
             logger.error(
                 "Failed to deserialize references_json for note %s: %s (raw: %r)",
-                self.id, e, raw,
+                self.id,
+                e,
+                raw,
             )
             return []
         if not isinstance(value, list):
             logger.error(
                 "references_json for note %s deserialized to %s, expected list (raw: %r)",
-                self.id, type(value).__name__, raw,
+                self.id,
+                type(value).__name__,
+                raw,
             )
             return []
         return value
@@ -58,40 +78,40 @@ class DBNote(Base):
         """Serialize references to JSON storage."""
         self.references_json = json.dumps(value or [])
 
-    tags = relationship(
-        "DBTag", secondary=note_tags, back_populates="notes"
-    )
+    tags = relationship("DBTag", secondary=note_tags, back_populates="notes")
     outgoing_links = relationship(
         "DBLink",
         foreign_keys="DBLink.source_id",
         back_populates="source",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
     incoming_links = relationship(
         "DBLink",
         foreign_keys="DBLink.target_id",
         back_populates="target",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:
         return f"<Note(id='{self.id}', title='{self.title}')>"
 
+
 class DBTag(Base):
     """Database model for a tag."""
+
     __tablename__ = "tags"
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), unique=True, nullable=False)
 
-    notes = relationship(
-        "DBNote", secondary=note_tags, back_populates="tags"
-    )
+    notes = relationship("DBNote", secondary=note_tags, back_populates="tags")
 
     def __repr__(self) -> str:
         return f"<Tag(id={self.id}, name='{self.name}')>"
 
+
 class DBLink(Base):
     """Database model for a link between notes."""
+
     __tablename__ = "links"
     id = Column(Integer, primary_key=True, autoincrement=True)
     source_id = Column(String(255), ForeignKey("notes.id"), nullable=False)
@@ -109,8 +129,9 @@ class DBLink(Base):
 
     # Add a unique constraint to prevent duplicate links of the same type
     __table_args__ = (
-        UniqueConstraint('source_id', 'target_id', 'link_type',
-                         name='unique_link_type'),
+        UniqueConstraint(
+            "source_id", "target_id", "link_type", name="unique_link_type"
+        ),
     )
 
     def __repr__(self) -> str:
@@ -118,6 +139,7 @@ class DBLink(Base):
             f"<Link(id={self.id}, source='{self.source_id}', "
             f"target='{self.target_id}', type='{self.link_type}')>"
         )
+
 
 def init_db() -> "Engine":
     """Initialize the database, including FTS5 virtual table and sync triggers."""
@@ -127,9 +149,11 @@ def init_db() -> "Engine":
     with engine.connect() as conn:
         # Add references_json column to existing databases that predate this field.
         try:
-            conn.execute(text(
-                "ALTER TABLE notes ADD COLUMN references_json TEXT NOT NULL DEFAULT '[]'"
-            ))
+            conn.execute(
+                text(
+                    "ALTER TABLE notes ADD COLUMN references_json TEXT NOT NULL DEFAULT '[]'"
+                )
+            )
             conn.commit()
         except OperationalError as e:
             conn.rollback()
@@ -137,38 +161,49 @@ def init_db() -> "Engine":
                 pass  # Column already exists — expected on existing databases.
             else:
                 logger.error(
-                    "Unexpected error during references_json migration: %s", e, exc_info=True
+                    "Unexpected error during references_json migration: %s",
+                    e,
+                    exc_info=True,
                 )
                 raise
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts
             USING fts5(title, content, content='notes', content_rowid='rowid')
-        """))
+        """)
+        )
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
                 INSERT INTO notes_fts(rowid, title, content)
                 VALUES (new.rowid, new.title, new.content);
             END
-        """))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text("""
             CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
                 INSERT INTO notes_fts(notes_fts, rowid, title, content)
                 VALUES ('delete', old.rowid, old.title, old.content);
             END
-        """))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text("""
             CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
                 INSERT INTO notes_fts(notes_fts, rowid, title, content)
                 VALUES ('delete', old.rowid, old.title, old.content);
                 INSERT INTO notes_fts(rowid, title, content)
                 VALUES (new.rowid, new.title, new.content);
             END
-        """))
+        """)
+        )
         conn.commit()
 
     return engine
+
 
 def get_session_factory(engine=None):
     """Get a session factory for the database."""

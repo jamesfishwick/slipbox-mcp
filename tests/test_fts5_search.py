@@ -1,7 +1,10 @@
 """Tests for FTS5-backed search_by_text."""
+
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from sqlalchemy.exc import OperationalError
+
 from slipbox_mcp.models.schema import NoteType
 from slipbox_mcp.services.search_service import SearchService
 
@@ -16,23 +19,25 @@ def test_search_by_text_returns_ranked_results(zettel_service, search_service):
     high_relevance = zettel_service.create_note(
         title="epistemology epistemology",
         content="epistemology is the study of knowledge and justified belief.",
-        tags=["philosophy"]
+        tags=["philosophy"],
     )
     low_relevance = zettel_service.create_note(
         title="Other Philosophy",
         content="This note touches on epistemology briefly.",
-        tags=["philosophy"]
+        tags=["philosophy"],
     )
     zettel_service.create_note(
         title="Unrelated Note",
         content="Nothing to do with the query term at all.",
-        tags=["other"]
+        tags=["other"],
     )
 
     results = search_service.search_by_text("epistemology")
 
     assert len(results) == 2
-    assert results[0].note.id == high_relevance.id, "Higher-frequency match should rank first"
+    assert results[0].note.id == high_relevance.id, (
+        "Higher-frequency match should rank first"
+    )
     assert results[1].note.id == low_relevance.id
     assert all(r.score > 0 for r in results)
 
@@ -45,9 +50,7 @@ def test_search_by_text_empty_query(search_service):
 def test_search_by_text_no_matches(zettel_service, search_service):
     """Query with no matches must return empty list."""
     zettel_service.create_note(
-        title="Totally Different",
-        content="Nothing relevant here.",
-        tags=[]
+        title="Totally Different", content="Nothing relevant here.", tags=[]
     )
     results = search_service.search_by_text("xyzzyplugh")
     assert results == []
@@ -56,14 +59,12 @@ def test_search_by_text_no_matches(zettel_service, search_service):
 def test_search_by_text_include_title_only(zettel_service, search_service):
     """include_content=False must only search titles."""
     zettel_service.create_note(
-        title="Phenomenology",
-        content="Body text without the search term.",
-        tags=[]
+        title="Phenomenology", content="Body text without the search term.", tags=[]
     )
     zettel_service.create_note(
         title="Unrelated",
         content="phenomenology appears only in the content here.",
-        tags=[]
+        tags=[],
     )
 
     results = search_service.search_by_text("phenomenology", include_content=False)
@@ -74,9 +75,7 @@ def test_search_by_text_include_title_only(zettel_service, search_service):
 def test_search_by_text_score_is_positive(zettel_service, search_service):
     """Scores must be positive floats (BM25 negated)."""
     zettel_service.create_note(
-        title="Hermeneutics",
-        content="The study of interpretation theory.",
-        tags=[]
+        title="Hermeneutics", content="The study of interpretation theory.", tags=[]
     )
     results = search_service.search_by_text("hermeneutics")
     assert len(results) == 1
@@ -86,9 +85,7 @@ def test_search_by_text_score_is_positive(zettel_service, search_service):
 def test_search_by_text_fts_special_chars_do_not_crash(zettel_service, search_service):
     """FTS5 operator syntax in user input must not cause OperationalError."""
     zettel_service.create_note(
-        title="Normal Note",
-        content="Some content here.",
-        tags=[]
+        title="Normal Note", content="Some content here.", tags=[]
     )
     # These would crash without escaping — verify no exception and a list is returned
     assert isinstance(search_service.search_by_text("AND OR NOT"), list)
@@ -96,7 +93,9 @@ def test_search_by_text_fts_special_chars_do_not_crash(zettel_service, search_se
     assert isinstance(search_service.search_by_text("*wildcard"), list)
 
 
-def test_search_by_text_multi_word_query_matches_any_term(zettel_service, search_service):
+def test_search_by_text_multi_word_query_matches_any_term(
+    zettel_service, search_service
+):
     """Multi-word queries must OR their terms, not require an exact phrase.
 
     Regression: queries were wrapped in quotes and run as a single FTS5 phrase,
@@ -123,7 +122,9 @@ def test_search_by_text_multi_word_query_matches_any_term(zettel_service, search
     assert thinking_note.id in found_ids
 
 
-def test_search_by_text_whitespace_only_query_returns_empty(zettel_service, search_service):
+def test_search_by_text_whitespace_only_query_returns_empty(
+    zettel_service, search_service
+):
     """A whitespace-only query has no tokens and must return [] without hitting FTS5.
 
     Regression: such a query is truthy, so it bypasses the `if not query` guard,
@@ -135,7 +136,9 @@ def test_search_by_text_whitespace_only_query_returns_empty(zettel_service, sear
     assert search_service.search_by_text("\t\n") == []
 
 
-def test_search_combined_whitespace_text_treated_as_no_text(zettel_service, search_service):
+def test_search_combined_whitespace_text_treated_as_no_text(
+    zettel_service, search_service
+):
     """Whitespace-only query_text must behave like no text: return metadata matches."""
     note = zettel_service.create_note(
         title="Tagged Note",
@@ -156,13 +159,13 @@ def test_search_combined_text_uses_bm25(zettel_service, search_service):
         title="ontology ontology",
         content="ontology is the branch of metaphysics.",
         note_type=NoteType.PERMANENT,
-        tags=["philosophy"]
+        tags=["philosophy"],
     )
     zettel_service.create_note(
         title="Brief Mention",
         content="Ontology is mentioned once here.",
         note_type=NoteType.PERMANENT,
-        tags=["philosophy"]
+        tags=["philosophy"],
     )
 
     results = search_service.search_combined(query_text="ontology", tags=["philosophy"])
@@ -178,7 +181,7 @@ def test_search_combined_no_text_still_works(zettel_service, search_service):
         title="Tagged Note",
         content="Some content.",
         note_type=NoteType.PERMANENT,
-        tags=["unique-tag-xyz"]
+        tags=["unique-tag-xyz"],
     )
 
     results = search_service.search_combined(tags=["unique-tag-xyz"])
@@ -188,10 +191,18 @@ def test_search_combined_no_text_still_works(zettel_service, search_service):
     assert results[0].score == 1.0
 
 
-def test_search_by_text_fts5_operational_error_returns_empty(zettel_service, search_service):
+def test_search_by_text_fts5_operational_error_returns_empty(
+    zettel_service, search_service
+):
     """An FTS5 OperationalError must return [] rather than raise."""
-    fts5_err = OperationalError("fts5: syntax error near X", params=None, orig=Exception("fts5: syntax error near X"))
-    with patch.object(search_service.zettel_service.repository, "session_factory") as mock_sf:
+    fts5_err = OperationalError(
+        "fts5: syntax error near X",
+        params=None,
+        orig=Exception("fts5: syntax error near X"),
+    )
+    with patch.object(
+        search_service.zettel_service.repository, "session_factory"
+    ) as mock_sf:
         mock_session = MagicMock()
         mock_session.__enter__ = MagicMock(return_value=mock_session)
         mock_session.__exit__ = MagicMock(return_value=False)
@@ -201,10 +212,16 @@ def test_search_by_text_fts5_operational_error_returns_empty(zettel_service, sea
     assert result == []
 
 
-def test_search_by_text_non_fts5_operational_error_reraises(zettel_service, search_service):
+def test_search_by_text_non_fts5_operational_error_reraises(
+    zettel_service, search_service
+):
     """A non-FTS5 OperationalError (e.g. schema issue) must re-raise, not swallow."""
-    schema_err = OperationalError("no such table: notes", params=None, orig=Exception("no such table: notes"))
-    with patch.object(search_service.zettel_service.repository, "session_factory") as mock_sf:
+    schema_err = OperationalError(
+        "no such table: notes", params=None, orig=Exception("no such table: notes")
+    )
+    with patch.object(
+        search_service.zettel_service.repository, "session_factory"
+    ) as mock_sf:
         mock_session = MagicMock()
         mock_session.__enter__ = MagicMock(return_value=mock_session)
         mock_session.__exit__ = MagicMock(return_value=False)
@@ -214,7 +231,9 @@ def test_search_by_text_non_fts5_operational_error_reraises(zettel_service, sear
             search_service.search_by_text("test query")
 
 
-def test_search_combined_fts5_syntax_error_returns_empty(zettel_service, search_service):
+def test_search_combined_fts5_syntax_error_returns_empty(
+    zettel_service, search_service
+):
     """When FTS5 raises a syntax error, search_combined returns [] via _run_fts5_query."""
     zettel_service.create_note(
         title="Fallback Note",

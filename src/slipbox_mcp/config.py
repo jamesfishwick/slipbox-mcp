@@ -1,7 +1,9 @@
 """Configuration module for the Zettelkasten MCP server."""
+
 import os
 import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, ValidationError
 
@@ -23,20 +25,21 @@ def _expand_path(raw: str) -> Path:
 
 class ZettelkastenConfig(BaseModel):
     """Configuration for the Zettelkasten server."""
+
     base_dir: Path = Field(
         default_factory=lambda: _expand_path(os.getenv("SLIPBOX_BASE_DIR", "."))
     )
     notes_dir: Path = Field(
-        default_factory=lambda: _expand_path(os.getenv("SLIPBOX_NOTES_DIR", "data/notes"))
+        default_factory=lambda: _expand_path(
+            os.getenv("SLIPBOX_NOTES_DIR", "data/notes")
+        )
     )
     database_path: Path = Field(
         default_factory=lambda: _expand_path(
             os.getenv("SLIPBOX_DATABASE_PATH", "data/db/zettelkasten.db")
         )
     )
-    server_name: str = Field(
-        default=os.getenv("SLIPBOX_SERVER_NAME", "slipbox-mcp")
-    )
+    server_name: str = Field(default=os.getenv("SLIPBOX_SERVER_NAME", "slipbox-mcp"))
     server_version: str = Field(default=__version__)
     id_date_format: str = Field(default="%Y%m%dT%H%M%S")
 
@@ -51,6 +54,7 @@ class ZettelkastenConfig(BaseModel):
         db_path = self.get_absolute_path(self.database_path)
         db_path.parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite:///{db_path}"
+
 
 try:
     config = ZettelkastenConfig()

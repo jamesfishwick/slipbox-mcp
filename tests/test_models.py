@@ -1,35 +1,48 @@
 # tests/test_models.py
 """Tests for the data models used in the Zettelkasten MCP server."""
+
 import datetime
 import re
+
 import pytest
 from pydantic import ValidationError
+
 from slipbox_mcp.models.schema import Link, LinkType, Note, NoteType, Tag, generate_id
+
 
 class TestNoteModel:
     """Tests for the Note model."""
+
     def test_note_creation_populates_all_fields(self):
         """A Note constructed with required fields has expected defaults and values."""
         note = Note(
             title="Test Note",
             content="This is a test note.",
             note_type=NoteType.PERMANENT,
-            tags=[Tag(name="test"), Tag(name="example")]
+            tags=[Tag(name="test"), Tag(name="example")],
         )
 
         # Identity and content
         assert note.id is not None, "Note must have an auto-generated ID"
         assert note.title == "Test Note", f"Title mismatch: {note.title!r}"
-        assert note.content == "This is a test note.", f"Content mismatch: {note.content!r}"
-        assert note.note_type == NoteType.PERMANENT, f"Note type mismatch: {note.note_type!r}"
+        assert note.content == "This is a test note.", (
+            f"Content mismatch: {note.content!r}"
+        )
+        assert note.note_type == NoteType.PERMANENT, (
+            f"Note type mismatch: {note.note_type!r}"
+        )
 
         # Collections
         assert len(note.tags) == 2, f"Expected 2 tags, got {len(note.tags)}"
         assert note.links == [], "New note should have empty links list"
 
         # Timestamps
-        assert isinstance(note.created_at, datetime.datetime), "created_at must be a datetime"
-        assert isinstance(note.updated_at, datetime.datetime), "updated_at must be a datetime"
+        assert isinstance(note.created_at, datetime.datetime), (
+            "created_at must be a datetime"
+        )
+        assert isinstance(note.updated_at, datetime.datetime), (
+            "updated_at must be a datetime"
+        )
 
     def test_note_validation(self):
         """Test note validation for required fields."""
@@ -48,7 +61,7 @@ class TestNoteModel:
         note = Note(
             title="Tag Test",
             content="Testing tag operations.",
-            tags=[Tag(name="initial")]
+            tags=[Tag(name="initial")],
         )
         assert len(note.tags) == 1, "Should start with 1 tag"
 
@@ -83,7 +96,9 @@ class TestNoteModel:
                 content="A passage I want to keep.",
                 note_type=NoteType.LITERATURE,
             )
-        assert "Literature notes must include at least one reference" in str(exc_info.value)
+        assert "Literature notes must include at least one reference" in str(
+            exc_info.value
+        )
 
     def test_literature_note_with_references_passes(self):
         """Literature notes with at least one reference are valid."""
@@ -98,8 +113,12 @@ class TestNoteModel:
 
     def test_non_literature_notes_do_not_require_references(self):
         """Permanent, fleeting, structure, and hub notes have no reference requirement."""
-        for note_type in (NoteType.PERMANENT, NoteType.FLEETING,
-                          NoteType.STRUCTURE, NoteType.HUB):
+        for note_type in (
+            NoteType.PERMANENT,
+            NoteType.FLEETING,
+            NoteType.STRUCTURE,
+            NoteType.HUB,
+        ):
             note = Note(
                 title=f"A {note_type.value} note",
                 content="Some content.",
@@ -167,9 +186,7 @@ class TestNoteModel:
     def test_note_link_operations(self):
         """add_link and remove_link manage the links list correctly."""
         note = Note(
-            title="Link Test",
-            content="Testing link operations.",
-            id="source123"
+            title="Link Test", content="Testing link operations.", id="source123"
         )
 
         # Add link
@@ -200,19 +217,22 @@ class TestNoteModel:
 
 class TestLinkModel:
     """Tests for the Link model."""
+
     def test_link_creation(self):
         """Link created with all fields has expected values and defaults."""
         link = Link(
             source_id="source123",
             target_id="target456",
             link_type=LinkType.REFERENCE,
-            description="Test description"
+            description="Test description",
         )
         assert link.source_id == "source123", "Source ID mismatch"
         assert link.target_id == "target456", "Target ID mismatch"
         assert link.link_type == LinkType.REFERENCE, "Link type mismatch"
         assert link.description == "Test description", "Description mismatch"
-        assert isinstance(link.created_at, datetime.datetime), "created_at must be a datetime"
+        assert isinstance(link.created_at, datetime.datetime), (
+            "created_at must be a datetime"
+        )
 
     def test_link_validation(self):
         """Test link validation for required fields."""
@@ -228,10 +248,7 @@ class TestLinkModel:
 
     def test_link_immutability(self):
         """Test that Link objects are immutable (frozen model)."""
-        link = Link(
-            source_id="source123",
-            target_id="target456"
-        )
+        link = Link(source_id="source123", target_id="target456")
         # Attempt to modify frozen model raises ValidationError
         with pytest.raises(ValidationError):
             link.source_id = "newsource"
@@ -239,6 +256,7 @@ class TestLinkModel:
 
 class TestTagModel:
     """Tests for the Tag model."""
+
     def test_tag_creation(self):
         """Tag has expected name and string representation."""
         tag = Tag(name="test")
@@ -260,20 +278,22 @@ class TestHelperFunctions:
         """Test that generated IDs follow the correct ISO 8601 format with nanosecond precision."""
         # Generate an ID
         id_str = generate_id()
-        
+
         # Verify it matches the expected format: YYYYMMDDTHHMMSSsssssssss
         # Where sssssssss is a 9-digit nanosecond component
-        pattern = r'^\d{8}T\d{6}\d{9}$'
-        assert re.match(pattern, id_str), f"ID {id_str} does not match expected ISO 8601 basic format"
-        
+        pattern = r"^\d{8}T\d{6}\d{9}$"
+        assert re.match(pattern, id_str), (
+            f"ID {id_str} does not match expected ISO 8601 basic format"
+        )
+
         # Verify the parts make sense
         date_part = id_str[:8]
         separator = id_str[8]
         time_part = id_str[9:15]
         ns_part = id_str[15:]
-        
+
         assert len(date_part) == 8, "Date part should be 8 digits (YYYYMMDD)"
-        assert separator == 'T', "Date/time separator should be 'T' per ISO 8601"
+        assert separator == "T", "Date/time separator should be 'T' per ISO 8601"
         assert len(time_part) == 6, "Time part should be 6 digits (HHMMSS)"
         assert len(ns_part) == 9, "Nanosecond part should be 9 digits"
 
@@ -281,7 +301,7 @@ class TestHelperFunctions:
         """Test that ISO 8601 IDs with nanosecond precision are unique even in rapid succession."""
         # Generate multiple IDs as quickly as possible
         ids = [generate_id() for _ in range(1000)]
-        
+
         # Verify they are all unique
         unique_ids = set(ids)
         assert len(unique_ids) == 1000, "Generated IDs should all be unique"
@@ -290,10 +310,10 @@ class TestHelperFunctions:
         """Test that ISO 8601 IDs sort chronologically without artificial delays."""
         # Generate multiple IDs in the fastest possible succession
         ids = [generate_id() for _ in range(5)]
-        
+
         # Verify they're all unique
         assert len(set(ids)) == 5, f"Expected 5 unique IDs, got {len(set(ids))}"
-        
+
         # Verify chronological order matches lexicographical sorting
         sorted_ids = sorted(ids)
         assert sorted_ids == ids, "ISO 8601 IDs should sort chronologically"

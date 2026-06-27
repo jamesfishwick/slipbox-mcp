@@ -54,8 +54,7 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
+    "ruff>=0.6.0",
     "mypy>=1.0.0",
     "pyyaml>=6.0",  # used directly by scripts/build_skills.py
 ]
@@ -80,13 +79,22 @@ version = {attr = "slipbox_mcp.__version__"}
 where = ["src"]
 include = ["slipbox_mcp*"]
 
-[tool.isort]
-profile = "black"
-line_length = 88
-
-[tool.black]
+[tool.ruff]
 line-length = 88
-target-version = ["py310"]
+target-version = "py310"
+
+[tool.ruff.lint]
+# E/W (pycodestyle), F (pyflakes), I (isort). Line length (E501) is owned by
+# the formatter, not linted -- chasing un-splittable long strings is noise.
+select = ["E", "W", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# cli.py installs a SIGPIPE handler before importing heavy modules, and
+# detect_clusters.py adds src/ to sys.path before importing the package, so a
+# few imports are intentionally not at top-of-file.
+"src/slipbox_mcp/cli.py" = ["E402"]
+"scripts/detect_clusters.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.10"

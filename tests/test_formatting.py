@@ -1,4 +1,5 @@
 """Tests for shared formatting helpers."""
+
 import datetime
 
 from slipbox_mcp.formatting import (
@@ -100,6 +101,7 @@ class TestFormatClusterSummary:
                 {"id": "note1", "title": "Note One"},
                 {"id": "note2", "title": "Note Two"},
             ]
+
         return FakeCluster()
 
     def test_basic(self):

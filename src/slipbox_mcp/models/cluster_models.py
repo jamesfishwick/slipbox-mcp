@@ -1,4 +1,5 @@
 """Domain models and constants for cluster detection."""
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ REPORT_PATH = Path("~/.local/share/mcp/slipbox/cluster-analysis.json").expanduse
 @dataclass
 class ClusterCandidate:
     """A detected cluster that may need a structure note."""
+
     id: str
     suggested_title: str
     tags: List[str]
@@ -27,6 +29,7 @@ class ClusterCandidate:
 @dataclass
 class ClusterReport:
     """Full cluster analysis report."""
+
     generated_at: datetime
     clusters: List[ClusterCandidate]
     stats: Dict[str, Any]

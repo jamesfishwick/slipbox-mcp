@@ -7,6 +7,7 @@ creation and linking via the MCP server) with quick terminal access.
 
 Philosophy: The CLI handles *what exists*. The agent handles *what should exist*.
 """
+
 import argparse
 import os
 import re
@@ -22,10 +23,13 @@ signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 import frontmatter  # noqa: E402
 import yaml  # noqa: E402
 
-from slipbox_mcp.formatting import format_cluster_summary, format_note_compact  # noqa: E402
-from slipbox_mcp.services.zettel_service import ZettelService  # noqa: E402
+from slipbox_mcp.formatting import (  # noqa: E402
+    format_cluster_summary,
+    format_note_compact,
+)
 from slipbox_mcp.services.cluster_service import ClusterService  # noqa: E402
 from slipbox_mcp.services.search_service import SearchService  # noqa: E402
+from slipbox_mcp.services.zettel_service import ZettelService  # noqa: E402
 from slipbox_mcp.storage.note_repository import NoteRepository  # noqa: E402
 
 
@@ -48,7 +52,9 @@ def cmd_status(args):
         print(f"Orphans: {orphan_count}")
 
         if report:
-            active = [c for c in report.clusters if c.id not in report.dismissed_cluster_ids]
+            active = [
+                c for c in report.clusters if c.id not in report.dismissed_cluster_ids
+            ]
             age = (datetime.now() - report.generated_at).total_seconds() / 3600
             print(f"Pending clusters: {len(active)}")
             print(f"Report age: {age:.1f}h")
@@ -68,7 +74,7 @@ def cmd_search(args):
             print("No results found.")
             return
 
-        for result in results[:args.limit]:
+        for result in results[: args.limit]:
             print(format_note_compact(result.note))
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -86,13 +92,15 @@ def cmd_clusters(args):
             print("No cluster report. Run: slipbox rebuild --clusters")
             return
 
-        active = [c for c in report.clusters if c.id not in report.dismissed_cluster_ids]
+        active = [
+            c for c in report.clusters if c.id not in report.dismissed_cluster_ids
+        ]
 
         if not active:
             print("No pending clusters.")
             return
 
-        for c in active[:args.limit]:
+        for c in active[: args.limit]:
             print(format_cluster_summary(c))
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -111,7 +119,7 @@ def cmd_orphans(args):
             return
 
         print(f"Found {len(orphans)} orphaned notes:\n")
-        for note in orphans[:args.limit]:
+        for note in orphans[: args.limit]:
             print(format_note_compact(note))
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -229,9 +237,7 @@ def _atomic_write_text(path: Path, text: str) -> None:
     Avoids leaving the target half-written on a crash mid-write.
     """
     tmp_dir = path.parent
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=tmp_dir
-    )
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=tmp_dir)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)
@@ -256,6 +262,7 @@ def cmd_audit_references(args):
     """
     try:
         from slipbox_mcp.config import config as _config
+
         notes_dir = _config.get_absolute_path(_config.notes_dir)
 
         offenders, unparseable = _scan_literature_notes_missing_refs(notes_dir)
@@ -276,7 +283,9 @@ def cmd_audit_references(args):
                 print()
 
         if unparseable:
-            print(f"Could not audit {len(unparseable)} file(s) (manual review required):\n")
+            print(
+                f"Could not audit {len(unparseable)} file(s) (manual review required):\n"
+            )
             for path, err in unparseable:
                 print(f"  {path}")
                 print(f"    {type(err).__name__}: {err}")
@@ -284,7 +293,9 @@ def cmd_audit_references(args):
 
         if args.fix != "downgrade":
             if offenders:
-                print("Run with --fix downgrade to convert offenders to 'permanent' notes.")
+                print(
+                    "Run with --fix downgrade to convert offenders to 'permanent' notes."
+                )
                 print("Or add references manually and re-run.")
             if unparseable:
                 # Unparseable files block clean enforcement; signal via exit code.
@@ -396,8 +407,7 @@ def cmd_tags(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="slipbox",
-        description="Zettelkasten CLI for maintenance and inspection"
+        prog="slipbox", description="Zettelkasten CLI for maintenance and inspection"
     )
     parser.add_argument("--base-dir", type=str, help="Path to slipbox data directory")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -420,7 +430,9 @@ def main():
 
     # rebuild
     p_rebuild = subparsers.add_parser("rebuild", help="Rebuild index")
-    p_rebuild.add_argument("--clusters", action="store_true", help="Also refresh clusters")
+    p_rebuild.add_argument(
+        "--clusters", action="store_true", help="Also refresh clusters"
+    )
 
     # export
     p_export = subparsers.add_parser("export", help="Export note to stdout")
@@ -431,8 +443,7 @@ def main():
 
     # audit-references
     p_audit = subparsers.add_parser(
-        "audit-references",
-        help="List literature notes missing references"
+        "audit-references", help="List literature notes missing references"
     )
     p_audit.add_argument(
         "--fix",
@@ -443,8 +454,7 @@ def main():
 
     # prune-links
     p_prune = subparsers.add_parser(
-        "prune-links",
-        help="Find and remove links pointing at deleted notes"
+        "prune-links", help="Find and remove links pointing at deleted notes"
     )
     p_prune.add_argument(
         "--fix",

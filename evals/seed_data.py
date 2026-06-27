@@ -1,4 +1,5 @@
 """Seed data for eval tests -- builds a realistic slipbox state."""
+
 from slipbox_mcp.models.schema import LinkType, NoteType
 
 
@@ -139,7 +140,9 @@ def populate_slipbox(zettel_service) -> dict[str, str]:
         ),
         note_type=NoteType.LITERATURE,
         tags=["faggin", "panpsychism", "quantum"],
-        references=["Faggin, F. (2022). Irreducible: Consciousness, Life, Computers, and Human Nature."],
+        references=[
+            "Faggin, F. (2022). Irreducible: Consciousness, Life, Computers, and Human Nature."
+        ],
     )
 
     lit_investigations = zettel_service.create_note(
@@ -152,7 +155,9 @@ def populate_slipbox(zettel_service) -> dict[str, str]:
         ),
         note_type=NoteType.LITERATURE,
         tags=["wittgenstein", "language-games"],
-        references=["Wittgenstein, L. (1953). Philosophical Investigations. Blackwell."],
+        references=[
+            "Wittgenstein, L. (1953). Philosophical Investigations. Blackwell."
+        ],
     )
 
     # -- Fleeting (2) --
@@ -204,15 +209,23 @@ def populate_slipbox(zettel_service) -> dict[str, str]:
     zettel_service.create_link(panpsychism.id, faggin.id, LinkType.REFERENCE)
 
     # Permanent <-> Permanent
-    zettel_service.create_link(spinoza.id, hard_problem.id, LinkType.EXTENDS)  # substance monism addresses the hard problem
-    zettel_service.create_link(iit.id, faggin.id, LinkType.SUPPORTS)  # both link consciousness to information
+    zettel_service.create_link(
+        spinoza.id, hard_problem.id, LinkType.EXTENDS
+    )  # substance monism addresses the hard problem
+    zettel_service.create_link(
+        iit.id, faggin.id, LinkType.SUPPORTS
+    )  # both link consciousness to information
 
     # Structure -> Permanent (wittgenstein branch)
     zettel_service.create_link(wittgenstein.id, private_language.id, LinkType.REFERENCE)
-    zettel_service.create_link(wittgenstein.id, russellian.id, LinkType.REFERENCE)  # later work connects to intrinsic natures
+    zettel_service.create_link(
+        wittgenstein.id, russellian.id, LinkType.REFERENCE
+    )  # later work connects to intrinsic natures
 
     # Permanent <-> Permanent (cross-branch)
-    zettel_service.create_link(private_language.id, hard_problem.id, LinkType.CONTRADICTS)  # if no private language, qualia are suspect
+    zettel_service.create_link(
+        private_language.id, hard_problem.id, LinkType.CONTRADICTS
+    )  # if no private language, qualia are suspect
 
     # Literature -> Permanent
     zettel_service.create_link(lit_faggin.id, faggin.id, LinkType.SUPPORTS)

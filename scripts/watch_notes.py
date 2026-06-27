@@ -9,16 +9,17 @@ Usage:
 The watcher triggers a database rebuild when markdown files are created, modified,
 or deleted. It debounces rapid changes to avoid excessive rebuilds during editing.
 """
+
+import logging
 import sys
 import time
-import logging
 from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from slipbox_mcp.config import config
 from slipbox_mcp.storage.note_repository import NoteRepository
@@ -40,14 +41,16 @@ class NotesChangeHandler(FileSystemEventHandler):
             return False
 
         # Only rebuild for markdown files
-        src_path = getattr(event, 'src_path', '') or ''
-        if not src_path.endswith('.md'):
+        src_path = getattr(event, "src_path", "") or ""
+        if not src_path.endswith(".md"):
             return False
 
         # Debounce: don't rebuild more than once per N seconds
         now = time.time()
         if now - self.last_rebuild < self.debounce_seconds:
-            self.logger.debug(f"Debounced rebuild (last was {now - self.last_rebuild:.1f}s ago)")
+            self.logger.debug(
+                f"Debounced rebuild (last was {now - self.last_rebuild:.1f}s ago)"
+            )
             return False
 
         return True
@@ -85,8 +88,8 @@ def setup_logging(level: str = "INFO"):
     """Configure logging for the watcher."""
     logging.basicConfig(
         level=getattr(logging, level.upper()),
-        format='%(asctime)s [%(levelname)s] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
 

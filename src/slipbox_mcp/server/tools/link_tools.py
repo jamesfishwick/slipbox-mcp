@@ -1,4 +1,5 @@
 """Link management and tag tools."""
+
 import logging
 from typing import Optional
 
@@ -22,7 +23,7 @@ def register_link_tools(server) -> None:
         target_id: str,
         link_type: str = "reference",
         description: Optional[str] = None,
-        bidirectional: bool = False
+        bidirectional: bool = False,
     ) -> str:
         """Create a semantic link between two notes.
 
@@ -61,7 +62,7 @@ def register_link_tools(server) -> None:
                 target_id=target_id,
                 link_type=link_type_enum,
                 description=description,
-                bidirectional=bidirectional
+                bidirectional=bidirectional,
             )
             if bidirectional:
                 return f"Bidirectional link created between {source_id} and {target_id}"
@@ -74,9 +75,7 @@ def register_link_tools(server) -> None:
 
     @mcp.tool(name="slipbox_remove_link")
     def slipbox_remove_link(
-        source_id: str,
-        target_id: str,
-        bidirectional: bool = False
+        source_id: str, target_id: str, bidirectional: bool = False
     ) -> str:
         """Remove a link between two notes.
 
@@ -89,7 +88,7 @@ def register_link_tools(server) -> None:
             source_note, target_note = zettel_service.remove_link(
                 source_id=str(source_id),
                 target_id=str(target_id),
-                bidirectional=bidirectional
+                bidirectional=bidirectional,
             )
             if bidirectional:
                 return f"Bidirectional link removed between {source_id} and {target_id}"
@@ -136,10 +135,7 @@ def register_link_tools(server) -> None:
             return format_error(e)
 
     @mcp.tool(name="slipbox_get_linked_notes")
-    def slipbox_get_linked_notes(
-        note_id: str,
-        direction: str = "both"
-    ) -> str:
+    def slipbox_get_linked_notes(note_id: str, direction: str = "both") -> str:
         """Get notes linked to or from a specific note.
 
         Use this to explore the knowledge graph around a note.
@@ -159,7 +155,9 @@ def register_link_tools(server) -> None:
             linked_notes = zettel_service.get_linked_notes(str(note_id), direction)
             if not linked_notes:
                 return f"No {direction} links found for note {note_id}."
-            output = f"Found {len(linked_notes)} {direction} linked notes for {note_id}:\n\n"
+            output = (
+                f"Found {len(linked_notes)} {direction} linked notes for {note_id}:\n\n"
+            )
             for i, note in enumerate(linked_notes, 1):
                 output += f"{i}. {note.title} (ID: {note.id})\n"
                 if note.tags:

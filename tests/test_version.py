@@ -7,6 +7,7 @@ release workflow reads it to gate the publish tag, and `config.server_version`
 derives from it. These tests pin that contract so a future divergence fails a
 fast unit test instead of a tag push.
 """
+
 import re
 from importlib.metadata import PackageNotFoundError, version
 

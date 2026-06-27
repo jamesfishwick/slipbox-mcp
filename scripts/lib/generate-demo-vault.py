@@ -16,6 +16,7 @@ Usage:
     python scripts/lib/generate-demo-vault.py [--output-dir PATH]
     python scripts/lib/generate-demo-vault.py --dry-run
 """
+
 import argparse
 import sys
 from pathlib import Path
@@ -30,7 +31,6 @@ DEFAULT_OUT = REPO_ROOT / "scripts" / "demo-vault" / "notes"
 # links = list of (link_type, target_id, description)
 
 NOTES = [
-
     # ── Hub note ────────────────────────────────────────────────────────────
     (
         "20240101T100000000000000",
@@ -55,20 +55,63 @@ NOTES = [
             Digital tools that make capture frictionless inadvertently remove the constraint
             that makes integration happen."""),
         [
-            ("reference",   "20240101T110000000000000", "Luhmann's original formulation of constraints as thinking apparatus"),
-            ("reference",   "20240101T120000000000000", "Atomic notes as the decomposition constraint in action"),
-            ("extends",     "20240101T130000000000000", "Hub extends the linking-as-learning claim to the conversation metaphor"),
-            ("extends",     "20240101T140000000000000", "Hub extends the analysis of why digital tools fail at integration depth"),
-            ("supports",    "20240101T160000000000000", "Both argue integration is the real bottleneck, not capture"),
-            ("supports",    "20240101T180000000000000", "Both support distinguishing ZK from reference management"),
-            ("contradicts", "20240104T140000000000000", "Fatigue is a symptom; the real constraint is integration discipline"),
-            ("questions",   "20240104T130000000000000", "Questions whether working-memory limits are the right frame for ZK's value"),
-            ("related",     "20240104T110000000000000", "Both concern the mental work required in knowledge tasks"),
-            ("related",     "20240103T110000000000000", "Shared vocabulary is the linking requirement applied to team communication"),
-            ("refines",     "20240101T130000000000000", "Refines the linking claim: linking creates a thinking partner, not just a graph"),
+            (
+                "reference",
+                "20240101T110000000000000",
+                "Luhmann's original formulation of constraints as thinking apparatus",
+            ),
+            (
+                "reference",
+                "20240101T120000000000000",
+                "Atomic notes as the decomposition constraint in action",
+            ),
+            (
+                "extends",
+                "20240101T130000000000000",
+                "Hub extends the linking-as-learning claim to the conversation metaphor",
+            ),
+            (
+                "extends",
+                "20240101T140000000000000",
+                "Hub extends the analysis of why digital tools fail at integration depth",
+            ),
+            (
+                "supports",
+                "20240101T160000000000000",
+                "Both argue integration is the real bottleneck, not capture",
+            ),
+            (
+                "supports",
+                "20240101T180000000000000",
+                "Both support distinguishing ZK from reference management",
+            ),
+            (
+                "contradicts",
+                "20240104T140000000000000",
+                "Fatigue is a symptom; the real constraint is integration discipline",
+            ),
+            (
+                "questions",
+                "20240104T130000000000000",
+                "Questions whether working-memory limits are the right frame for ZK's value",
+            ),
+            (
+                "related",
+                "20240104T110000000000000",
+                "Both concern the mental work required in knowledge tasks",
+            ),
+            (
+                "related",
+                "20240103T110000000000000",
+                "Shared vocabulary is the linking requirement applied to team communication",
+            ),
+            (
+                "refines",
+                "20240101T130000000000000",
+                "Refines the linking claim: linking creates a thinking partner, not just a graph",
+            ),
         ],
     ),
-
     # ── Zettelkasten cluster (ZK1–ZK8) ─────────────────────────────────────
     (
         "20240101T110000000000000",
@@ -88,7 +131,11 @@ NOTES = [
             be inserted *between* two existing cards, mirrors the way ideas relate — not in
             linear sequence but in associative branches. The constraint is the method."""),
         [
-            ("supports", "20240101T100000000000000", "Luhmann's system is the primary evidence for constraint-driven thinking"),
+            (
+                "supports",
+                "20240101T100000000000000",
+                "Luhmann's system is the primary evidence for constraint-driven thinking",
+            ),
         ],
     ),
     (
@@ -109,7 +156,11 @@ NOTES = [
             X or only sometimes, and what the boundaries of Z actually are. The writing of the
             note *is* the understanding."""),
         [
-            ("supports", "20240101T160000000000000", "Decomposition at the note level is the mechanism that prevents the integration bottleneck"),
+            (
+                "supports",
+                "20240101T160000000000000",
+                "Decomposition at the note level is the mechanism that prevents the integration bottleneck",
+            ),
         ],
     ),
     (
@@ -130,8 +181,16 @@ NOTES = [
             science means by 'retrieval practice.' The Zettelkasten method is retrieval practice
             in a form that also produces a knowledge artefact."""),
         [
-            ("supports", "20240101T100000000000000", "The linking claim directly supports the thinking-partner thesis"),
-            ("related",  "20240101T120000000000000", "Linking and atomic notes are two sides of the same constraint"),
+            (
+                "supports",
+                "20240101T100000000000000",
+                "The linking claim directly supports the thinking-partner thesis",
+            ),
+            (
+                "related",
+                "20240101T120000000000000",
+                "Linking and atomic notes are two sides of the same constraint",
+            ),
         ],
     ),
     (
@@ -153,7 +212,11 @@ NOTES = [
             becomes knowledge. Tools optimised for fast capture are systematically optimised
             against deep integration."""),
         [
-            ("extends", "20240101T160000000000000", "The failure mode is a direct consequence of the integration bottleneck"),
+            (
+                "extends",
+                "20240101T160000000000000",
+                "The failure mode is a direct consequence of the integration bottleneck",
+            ),
         ],
     ),
     (
@@ -193,7 +256,11 @@ NOTES = [
             Every tool that makes capture faster without making integration easier widens this
             gap."""),
         [
-            ("supports", "20240101T140000000000000", "The integration bottleneck explains why digital capture-optimised tools produce weak knowledge graphs"),
+            (
+                "supports",
+                "20240101T140000000000000",
+                "The integration bottleneck explains why digital capture-optimised tools produce weak knowledge graphs",
+            ),
         ],
     ),
     (
@@ -235,7 +302,6 @@ NOTES = [
         # No outgoing links — targeted by hub (supports), so not globally orphaned
         [],
     ),
-
     # ── API design cluster (API1–API6) ───────────────────────────────────────
     (
         "20240102T110000000000000",
@@ -255,7 +321,11 @@ NOTES = [
             deprecate it, then version past it, with enough warning for consumers to migrate.
             The contract is the product, not the implementation behind it."""),
         [
-            ("extends", "20240102T120000000000000", "Versioning strategy is how you manage the evolution of promises over time"),
+            (
+                "extends",
+                "20240102T120000000000000",
+                "Versioning strategy is how you manage the evolution of promises over time",
+            ),
         ],
     ),
     (
@@ -277,7 +347,11 @@ NOTES = [
             the promise: the contract will only grow, never shrink, until the next major
             version is declared."""),
         [
-            ("extends", "20240102T140000000000000", "Versioning strategy is implemented through schema evolution disciplines"),
+            (
+                "extends",
+                "20240102T140000000000000",
+                "Versioning strategy is implemented through schema evolution disciplines",
+            ),
         ],
     ),
     (
@@ -319,7 +393,11 @@ NOTES = [
             migrate at their own pace. This requires more provider work but respects the
             contractual nature of the API surface."""),
         [
-            ("supports", "20240102T120000000000000", "Schema evolution discipline is how versioning promises are kept in practice"),
+            (
+                "supports",
+                "20240102T120000000000000",
+                "Schema evolution discipline is how versioning promises are kept in practice",
+            ),
         ],
     ),
     (
@@ -340,7 +418,11 @@ NOTES = [
             This makes implicit contracts explicit, and breaking changes visible before they
             cause production incidents."""),
         [
-            ("extends", "20240102T110000000000000", "Contract testing is how you verify API promises are being kept"),
+            (
+                "extends",
+                "20240102T110000000000000",
+                "Contract testing is how you verify API promises are being kept",
+            ),
         ],
     ),
     (
@@ -362,10 +444,13 @@ NOTES = [
             changing the underlying team structure typically produces the old structure again
             within months."""),
         [
-            ("related", "20240102T110000000000000", "Organisational boundaries define what promises cross team lines"),
+            (
+                "related",
+                "20240102T110000000000000",
+                "Organisational boundaries define what promises cross team lines",
+            ),
         ],
     ),
-
     # ── Team communication cluster (TC1–TC5) ─────────────────────────────────
     (
         "20240103T110000000000000",
@@ -385,7 +470,11 @@ NOTES = [
             vocabulary-building opportunities: when a term is unclear, defining it in the
             document is as important as clarifying the logic."""),
         [
-            ("extends", "20240103T120000000000000", "Documentation is how shared vocabulary is formalised and transmitted across time and onboarding"),
+            (
+                "extends",
+                "20240103T120000000000000",
+                "Documentation is how shared vocabulary is formalised and transmitted across time and onboarding",
+            ),
         ],
     ),
     (
@@ -407,7 +496,11 @@ NOTES = [
             without scaling their meeting load. Documentation is also searchable and linkable
             in ways that meeting recordings are not."""),
         [
-            ("supports", "20240103T130000000000000", "Async documentation enables feedback loops that would otherwise require synchronous meetings"),
+            (
+                "supports",
+                "20240103T130000000000000",
+                "Async documentation enables feedback loops that would otherwise require synchronous meetings",
+            ),
         ],
     ),
     (
@@ -429,7 +522,11 @@ NOTES = [
             code frequently. Mapping which loops exist and how fast they are reveals where
             the bottlenecks in quality and alignment actually sit."""),
         [
-            ("related", "20240103T110000000000000", "Feedback loops require shared vocabulary to be actionable — vague feedback is friction"),
+            (
+                "related",
+                "20240103T110000000000000",
+                "Feedback loops require shared vocabulary to be actionable — vague feedback is friction",
+            ),
         ],
     ),
     (
@@ -473,10 +570,13 @@ NOTES = [
             The goal is not a beautiful document but a document with no invisible load-bearing
             assumptions."""),
         [
-            ("related", "20240103T120000000000000", "Documentation that makes assumptions explicit reduces the coordination cost of implicit vocabulary"),
+            (
+                "related",
+                "20240103T120000000000000",
+                "Documentation that makes assumptions explicit reduces the coordination cost of implicit vocabulary",
+            ),
         ],
     ),
-
     # ── Cognitive-load cluster (CL1–CL6) ─────────────────────────────────────
     (
         "20240104T110000000000000",
@@ -498,7 +598,11 @@ NOTES = [
             but authors can reduce extraneous load through clarity, and both can manage
             germane load by limiting PR scope."""),
         [
-            ("related", "20240104T120000000000000", "Chunking is the primary mechanism for reducing intrinsic cognitive load in review"),
+            (
+                "related",
+                "20240104T120000000000000",
+                "Chunking is the primary mechanism for reducing intrinsic cognitive load in review",
+            ),
         ],
     ),
     (
@@ -520,7 +624,11 @@ NOTES = [
             linters matter beyond aesthetic preference: they define the shared chunk library
             that makes review efficient for the whole team."""),
         [
-            ("related", "20240104T110000000000000", "Chunking theory explains why cognitive load varies by reviewer expertise"),
+            (
+                "related",
+                "20240104T110000000000000",
+                "Chunking theory explains why cognitive load varies by reviewer expertise",
+            ),
         ],
     ),
     (
@@ -609,7 +717,6 @@ NOTES = [
         # No links — orphan in CL cluster (CL6)
         [],
     ),
-
     # ── Orphan notes (O1–O15) ────────────────────────────────────────────────
     (
         "20240105T110000000000000",
@@ -908,6 +1015,7 @@ NOTES = [
 
 # ─── Renderer ────────────────────────────────────────────────────────────────
 
+
 def render_note(
     note_id: str,
     title: str,
@@ -958,13 +1066,18 @@ def render_note(
 
 # ─── Main ────────────────────────────────────────────────────────────────────
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate demo vault notes")
     parser.add_argument(
-        "--output-dir", type=Path, default=DEFAULT_OUT,
+        "--output-dir",
+        type=Path,
+        default=DEFAULT_OUT,
         help=f"Output directory for note files (default: {DEFAULT_OUT})",
     )
-    parser.add_argument("--dry-run", action="store_true", help="Print paths without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print paths without writing"
+    )
     args = parser.parse_args()
 
     out = args.output_dir

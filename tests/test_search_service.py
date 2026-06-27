@@ -1,10 +1,13 @@
 """Tests for SearchService."""
+
 from slipbox_mcp.models.schema import LinkType, NoteType
 
 
 # Convenience wrapper: creates a note through the service using keyword args.
 # This keeps test arrange-sections readable without repeating boilerplate.
-def _note(zettel_service, title, tags=None, note_type=NoteType.PERMANENT, content="Body."):
+def _note(
+    zettel_service, title, tags=None, note_type=NoteType.PERMANENT, content="Body."
+):
     return zettel_service.create_note(
         title=title,
         content=content,
@@ -17,14 +20,19 @@ def _note(zettel_service, title, tags=None, note_type=NoteType.PERMANENT, conten
 # Tag search
 # ---------------------------------------------------------------------------
 
+
 class TestSearchByTag:
     """search_by_tag() — single string and list variants."""
 
     def test_single_tag_returns_matching_notes(self, zettel_service, search_service):
         """search_by_tag(str) finds every note carrying that tag."""
         # Arrange
-        note1 = _note(zettel_service, "Programming Basics", tags=["programming", "basics"])
-        note2 = _note(zettel_service, "Python Basics", tags=["python", "programming", "basics"])
+        note1 = _note(
+            zettel_service, "Programming Basics", tags=["programming", "basics"]
+        )
+        note2 = _note(
+            zettel_service, "Python Basics", tags=["python", "programming", "basics"]
+        )
         _note(zettel_service, "Advanced JavaScript", tags=["javascript", "advanced"])
 
         # Act
@@ -32,7 +40,9 @@ class TestSearchByTag:
 
         # Assert
         result_ids = {n.id for n in results}
-        assert note1.id in result_ids, "Programming Basics should match tag 'programming'"
+        assert note1.id in result_ids, (
+            "Programming Basics should match tag 'programming'"
+        )
         assert note2.id in result_ids, "Python Basics should match tag 'programming'"
 
     def test_tag_list_returns_union_of_matches(self, zettel_service, search_service):
@@ -61,7 +71,9 @@ class TestSearchByTag:
 
         # Assert
         appearances = [n.id for n in results].count(note.id)
-        assert appearances == 1, f"Note appeared {appearances} times; expected exactly 1"
+        assert appearances == 1, (
+            f"Note appeared {appearances} times; expected exactly 1"
+        )
 
     def test_string_path_delegates_correctly(self, zettel_service, search_service):
         """search_by_tag(str) reaches the single-tag code path."""
@@ -72,12 +84,15 @@ class TestSearchByTag:
         results = search_service.search_by_tag("solo")
 
         # Assert
-        assert any(n.id == note.id for n in results), "Solo-tagged note should appear in results"
+        assert any(n.id == note.id for n in results), (
+            "Solo-tagged note should appear in results"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Link-based search
 # ---------------------------------------------------------------------------
+
 
 class TestSearchByLink:
     """get_linked_notes() — outgoing, incoming, and both directions."""
@@ -124,10 +139,13 @@ class TestSearchByLink:
 # Orphan detection
 # ---------------------------------------------------------------------------
 
+
 class TestFindOrphanedNotes:
     """find_orphaned_notes() returns notes with no link in either direction."""
 
-    def test_linked_notes_are_excluded_from_orphans(self, zettel_service, search_service):
+    def test_linked_notes_are_excluded_from_orphans(
+        self, zettel_service, search_service
+    ):
         """Only the isolated note appears in orphan results; linked notes are excluded."""
         # Arrange
         orphan = _note(zettel_service, "Isolated Orphan", tags=["orphan"])
@@ -141,13 +159,18 @@ class TestFindOrphanedNotes:
         # Assert
         orphan_ids = {n.id for n in orphans}
         assert orphan.id in orphan_ids, "Isolated note should appear in orphan results"
-        assert connected1.id not in orphan_ids, "connected1 has outgoing link, should not be orphan"
-        assert connected2.id not in orphan_ids, "connected2 has incoming link, should not be orphan"
+        assert connected1.id not in orphan_ids, (
+            "connected1 has outgoing link, should not be orphan"
+        )
+        assert connected2.id not in orphan_ids, (
+            "connected2 has incoming link, should not be orphan"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Central notes ranking
 # ---------------------------------------------------------------------------
+
 
 class TestFindCentralNotes:
     """find_central_notes() orders notes by total connection count."""
@@ -169,20 +192,27 @@ class TestFindCentralNotes:
         # Assert
         assert len(results) >= 1, "Expected at least 1 central note result"
         assert results[0][0].id == hub.id, "Hub should rank first with most connections"
-        assert results[0][1] == 3, f"Hub should have connection count 3, got {results[0][1]}"
+        assert results[0][1] == 3, (
+            f"Hub should have connection count 3, got {results[0][1]}"
+        )
 
-    def test_returns_empty_when_no_notes_have_links(self, zettel_service, search_service):
+    def test_returns_empty_when_no_notes_have_links(
+        self, zettel_service, search_service
+    ):
         """find_central_notes returns [] when no note has any link."""
         # Arrange
         _note(zettel_service, "Isolated")
 
         # Act / Assert
-        assert search_service.find_central_notes() == [], "Expected empty list when no notes have links"
+        assert search_service.find_central_notes() == [], (
+            "Expected empty list when no notes have links"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Combined search
 # ---------------------------------------------------------------------------
+
 
 class TestSearchCombined:
     """search_combined() — tag + type filtering without FTS."""
@@ -205,15 +235,29 @@ class TestSearchCombined:
     def test_tag_and_type_filter_narrows_results(self, zettel_service, search_service):
         """search_combined(tags+note_type) ANDs both filters."""
         # Arrange
-        permanent = _note(zettel_service, "Permanent Python", tags=["python"], note_type=NoteType.PERMANENT)
-        _note(zettel_service, "Fleeting Python", tags=["python"], note_type=NoteType.FLEETING)
+        permanent = _note(
+            zettel_service,
+            "Permanent Python",
+            tags=["python"],
+            note_type=NoteType.PERMANENT,
+        )
+        _note(
+            zettel_service,
+            "Fleeting Python",
+            tags=["python"],
+            note_type=NoteType.FLEETING,
+        )
 
         # Act
-        results = search_service.search_combined(tags=["python"], note_type=NoteType.PERMANENT)
+        results = search_service.search_combined(
+            tags=["python"], note_type=NoteType.PERMANENT
+        )
 
         # Assert
         result_ids = {r.note.id for r in results}
-        assert permanent.id in result_ids, "Permanent Python note should match tag+type filter"
-        assert all(
-            r.note.note_type == NoteType.PERMANENT for r in results
-        ), f"All results should be PERMANENT type, got types: {[r.note.note_type for r in results]}"
+        assert permanent.id in result_ids, (
+            "Permanent Python note should match tag+type filter"
+        )
+        assert all(r.note.note_type == NoteType.PERMANENT for r in results), (
+            f"All results should be PERMANENT type, got types: {[r.note.note_type for r in results]}"
+        )

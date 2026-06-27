@@ -1,14 +1,23 @@
 """Data models for the Zettelkasten MCP server."""
+
 import datetime
+import threading
 from enum import Enum
 from typing import Annotated, Any, Dict, List, Optional, Set, Union
-from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
-import threading
+
+from pydantic import (
+    BaseModel,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 # Thread-safe counter for uniqueness
 _id_lock = threading.Lock()
 _last_timestamp = 0
 _counter = 0
+
 
 def generate_id() -> str:
     """Generate an ISO 8601 compliant timestamp-based ID with guaranteed uniqueness (pseudo-nanosecond precision).
@@ -38,25 +47,27 @@ def generate_id() -> str:
 
         _counter %= 1000
 
-        date_time = now.strftime('%Y%m%dT%H%M%S')
+        date_time = now.strftime("%Y%m%dT%H%M%S")
         microseconds = now.microsecond
 
         return f"{date_time}{microseconds:06d}{_counter:03d}"
 
+
 class LinkType(str, Enum):
     """Types of links between notes."""
-    REFERENCE = "reference"        # Simple reference to another note
-    EXTENDS = "extends"            # Current note extends another note
-    EXTENDED_BY = "extended_by"    # Current note is extended by another note
-    REFINES = "refines"            # Current note refines another note
-    REFINED_BY = "refined_by"      # Current note is refined by another note
-    CONTRADICTS = "contradicts"    # Current note contradicts another note
+
+    REFERENCE = "reference"  # Simple reference to another note
+    EXTENDS = "extends"  # Current note extends another note
+    EXTENDED_BY = "extended_by"  # Current note is extended by another note
+    REFINES = "refines"  # Current note refines another note
+    REFINED_BY = "refined_by"  # Current note is refined by another note
+    CONTRADICTS = "contradicts"  # Current note contradicts another note
     CONTRADICTED_BY = "contradicted_by"  # Current note is contradicted by another note
-    QUESTIONS = "questions"        # Current note questions another note
+    QUESTIONS = "questions"  # Current note questions another note
     QUESTIONED_BY = "questioned_by"  # Current note is questioned by another note
-    SUPPORTS = "supports"          # Current note supports another note
+    SUPPORTS = "supports"  # Current note supports another note
     SUPPORTED_BY = "supported_by"  # Current note is supported by another note
-    RELATED = "related"            # Notes are related in some way
+    RELATED = "related"  # Notes are related in some way
 
     @property
     def inverse(self) -> "LinkType":
@@ -77,45 +88,51 @@ class LinkType(str, Enum):
         }
         return _inverse_map[self]
 
+
 class Link(BaseModel):
     """A link between two notes."""
+
     source_id: str = Field(..., description="ID of the source note")
     target_id: str = Field(..., description="ID of the target note")
     link_type: LinkType = Field(default=LinkType.REFERENCE, description="Type of link")
-    description: Optional[str] = Field(default=None, description="Optional description of the link")
+    description: Optional[str] = Field(
+        default=None, description="Optional description of the link"
+    )
     created_at: datetime.datetime = Field(
-        default_factory=datetime.datetime.now,
-        description="When the link was created"
+        default_factory=datetime.datetime.now, description="When the link was created"
     )
 
     model_config = {
         "validate_assignment": True,
         "extra": "forbid",
-        "frozen": True  # Links are immutable
+        "frozen": True,  # Links are immutable
     }
+
 
 class NoteType(str, Enum):
     """Types of notes in a Zettelkasten."""
-    FLEETING = "fleeting"    # Quick, temporary notes
+
+    FLEETING = "fleeting"  # Quick, temporary notes
     LITERATURE = "literature"  # Notes from reading material
     PERMANENT = "permanent"  # Permanent, well-formulated notes
     STRUCTURE = "structure"  # Structure/index notes that organize other notes
-    HUB = "hub"              # Hub notes that serve as entry points
+    HUB = "hub"  # Hub notes that serve as entry points
+
 
 class Tag(BaseModel):
     """A tag for categorizing notes."""
+
     name: str = Field(..., description="Tag name")
 
-    model_config = {
-        "validate_assignment": True,
-        "frozen": True
-    }
+    model_config = {"validate_assignment": True, "frozen": True}
 
     def __str__(self) -> str:
         return self.name
 
+
 class Note(BaseModel):
     """A Zettelkasten note."""
+
     id: Annotated[
         str,
         StringConstraints(pattern=r"^[A-Za-z0-9_-]+$", min_length=1, max_length=255),
@@ -132,25 +149,20 @@ class Note(BaseModel):
         Annotated[str, StringConstraints(min_length=1, strip_whitespace=True)]
     ] = Field(
         default_factory=list,
-        description="Bibliographic citations to external sources (books, articles, URLs)"
+        description="Bibliographic citations to external sources (books, articles, URLs)",
     )
     created_at: datetime.datetime = Field(
-        default_factory=datetime.datetime.now,
-        description="When the note was created"
+        default_factory=datetime.datetime.now, description="When the note was created"
     )
     updated_at: datetime.datetime = Field(
         default_factory=datetime.datetime.now,
-        description="When the note was last updated"
+        description="When the note was last updated",
     )
     metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional metadata for the note"
+        default_factory=dict, description="Additional metadata for the note"
     )
 
-    model_config = {
-        "validate_assignment": True,
-        "extra": "forbid"
-    }
+    model_config = {"validate_assignment": True, "extra": "forbid"}
 
     @field_validator("title")
     @classmethod
@@ -193,8 +205,12 @@ class Note(BaseModel):
         self.tags = [t for t in self.tags if t.name != tag_name]
         self.updated_at = datetime.datetime.now()
 
-    def add_link(self, target_id: str, link_type: LinkType = LinkType.REFERENCE,
-                description: Optional[str] = None) -> None:
+    def add_link(
+        self,
+        target_id: str,
+        link_type: LinkType = LinkType.REFERENCE,
+        description: Optional[str] = None,
+    ) -> None:
         """Add a link to another note."""
         for link in self.links:
             if link.target_id == target_id and link.link_type == link_type:
@@ -203,7 +219,7 @@ class Note(BaseModel):
             source_id=self.id,
             target_id=target_id,
             link_type=link_type,
-            description=description
+            description=description,
         )
         self.links.append(link)
         self.updated_at = datetime.datetime.now()
@@ -212,7 +228,8 @@ class Note(BaseModel):
         """Remove a link to another note."""
         if link_type:
             self.links = [
-                link for link in self.links
+                link
+                for link in self.links
                 if not (link.target_id == target_id and link.link_type == link_type)
             ]
         else:

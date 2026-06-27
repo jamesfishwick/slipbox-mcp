@@ -1,5 +1,7 @@
 """Tests for configuration path expansion."""
+
 import pytest
+
 from slipbox_mcp.config import _expand_path
 
 
@@ -11,12 +13,16 @@ def test_expand_path_tilde_expands_to_absolute():
 
 def test_expand_path_plain_relative_unchanged():
     result = _expand_path("data/notes")
-    assert str(result) == "data/notes", f"Relative path should be unchanged, got {result}"
+    assert str(result) == "data/notes", (
+        f"Relative path should be unchanged, got {result}"
+    )
 
 
 def test_expand_path_absolute_passthrough():
     result = _expand_path("/absolute/path")
-    assert str(result) == "/absolute/path", f"Absolute path should pass through, got {result}"
+    assert str(result) == "/absolute/path", (
+        f"Absolute path should pass through, got {result}"
+    )
 
 
 def test_expand_path_nonexistent_user_raises():
