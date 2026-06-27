@@ -114,10 +114,6 @@ class TestUpdateAtomicity:
         assert file_path.read_text() == original_content
 
 
-@pytest.mark.skipif(
-    not hasattr(__import__("threading").RLock(), "locked"),
-    reason="RLock.locked() requires Python 3.14+",
-)
 class TestLockScope:
     """Verify file_lock covers both file and DB operations."""
 
@@ -128,7 +124,11 @@ class TestLockScope:
         original_index = note_repository._index_note
 
         def tracking_index(note):
-            lock_held_during_index.append(note_repository.file_lock.locked())
+            # _index_note runs on the same thread as create(), so RLock._is_owned()
+            # reports whether the lock is held here. (Unlike RLock.locked(), which
+            # is Python 3.14+, _is_owned() works on every version -- the old
+            # skipif silently disabled this invariant on CI's 3.13.)
+            lock_held_during_index.append(note_repository.file_lock._is_owned())
             return original_index(note)
 
         note = Note(

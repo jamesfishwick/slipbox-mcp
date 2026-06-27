@@ -59,21 +59,21 @@ def test_warns_on_default_base_dir():
     assert "Warning: No --base-dir or SLIPBOX_BASE_DIR set" in result.stderr
 
 
-def test_base_dir_flag_accepted():
-    """--base-dir /tmp should be accepted without error."""
-    result = _run_cli("--base-dir", "/tmp", "status")
+def test_base_dir_flag_accepted(tmp_path):
+    """--base-dir should be accepted without error."""
+    result = _run_cli("--base-dir", str(tmp_path), "status")
     assert result.returncode == 0
 
 
-def test_orphans_command_runs():
+def test_orphans_command_runs(tmp_path):
     """slipbox orphans should exit 0."""
-    result = _run_cli("--base-dir", "/tmp", "orphans")
+    result = _run_cli("--base-dir", str(tmp_path), "orphans")
     assert result.returncode == 0
 
 
-def test_status_shows_orphan_count():
+def test_status_shows_orphan_count(tmp_path):
     """slipbox status output should contain 'Orphans:'."""
-    result = _run_cli("--base-dir", "/tmp", "status")
+    result = _run_cli("--base-dir", str(tmp_path), "status")
     assert result.returncode == 0
     assert "Orphans:" in result.stdout
 

@@ -257,11 +257,16 @@ def test_find_similar_notes(zettel_service):
     # Act
     similar = zettel_service.find_similar_notes(note1.id, 0.0)
 
-    # Assert
+    # Assert: both linked notes surface, and results are ranked by descending
+    # similarity. The ranking is the real contract -- the previous `or`
+    # assertion passed even if the scorer returned everything in any order.
     similar_ids = [n.id for n, _ in similar]
-    assert len(similar) > 0, "Expected at least one similar note"
-    assert note2.id in similar_ids or note3.id in similar_ids, (
-        "At least one linked/shared-tag note should appear in similar results"
+    scores = [score for _, score in similar]
+    assert note2.id in similar_ids and note3.id in similar_ids, (
+        "both linked notes should appear among similar results"
+    )
+    assert scores == sorted(scores, reverse=True), (
+        "similar notes must be ranked by descending similarity"
     )
 
 

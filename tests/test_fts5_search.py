@@ -231,22 +231,26 @@ def test_search_by_text_non_fts5_operational_error_reraises(
             search_service.search_by_text("test query")
 
 
-def test_search_combined_fts5_syntax_error_returns_empty(
-    zettel_service, search_service
-):
-    """When FTS5 raises a syntax error, search_combined returns [] via _run_fts5_query."""
-    zettel_service.create_note(
-        title="Fallback Note",
-        content="Content for fallback test.",
-        tags=["fallback-tag"],
+def test_run_fts5_query_swallows_fts5_syntax_error(search_service):
+    """A genuine FTS5 syntax error (message contains 'fts5') is swallowed and
+    returns []. The error is injected at the session so the real except branch
+    in _run_fts5_query runs -- the previous version patched _run_fts5_query
+    itself and so asserted nothing about the swallow logic."""
+    fts5_error = OperationalError(
+        'fts5: syntax error near """',
+        params=None,
+        orig=Exception("fts5: syntax error"),
     )
-    with patch.object(search_service, "_run_fts5_query", return_value=[]):
-        result = search_service.search_combined(
-            query_text="fallback query", tags=["fallback-tag"]
-        )
+    with patch.object(
+        search_service.zettel_service.repository, "session_factory"
+    ) as mock_sf:
+        session = MagicMock()
+        session.__enter__ = MagicMock(return_value=session)
+        session.__exit__ = MagicMock(return_value=False)
+        session.execute.side_effect = fts5_error
+        mock_sf.return_value = session
 
-    assert isinstance(result, list)
-    assert result == []
+        assert search_service._run_fts5_query("anything") == []
 
 
 def test_fts5_query_returns_scored_rows(search_service, zettel_service):

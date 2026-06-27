@@ -47,14 +47,18 @@ class TestSearchToolOutputs:
 
     def test_search_no_results(self, tool):
         result = tool("slipbox_search_notes")(query="xyznonexistent")
-        assert "no" in result.lower() or "0" in result
+        # Assert the real no-results string. ("no" alone is a substring of
+        # "notes" and matched almost any output.)
+        assert "No matching notes found" in result
 
     def test_find_orphaned_notes(self, tool):
         tool("slipbox_create_note")(
             title="Lonely Note", content="No links", tags="orphan"
         )
         result = tool("slipbox_find_orphaned_notes")()
-        assert "Lonely Note" in result or "orphan" in result.lower()
+        # The created note must actually be listed. (The old `or "orphan"`
+        # matched the "orphaned notes" header even when the note was absent.)
+        assert "Lonely Note" in result
 
 
 class TestLinkToolOutputs:
