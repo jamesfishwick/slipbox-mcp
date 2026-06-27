@@ -1,15 +1,19 @@
 # Slipbox MCP Server
 
+![Slipbox](assets/images/1f5c3-fe0f_ascii.png)
+
 Give your AI assistant an active role in managing your knowledge. Slipbox is an [MCP server](https://modelcontextprotocol.io/) that turns any MCP-compatible agent into a Zettelkasten partner -- creating atomic notes, forming semantic links, detecting emergent clusters, and synthesizing insights from your existing knowledge.
 
-Your ideas in, structured knowledge out. The agent handles the formatting, linking, and integration. The ideas stay yours.
+Your ideas in, structured knowledge out. The agent handles the formatting, linking, and integration.
+
+New to the method? Start with [*Introduction to the Zettelkasten Method*](https://zettelkasten.de/introduction/) for the why behind atomic notes and linked thinking.
 
 Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude Code, OpenCode, Copilot, or anything that speaks MCP).
 
 **Plain files, zero lock-in.** Notes are markdown with YAML frontmatter -- readable in Obsidian, Foam, Logseq, or any editor. The SQLite database is an index, not the source of truth. Delete it and rebuild from files anytime.
 
 - **19 MCP tools** for notes, links, search, graph analysis, and cluster management
-- **6 workflow prompts** (plus matching skills) encoding the Zettelkasten method so you don't re-explain it every session
+- **6 workflow prompts** (plus matching skills) encoding the Zettelkasten method so you don't re-learn it every session
 - **BM25 full-text search** across titles and content via SQLite FTS5
 - **Cluster detection** finds emergent topic groups and scaffolds structure notes
 - **Seven typed links** (reference, extends, refines, contradicts, questions, supports, related)
@@ -74,7 +78,7 @@ The `knowledge_creation` prompt splits an article into atomic literature notes w
 
 ### Similar Notes
 
-`zk_find_similar_notes` computes similarity from shared tags, common links, and content overlap -- three independent signals.
+`zk_find_similar_notes` computes similarity from shared tags, common links, and content overlap.
 
 ![Similar Notes](assets/recordings/11-similar-notes.gif)
 
@@ -115,89 +119,69 @@ cd slipbox-mcp
 pipx install --editable .
 ```
 
-### 2. Configure Environment
+`pipx install` puts a `slipbox-mcp` launcher on your PATH (in `~/.local/bin`). That single command is the whole MCP server — no `PYTHONPATH`, no hardcoded venv Python path. Everything below uses it.
 
-Create a `.env` file or set environment variables:
+### 2. Pick a Data Directory
 
-```bash
-# Where notes are stored as markdown files
-
-export SLIPBOX_NOTES_DIR="~/.local/share/mcp/slipbox/notes"
-
-# SQLite database path
-
-export SLIPBOX_DATABASE_PATH="~/.local/share/mcp/slipbox/data/db/zettelkasten.db"
-
-# Optional: Log level (DEBUG, INFO, WARNING, ERROR)
-
-export SLIPBOX_LOG_LEVEL="INFO"
-```
-
-Or copy the example:
+One variable, `SLIPBOX_BASE_DIR`, configures everything: notes land in `<base>/data/notes` and the SQLite index in `<base>/data/db/zettelkasten.db`. The server creates these on first run.
 
 ```bash
-cp .env.example .env
-# Edit .env with your paths
-
+# Example — use any absolute path you like
+/Users/yourname/.local/share/mcp/slipbox
 ```
 
-### 3. Initialize Data Directories
+> Use a full absolute path. A leading `~` is **not** expanded inside MCP client config files and would create a literal `~` directory.
+
+### 3. Connect to Your MCP Client
+
+**Claude Code** — one command, no file editing:
 
 ```bash
-mkdir -p ~/.local/share/mcp/slipbox/notes
-mkdir -p ~/.local/share/mcp/slipbox/data/db
+claude mcp add slipbox \
+  --env SLIPBOX_BASE_DIR=/Users/yourname/.local/share/mcp/slipbox \
+  -- slipbox-mcp
 ```
 
-The server creates these automatically, but explicit creation helps verify permissions.
+**Claude Desktop** — edit the config file:
 
-### 4. Connect to Your MCP Client
-
-The example below shows Claude Desktop. For other MCP clients, consult their documentation for how to register an MCP server -- the server command and args are the same.
-
-**Claude Desktop config:**
-
-**macOS** — `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-**Linux** — `~/.config/claude/claude_desktop_config.json`
+- **macOS** — `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux** — `~/.config/claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "slipbox": {
-      "command": "/absolute/path/to/slipbox-mcp/.venv/bin/python",
-      "args": ["-m", "slipbox_mcp.main"],
+      "command": "slipbox-mcp",
       "env": {
-        "PYTHONPATH": "/absolute/path/to/slipbox-mcp/src",
-        "SLIPBOX_NOTES_DIR": "/Users/yourname/.local/share/mcp/slipbox/notes",
-        "SLIPBOX_DATABASE_PATH": "/Users/yourname/.local/share/mcp/slipbox/data/db/zettelkasten.db",
-        "SLIPBOX_LOG_LEVEL": "INFO"
+        "SLIPBOX_BASE_DIR": "/Users/yourname/.local/share/mcp/slipbox"
       }
     }
   }
 }
 ```
 
-Replace `/absolute/path/to/` and `/Users/yourname/` with your actual paths. The `PYTHONPATH` must point to the `src/` directory so Python can find the package. Environment variables set in `.env` are not read by Claude Desktop — configure them here instead.
+> **Desktop PATH caveat:** the macOS Desktop app doesn't always inherit `~/.local/bin` on its PATH, so the bare `"slipbox-mcp"` may not resolve. If the server fails to start, replace `"command": "slipbox-mcp"` with the absolute path printed by `which slipbox-mcp` (typically `/Users/yourname/.local/bin/slipbox-mcp`).
 
-> **Important:** `~` is NOT expanded in `claude_desktop_config.json`. Use full absolute paths for `SLIPBOX_NOTES_DIR` and `SLIPBOX_DATABASE_PATH` (e.g., `/Users/yourname/...` on macOS, `/home/yourname/...` on Linux). Using `~` will create a literal directory named `~` instead of resolving to your home directory.
+**Other MCP clients:** register `slipbox-mcp` as the server command with `SLIPBOX_BASE_DIR` in its environment. The command and env are the same everywhere.
 
-**If you installed via `pipx install --editable .`**, find the Python path with:
+<details>
+<summary>Advanced: split notes and database across separate locations</summary>
 
-```bash
-pipx environment --value VENV
-# Output: /Users/yourname/.local/share/pipx/venvs/slipbox-mcp
+Instead of `SLIPBOX_BASE_DIR`, set absolute paths individually. Optional `SLIPBOX_LOG_LEVEL` is one of `DEBUG`, `INFO`, `WARNING`, `ERROR`.
 
-# Append /bin/python to get the full path
-
+```json
+"env": {
+  "SLIPBOX_NOTES_DIR": "/Users/yourname/.local/share/mcp/slipbox/notes",
+  "SLIPBOX_DATABASE_PATH": "/Users/yourname/.local/share/mcp/slipbox/data/db/zettelkasten.db",
+  "SLIPBOX_LOG_LEVEL": "INFO"
+}
 ```
 
-Use `/Users/yourname/.local/share/pipx/venvs/slipbox-mcp/bin/python` as the `command` value.
+</details>
 
-### 5. Restart Your Client
+### 4. Restart and Verify
 
-Quit and reopen your MCP client to load the server.
-
-### 6. Verify Installation
+Restart your client (Claude Code reloads on next launch; quit and reopen Claude Desktop).
 
 Ask your agent:
 
@@ -239,7 +223,7 @@ Output saved to `~/.local/share/mcp/slipbox/cluster-analysis.json`.
 
 ---
 
-## Optional: File Watcher for Auto-Indexing
+## Optional: macOS File Watcher for Auto-Indexing
 
 The MCP server maintains a database index for fast searching. Editing notes in Obsidian (or any editor) makes the database stale until you run `slipbox_rebuild_index`.
 
@@ -486,17 +470,13 @@ This populates the BM25 index from your existing notes. Search results will not 
 
 ### Server not loading in Claude Desktop
 
-1. Check the path in `claude_desktop_config.json` is absolute (not relative)
-2. Verify the venv python exists: `ls -la /path/to/.venv/bin/python`
-3. Check Claude Desktop logs for errors
+1. Confirm the launcher resolves: `which slipbox-mcp` should print a path (typically `~/.local/bin/slipbox-mcp`).
+2. If it resolves in your terminal but Desktop still can't start it, the GUI app isn't seeing `~/.local/bin` on its PATH. Replace `"command": "slipbox-mcp"` with the absolute path from step 1.
+3. Check Claude Desktop logs for errors.
 
-### `ModuleNotFoundError: No module named 'slipbox_mcp'`
+### `slipbox-mcp: command not found`
 
-The `PYTHONPATH` in your config is missing or wrong. It must point to the `src/` directory of the cloned repo:
-
-```json
-"PYTHONPATH": "/absolute/path/to/slipbox-mcp/src"
-```
+The console script wasn't installed or isn't on PATH. Reinstall with `pipx install --editable . --force`, then verify with `which slipbox-mcp`. If `pipx`'s bin directory is missing from PATH, run `pipx ensurepath` and restart your shell.
 
 ### Notes directory points to `~/...` literally
 
@@ -635,6 +615,7 @@ ruff check src/ evals/
 |----------|---------|--------|------|
 | `CI` | Every PR + push to main | GitHub-hosted | Unit + contract tests, ruff |
 | `LLM Evals` | PRs changing prompt files | Self-hosted | 28 LLM evals via claude CLI |
+| `Release` | Push of a `v*.*.*` tag | GitHub-hosted | Build, verify, publish to PyPI |
 
 The LLM eval workflow triggers only when these files change:
 
@@ -669,6 +650,32 @@ tar xzf actions-runner.tar.gz
 ./config.sh --url https://github.com/OWNER/REPO --token <TOKEN> --unattended
 nohup ./run.sh &
 ```
+
+### Publishing to PyPI
+
+Releases go out via the `Release` workflow (`.github/workflows/release.yml`) using PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) — OIDC, so no API token is stored in repo secrets.
+
+**One-time setup** (before the first release):
+
+1. On PyPI, register a [pending trusted publisher](https://pypi.org/manage/account/publishing/) for the project name `slipbox-mcp`:
+   - **Owner:** `jamesfishwick` · **Repository:** `slipbox-mcp`
+   - **Workflow:** `release.yml` · **Environment:** `release`
+2. In the GitHub repo, create an environment named `release` (Settings → Environments). Optionally restrict it to tags matching `v*`.
+
+**Cut a release:**
+
+```bash
+# 1. Bump __version__ in src/slipbox_mcp/__init__.py (the single source of truth --
+#    pyproject.toml reads it dynamically via [tool.setuptools.dynamic]).
+# 2. Commit the bump via PR and merge to main, then tag the merge commit:
+
+git tag v1.2.2
+git push origin v1.2.2
+```
+
+The workflow verifies the tag matches the package version, builds the sdist + wheel, runs `twine check`, and publishes to PyPI. To rehearse without publishing for real, build and upload to [TestPyPI](https://test.pypi.org) by hand first — `python -m build && twine upload --repository testpypi dist/*` (needs a TestPyPI token); the tagged workflow itself only targets production PyPI.
+
+> The version is defined once, in `src/slipbox_mcp/__init__.py`. `pyproject.toml` (`dynamic = ["version"]`) and the MCP server's reported `server_version` both read from it, so there is nothing to keep in sync.
 
 ### Shared prompt constants
 
