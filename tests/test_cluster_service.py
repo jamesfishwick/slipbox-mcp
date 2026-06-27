@@ -432,7 +432,17 @@ class TestDetectClusters:
                 )
             )
         report = service.detect_clusters(notes=notes)
+
+        # 6 notes all sharing alpha+beta form exactly one cluster. The previous
+        # isinstance-only assertion passed even if the pipeline found nothing.
         assert isinstance(report, ClusterReport)
+        assert report.stats["total_notes"] == 6
+        assert len(report.clusters) == 1, (
+            f"expected one cluster, got {len(report.clusters)}"
+        )
+        cluster = report.clusters[0]
+        assert cluster.note_count == 6
+        assert set(cluster.tags) == {"alpha", "beta"}
 
 
 class TestSuggestTitle:

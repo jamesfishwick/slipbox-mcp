@@ -180,8 +180,9 @@ class TestSemanticLinks:
             )
 
     def test_custom_bidirectional_link_types(self, zettel_service):
-        """Test bidirectional links with custom inverse types."""
-        # Create test notes
+        """A bidirectional link with an explicit bidirectional_type sets the
+        reverse link to that type rather than the default inverse."""
+        # Arrange
         source_note = zettel_service.create_note(
             title="Custom Bidirectional Source",
             content="Source note content for custom bidirectional links",
@@ -195,42 +196,31 @@ class TestSemanticLinks:
             tags=["test", "custom-bidirectional"],
         )
 
-        # Create bidirectional link with explicit inverse type
-        # The second parameter should be a specific bidirectional_type, not a boolean
-        # However, since the ZettelService interface doesn't support this directly,
-        # we'll need to modify the test or mock the lower-level function
-
-        # For now, we'll test this using two separate directional links
-        source, _ = zettel_service.create_link(
+        # Act: a single bidirectional call with an explicit reverse type. This
+        # exercises the bidirectional_type parameter, which was previously not
+        # covered anywhere -- the old version of this test faked it with two
+        # separate one-directional links.
+        zettel_service.create_link(
             source_id=source_note.id,
             target_id=target_note.id,
             link_type=LinkType.EXTENDS,
-            description="Forward direction",
+            bidirectional=True,
+            bidirectional_type=LinkType.QUESTIONS,
         )
 
-        target, _ = zettel_service.create_link(
-            source_id=target_note.id,
-            target_id=source_note.id,
-            link_type=LinkType.QUESTIONS,  # Custom inverse type (not the expected EXTENDED_BY)
-            description="Custom backward direction",
-        )
-
-        # Verify links
+        # Assert: forward link is EXTENDS; the auto-created reverse link uses the
+        # custom QUESTIONS type, not the default inverse (EXTENDED_BY).
         source_note = zettel_service.get_note(source_note.id)
         target_note = zettel_service.get_note(target_note.id)
 
-        # Check outgoing link from source
         source_links = [
             link for link in source_note.links if link.target_id == target_note.id
         ]
         assert len(source_links) == 1, (
             f"Expected 1 source link, got {len(source_links)}"
         )
-        assert source_links[0].link_type == LinkType.EXTENDS, (
-            f"Expected EXTENDS, got {source_links[0].link_type.value}"
-        )
+        assert source_links[0].link_type == LinkType.EXTENDS
 
-        # Check outgoing link from target (custom inverse)
         target_links = [
             link for link in target_note.links if link.target_id == source_note.id
         ]
@@ -238,7 +228,8 @@ class TestSemanticLinks:
             f"Expected 1 target link, got {len(target_links)}"
         )
         assert target_links[0].link_type == LinkType.QUESTIONS, (
-            f"Expected QUESTIONS (custom inverse), got {target_links[0].link_type.value}"
+            "reverse link should use the custom bidirectional_type, got "
+            f"{target_links[0].link_type.value}"
         )
 
     def test_links_persistence_through_save_and_load(self, zettel_service):
