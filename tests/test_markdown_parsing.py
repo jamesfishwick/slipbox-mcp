@@ -75,10 +75,7 @@ class TestParseLinksSection:
         assert not links[0].description or links[0].description == ""
 
     def test_stops_at_next_heading(self):
-        content = (
-            "## Links\n- reference [[a]]\n"
-            "## Next Section\n- reference [[b]]\n"
-        )
+        content = "## Links\n- reference [[a]]\n## Next Section\n- reference [[b]]\n"
         links = _parse_links_section(content, source_id="src")
         assert len(links) == 1
         assert links[0].target_id == "a"

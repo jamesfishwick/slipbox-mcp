@@ -1,4 +1,5 @@
 """Fixtures for deterministic tool contract tests."""
+
 import pytest
 
 from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
@@ -18,7 +19,9 @@ def server(test_config):
 @pytest.fixture
 def tool(server):
     """Return a helper that resolves a tool function by registered name."""
+
     def _get(name: str):
         # NOTE: _tool_manager is a private FastMCP API; pin mcp version if this breaks
         return server.mcp._tool_manager.get_tool(name).fn
+
     return _get

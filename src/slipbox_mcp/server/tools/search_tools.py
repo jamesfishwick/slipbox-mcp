@@ -1,4 +1,5 @@
 """Search and discovery tools."""
+
 import logging
 from datetime import datetime
 from typing import Optional
@@ -21,7 +22,7 @@ def register_search_tools(server) -> None:
         query: Optional[str] = None,
         tags: Optional[str] = None,
         note_type: Optional[str] = None,
-        limit: int = 10
+        limit: int = 10,
     ) -> str:
         """Search for notes by text, tags, or type.
 
@@ -50,9 +51,7 @@ def register_search_tools(server) -> None:
                     return f"Invalid note type: {note_type}. Valid types are: {', '.join(t.value for t in NoteType)}"
 
             results = search_service.search_combined(
-                query_text=query,
-                tags=tag_list,
-                note_type=note_type_enum
+                query_text=query, tags=tag_list, note_type=note_type_enum
             )
 
             results = results[:limit]
@@ -73,9 +72,7 @@ def register_search_tools(server) -> None:
 
     @mcp.tool(name="slipbox_find_similar_notes")
     def slipbox_find_similar_notes(
-        note_id: str,
-        threshold: float = 0.3,
-        limit: int = 5
+        note_id: str, threshold: float = 0.3, limit: int = 5
     ) -> str:
         """Find notes similar to a given note.
 
@@ -89,15 +86,23 @@ def register_search_tools(server) -> None:
         """
         try:
             if not 0.0 <= threshold <= 1.0:
-                logger.warning("slipbox_find_similar_notes: threshold %r out of range [0.0, 1.0]", threshold)
+                logger.warning(
+                    "slipbox_find_similar_notes: threshold %r out of range [0.0, 1.0]",
+                    threshold,
+                )
                 return "Error: threshold must be between 0.0 and 1.0."
             if limit <= 0:
-                logger.warning("slipbox_find_similar_notes: limit %r must be a positive integer", limit)
+                logger.warning(
+                    "slipbox_find_similar_notes: limit %r must be a positive integer",
+                    limit,
+                )
                 return "Error: limit must be a positive integer."
             similar_notes = zettel_service.find_similar_notes(str(note_id), threshold)
             similar_notes = similar_notes[:limit]
             if not similar_notes:
-                return f"No similar notes found for {note_id} with threshold {threshold}."
+                return (
+                    f"No similar notes found for {note_id} with threshold {threshold}."
+                )
 
             output = f"Found {len(similar_notes)} similar notes for {note_id}:\n\n"
             for i, (note, similarity) in enumerate(similar_notes, 1):
@@ -122,7 +127,10 @@ def register_search_tools(server) -> None:
         """
         try:
             if limit <= 0:
-                logger.warning("slipbox_find_central_notes: limit %r must be a positive integer", limit)
+                logger.warning(
+                    "slipbox_find_central_notes: limit %r must be a positive integer",
+                    limit,
+                )
                 return "Error: limit must be a positive integer."
             central_notes = search_service.find_central_notes(limit)
             if not central_notes:
@@ -166,7 +174,7 @@ def register_search_tools(server) -> None:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         use_updated: bool = False,
-        limit: int = 10
+        limit: int = 10,
     ) -> str:
         """List notes by creation or update date.
 
@@ -189,7 +197,7 @@ def register_search_tools(server) -> None:
             notes = search_service.find_notes_by_date_range(
                 start_date=start_datetime,
                 end_date=end_datetime,
-                use_updated=use_updated
+                use_updated=use_updated,
             )
 
             notes = notes[:limit]
@@ -217,7 +225,9 @@ def register_search_tools(server) -> None:
             for i, note in enumerate(notes, 1):
                 date = note.updated_at if use_updated else note.created_at
                 output += f"{i}. {note.title} (ID: {note.id})\n"
-                output += f"   {date_type.capitalize()}: {date.strftime('%Y-%m-%d %H:%M')}\n"
+                output += (
+                    f"   {date_type.capitalize()}: {date.strftime('%Y-%m-%d %H:%M')}\n"
+                )
                 if note.tags:
                     output += f"   Tags: {format_tags(note.tags)}\n"
                 output += f"   Preview: {content_preview(note.content)}\n\n"

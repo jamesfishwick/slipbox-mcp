@@ -6,6 +6,7 @@ pointed at it. Because the filesystem is the source of truth and
 rebuild_index re-parses ## Links from every file, those orphaned links were
 resurrected into the DB on the next rebuild.
 """
+
 import pytest
 
 from slipbox_mcp.models.schema import LinkType
@@ -43,7 +44,9 @@ class TestDeleteSweepsReferrers:
             "Referrer markdown still contains a link to the deleted note"
         )
 
-    def test_rebuild_index_does_not_resurrect_link(self, note_repository, zettel_service):
+    def test_rebuild_index_does_not_resurrect_link(
+        self, note_repository, zettel_service
+    ):
         """The killer assertion: a rebuild must not bring the dead link back.
 
         This is what the demo exposed. Even if delete() cleaned the DB, the
@@ -69,7 +72,9 @@ class TestDeleteSweepsReferrers:
 
         # No link in the DB should reference the deleted note as a target.
         from sqlalchemy import select
+
         from slipbox_mcp.models.db_models import DBLink
+
         with note_repository.session_factory() as session:
             dead = session.scalars(
                 select(DBLink).where(DBLink.target_id == target.id)
@@ -82,7 +87,9 @@ class TestDeleteSweepsReferrers:
         """Deleting one target must not strip the referrer's OTHER links."""
         target = zettel_service.create_note(title="Doomed", content="Goes away.")
         survivor = zettel_service.create_note(title="Survivor", content="Stays.")
-        referrer = zettel_service.create_note(title="Referrer", content="Links to both.")
+        referrer = zettel_service.create_note(
+            title="Referrer", content="Links to both."
+        )
 
         zettel_service.create_link(
             source_id=referrer.id, target_id=target.id, link_type=LinkType.EXTENDS
@@ -95,7 +102,9 @@ class TestDeleteSweepsReferrers:
 
         body = (note_repository.notes_dir / f"{referrer.id}.md").read_text()
         assert f"[[{target.id}]]" not in body
-        assert f"[[{survivor.id}]]" in body, "Deleting one target wrongly removed an unrelated link"
+        assert f"[[{survivor.id}]]" in body, (
+            "Deleting one target wrongly removed an unrelated link"
+        )
 
     def test_sweeps_all_referrers(self, note_repository, zettel_service):
         """The sweep is a loop; every referrer must lose the dead link.

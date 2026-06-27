@@ -1,4 +1,5 @@
 """Note CRUD tools."""
+
 import logging
 from typing import Optional
 
@@ -20,7 +21,7 @@ def register_note_tools(server) -> None:
         content: str,
         note_type: str = "permanent",
         tags: Optional[str] = None,
-        references: Optional[str] = None
+        references: Optional[str] = None,
     ) -> str:
         """Create a new atomic Zettelkasten note.
 
@@ -118,7 +119,7 @@ def register_note_tools(server) -> None:
         content: Optional[str] = None,
         note_type: Optional[str] = None,
         tags: Optional[str] = None,
-        references: Optional[str] = None
+        references: Optional[str] = None,
     ) -> str:
         """Update an existing note.
 
@@ -162,7 +163,7 @@ def register_note_tools(server) -> None:
                 content=content,
                 note_type=note_type_enum,
                 tags=tag_list,
-                references=ref_list
+                references=ref_list,
             )
             return f"Note updated successfully: {updated_note.id}"
         except Exception as e:

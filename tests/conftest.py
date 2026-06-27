@@ -1,5 +1,7 @@
 """Test-specific fixtures (shared fixtures live in root conftest.py)."""
+
 import pytest
+
 from slipbox_mcp.services.search_service import SearchService
 
 

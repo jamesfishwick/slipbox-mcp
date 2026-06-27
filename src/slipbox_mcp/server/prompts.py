@@ -30,8 +30,7 @@ def register_prompts(server) -> None:
             return PROMPT_CLUSTER_MAINTENANCE_EMPTY
 
         active_clusters = [
-            c for c in report.clusters
-            if c.id not in report.dismissed_cluster_ids
+            c for c in report.clusters if c.id not in report.dismissed_cluster_ids
         ]
 
         if not active_clusters:

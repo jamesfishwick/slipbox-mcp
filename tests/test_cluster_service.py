@@ -1,6 +1,8 @@
 """Tests for ClusterService pure functions."""
+
 from unittest.mock import MagicMock
 
+from helpers import make_note
 
 from slipbox_mcp.models.schema import LinkType, NoteType
 from slipbox_mcp.services.cluster_service import (
@@ -9,7 +11,6 @@ from slipbox_mcp.services.cluster_service import (
     ClusterReport,
     ClusterService,
 )
-from helpers import make_note
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -61,8 +62,12 @@ class TestBuildTagCooccurrence:
 
         # Assert
         key = (TAG_PYTHON, TAG_TESTING)
-        assert key in result, f"Expected {key} in cooccurrence at threshold {CO_OCCURRENCE_THRESHOLD}"
-        assert result[key] == CO_OCCURRENCE_THRESHOLD, f"Expected count {CO_OCCURRENCE_THRESHOLD}, got {result[key]}"
+        assert key in result, (
+            f"Expected {key} in cooccurrence at threshold {CO_OCCURRENCE_THRESHOLD}"
+        )
+        assert result[key] == CO_OCCURRENCE_THRESHOLD, (
+            f"Expected count {CO_OCCURRENCE_THRESHOLD}, got {result[key]}"
+        )
 
     def test_pair_below_threshold_is_excluded(self):
         # Arrange
@@ -86,7 +91,9 @@ class TestBuildTagCooccurrence:
         result = self.svc.build_tag_cooccurrence(notes)
 
         # Assert
-        assert (TAG_PYTHON, TAG_TESTING) in result, "Tag pair keys must be alphabetically sorted"
+        assert (TAG_PYTHON, TAG_TESTING) in result, (
+            "Tag pair keys must be alphabetically sorted"
+        )
         assert (TAG_TESTING, TAG_PYTHON) not in result, "Reverse order must not appear"
 
 
@@ -105,7 +112,9 @@ class TestFindTagClusters:
 
         # Assert
         assert len(clusters) == 1, "Single pair should produce exactly one cluster"
-        assert clusters[0] == {TAG_PYTHON, TAG_TESTING}, f"Expected {{python, testing}}, got {clusters[0]}"
+        assert clusters[0] == {TAG_PYTHON, TAG_TESTING}, (
+            f"Expected {{python, testing}}, got {clusters[0]}"
+        )
 
     def test_overlapping_pairs_merge_into_one_cluster(self):
         # Arrange
@@ -119,7 +128,9 @@ class TestFindTagClusters:
 
         # Assert
         assert len(clusters) == 1, "Overlapping pairs must merge into a single cluster"
-        assert clusters[0] == {TAG_PYTHON, TAG_TESTING, TAG_ASYNC}, f"Expected {{python, testing, async}}, got {clusters[0]}"
+        assert clusters[0] == {TAG_PYTHON, TAG_TESTING, TAG_ASYNC}, (
+            f"Expected {{python, testing, async}}, got {clusters[0]}"
+        )
 
     def test_disjoint_pairs_form_separate_clusters(self):
         # Arrange
@@ -134,8 +145,12 @@ class TestFindTagClusters:
         # Assert
         assert len(clusters) == 2, "Disjoint pairs must produce two separate clusters"
         cluster_sets = [frozenset(c) for c in clusters]
-        assert frozenset({TAG_PYTHON, TAG_TESTING}) in cluster_sets, "python/testing cluster not found"
-        assert frozenset({TAG_DESIGN, TAG_ARCHITECTURE}) in cluster_sets, "design/architecture cluster not found"
+        assert frozenset({TAG_PYTHON, TAG_TESTING}) in cluster_sets, (
+            "python/testing cluster not found"
+        )
+        assert frozenset({TAG_DESIGN, TAG_ARCHITECTURE}) in cluster_sets, (
+            "design/architecture cluster not found"
+        )
 
     def test_empty_input_returns_empty(self):
         # Arrange
@@ -196,7 +211,9 @@ class TestHasStructureNote:
         result = self.svc.has_structure_note([structure], cluster_tags)
 
         # Assert
-        assert result is True, "Structure note with >= 2 overlapping tags should return True"
+        assert result is True, (
+            "Structure note with >= 2 overlapping tags should return True"
+        )
 
     def test_permanent_note_with_matching_tags_returns_false(self):
         # Arrange
@@ -302,7 +319,9 @@ class TestScoreCluster:
         result = self.svc.score_cluster(notes)
 
         # Assert
-        assert result is None, f"Cluster with {MIN_CLUSTER_SIZE - 1} notes must return None"
+        assert result is None, (
+            f"Cluster with {MIN_CLUSTER_SIZE - 1} notes must return None"
+        )
 
     def test_at_min_cluster_size_returns_dict_with_expected_keys(self):
         # Arrange
@@ -312,10 +331,23 @@ class TestScoreCluster:
         result = self.svc.score_cluster(notes)
 
         # Assert
-        assert result is not None, f"Cluster with {MIN_CLUSTER_SIZE} notes must return a dict"
-        expected_keys = {"note_count", "orphan_count", "internal_links", "density", "score", "newest_date"}
-        assert set(result.keys()) == expected_keys, f"Result keys mismatch: {set(result.keys())}"
-        assert result["note_count"] == MIN_CLUSTER_SIZE, f"Expected note_count {MIN_CLUSTER_SIZE}, got {result['note_count']}"
+        assert result is not None, (
+            f"Cluster with {MIN_CLUSTER_SIZE} notes must return a dict"
+        )
+        expected_keys = {
+            "note_count",
+            "orphan_count",
+            "internal_links",
+            "density",
+            "score",
+            "newest_date",
+        }
+        assert set(result.keys()) == expected_keys, (
+            f"Result keys mismatch: {set(result.keys())}"
+        )
+        assert result["note_count"] == MIN_CLUSTER_SIZE, (
+            f"Expected note_count {MIN_CLUSTER_SIZE}, got {result['note_count']}"
+        )
 
     def test_score_is_clamped_to_one(self):
         # Arrange -- all orphans, high urgency => could push score > 1.0
@@ -337,8 +369,12 @@ class TestScoreCluster:
 
         # Assert
         assert result is not None, "Score result should not be None at min cluster size"
-        assert result["density"] == 0.0, f"Density should be 0.0 with no links, got {result['density']}"
-        assert result["internal_links"] == 0, f"Expected 0 internal links, got {result['internal_links']}"
+        assert result["density"] == 0.0, (
+            f"Density should be 0.0 with no links, got {result['density']}"
+        )
+        assert result["internal_links"] == 0, (
+            f"Expected 0 internal links, got {result['internal_links']}"
+        )
 
 
 class TestReportPath:
@@ -387,12 +423,14 @@ class TestDetectClusters:
         # Create enough notes with shared tags to form a cluster
         notes = []
         for i in range(6):
-            notes.append(Note(
-                title=f"Test Note {i}",
-                content=f"Content {i}",
-                note_type=NoteType.PERMANENT,
-                tags=[Tag(name="alpha"), Tag(name="beta")],
-            ))
+            notes.append(
+                Note(
+                    title=f"Test Note {i}",
+                    content=f"Content {i}",
+                    note_type=NoteType.PERMANENT,
+                    tags=[Tag(name="alpha"), Tag(name="beta")],
+                )
+            )
         report = service.detect_clusters(notes=notes)
         assert isinstance(report, ClusterReport)
 
@@ -411,7 +449,9 @@ class TestSuggestTitle:
         title = self.svc.suggest_title(tags)
 
         # Assert
-        assert title == "Testing Knowledge Map", f"Expected 'Testing Knowledge Map', got '{title}'"
+        assert title == "Testing Knowledge Map", (
+            f"Expected 'Testing Knowledge Map', got '{title}'"
+        )
 
     def test_hyphens_replaced_with_spaces(self):
         # Arrange
@@ -421,4 +461,6 @@ class TestSuggestTitle:
         title = self.svc.suggest_title(tags)
 
         # Assert
-        assert title == "Machine Learning Knowledge Map", f"Hyphens must be replaced with spaces, got '{title}'"
+        assert title == "Machine Learning Knowledge Map", (
+            f"Hyphens must be replaced with spaces, got '{title}'"
+        )

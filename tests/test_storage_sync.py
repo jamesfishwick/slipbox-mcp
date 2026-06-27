@@ -1,6 +1,9 @@
 """Tests for dual-storage synchronization correctness."""
+
 from unittest.mock import patch
+
 import pytest
+
 from slipbox_mcp.models.schema import Note, NoteType, Tag
 
 
@@ -28,7 +31,9 @@ class TestCreateAtomicity:
 
         # DB should have no record either
         from sqlalchemy import select
+
         from slipbox_mcp.models.db_models import DBNote
+
         with note_repository.session_factory() as session:
             assert session.scalar(select(DBNote).where(DBNote.id == note.id)) is None
 
@@ -73,7 +78,9 @@ class TestDeleteAtomicity:
         assert not file_path.exists()
 
         from sqlalchemy import select
+
         from slipbox_mcp.models.db_models import DBNote
+
         with note_repository.session_factory() as session:
             assert session.scalar(select(DBNote).where(DBNote.id == note_id)) is None
 
@@ -133,4 +140,6 @@ class TestLockScope:
         with patch.object(note_repository, "_index_note", side_effect=tracking_index):
             note_repository.create(note)
 
-        assert lock_held_during_index == [True], "file_lock was not held during DB indexing"
+        assert lock_held_during_index == [True], (
+            "file_lock was not held during DB indexing"
+        )

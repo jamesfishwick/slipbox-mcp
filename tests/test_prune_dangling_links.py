@@ -4,6 +4,7 @@ Covers the corpus-cleanup path: stubs left in ## Links sections by deletes
 that predate referrer-sweeping, or by hand-editing. find_dangling_links is
 read-only; prune_dangling_links rewrites affected notes.
 """
+
 from slipbox_mcp.models.schema import LinkType
 
 
@@ -57,7 +58,9 @@ class TestPruneDanglingLinks:
         note_repository.prune_dangling_links()
         note_repository.rebuild_index()
         from sqlalchemy import select
+
         from slipbox_mcp.models.db_models import DBLink
+
         with note_repository.session_factory() as session:
             dead = session.scalars(
                 select(DBLink).where(DBLink.target_id == target_id)

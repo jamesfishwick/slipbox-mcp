@@ -1,5 +1,7 @@
 """Shared test helper utilities (not pytest fixtures)."""
+
 from typing import List, Optional
+
 from slipbox_mcp.models.schema import Note, NoteType, Tag
 
 

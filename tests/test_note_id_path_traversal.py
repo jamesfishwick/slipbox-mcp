@@ -10,6 +10,7 @@ discards the left operand). These tests pin the two-layer defense:
    id that bypassed model validation (``Note.model_construct``) cannot touch a
    file outside the notes dir.
 """
+
 import datetime
 
 import pytest
@@ -17,7 +18,6 @@ from pydantic import ValidationError
 
 from slipbox_mcp.models.schema import Note, NoteType
 from slipbox_mcp.storage.note_repository import _is_safe_note_id
-
 
 UNSAFE_IDS = [
     "../../etc/passwd",
@@ -33,7 +33,7 @@ UNSAFE_IDS = [
 ]
 
 SAFE_IDS = [
-    "20260101T000000000000001",          # generated format
+    "20260101T000000000000001",  # generated format
     "20260624T123456789012abc",
     "manual-note_id",
     "ABC123",
@@ -61,7 +61,9 @@ class TestIdAlphabet:
 
 
 class TestModelBoundary:
-    @pytest.mark.parametrize("bad", [i for i in UNSAFE_IDS if i])  # empty hits min_length too
+    @pytest.mark.parametrize(
+        "bad", [i for i in UNSAFE_IDS if i]
+    )  # empty hits min_length too
     def test_model_rejects_unsafe_id(self, bad):
         with pytest.raises(ValidationError):
             Note(id=bad, title="t", content="c")
@@ -94,8 +96,15 @@ def _smuggled_note(bad_id: str) -> Note:
     """
     now = datetime.datetime.now()
     return Note.model_construct(
-        id=bad_id, title="t", content="c", note_type=NoteType.PERMANENT,
-        tags=[], links=[], references=[], created_at=now, updated_at=now,
+        id=bad_id,
+        title="t",
+        content="c",
+        note_type=NoteType.PERMANENT,
+        tags=[],
+        links=[],
+        references=[],
+        created_at=now,
+        updated_at=now,
         metadata={},
     )
 
@@ -111,7 +120,9 @@ class TestFilesystemBoundary:
         with pytest.raises(ValueError):
             note_repository.create(_smuggled_note(bad))
 
-    def test_create_refuses_relative_traversal_and_writes_nothing(self, note_repository):
+    def test_create_refuses_relative_traversal_and_writes_nothing(
+        self, note_repository
+    ):
         uniq = note_repository.notes_dir.name
         outside = note_repository.notes_dir.parent / f"pwned_{uniq}.md"
         with pytest.raises(ValueError):
@@ -125,7 +136,9 @@ class TestFilesystemBoundary:
         target = note_repository.notes_dir.parent / f"abs_create_{uniq}"
         with pytest.raises(ValueError):
             note_repository.create(_smuggled_note(str(target)))
-        assert not note_repository.notes_dir.parent.joinpath(f"abs_create_{uniq}.md").exists()
+        assert not note_repository.notes_dir.parent.joinpath(
+            f"abs_create_{uniq}.md"
+        ).exists()
 
     def test_update_refuses_unsafe_id_and_overwrites_nothing(self, note_repository):
         # The highest-stakes path: a smuggled traversal id must not clobber a
@@ -143,15 +156,22 @@ class TestFilesystemBoundary:
         target = note_repository.notes_dir.parent / f"abs_update_{uniq}"
         with pytest.raises(ValueError):
             note_repository.update(_smuggled_note(str(target)))
-        assert not note_repository.notes_dir.parent.joinpath(f"abs_update_{uniq}.md").exists()
+        assert not note_repository.notes_dir.parent.joinpath(
+            f"abs_update_{uniq}.md"
+        ).exists()
 
     @pytest.mark.parametrize("absolute", [False, True])
-    def test_delete_refuses_unsafe_id_and_deletes_nothing(self, note_repository, absolute):
+    def test_delete_refuses_unsafe_id_and_deletes_nothing(
+        self, note_repository, absolute
+    ):
         uniq = note_repository.notes_dir.name
         outside = note_repository.notes_dir.parent / f"victim_{uniq}.md"
         outside.write_text("do not delete me")
-        delete_id = (str(note_repository.notes_dir.parent / f"victim_{uniq}")
-                     if absolute else f"../victim_{uniq}")
+        delete_id = (
+            str(note_repository.notes_dir.parent / f"victim_{uniq}")
+            if absolute
+            else f"../victim_{uniq}"
+        )
         with pytest.raises(ValueError):
             note_repository.delete(delete_id)
         assert outside.exists(), "delete() removed a file outside the notes dir"
@@ -162,10 +182,17 @@ class TestFilesystemBoundary:
         outside = note_repository.notes_dir.parent / f"secret_{uniq}.md"
         outside.write_text("---\nid: s\ntitle: Secret\n---\ntop secret")
         assert note_repository.get(f"../secret_{uniq}") is None
-        assert note_repository.get(str(note_repository.notes_dir.parent / f"secret_{uniq}")) is None
+        assert (
+            note_repository.get(
+                str(note_repository.notes_dir.parent / f"secret_{uniq}")
+            )
+            is None
+        )
         outside.unlink()
 
-    def test_symlink_with_valid_stem_resolving_outside_is_refused(self, note_repository):
+    def test_symlink_with_valid_stem_resolving_outside_is_refused(
+        self, note_repository
+    ):
         """A symlink INSIDE notes_dir with a valid-stem name pointing outside.
 
         The regex passes (``evil`` is a valid stem); only ``.resolve()`` +
@@ -173,6 +200,7 @@ class TestFilesystemBoundary:
         refactor that drops it fails loudly.
         """
         import os
+
         uniq = note_repository.notes_dir.name
         secret = note_repository.notes_dir.parent / f"symlink_secret_{uniq}.md"
         secret.write_text("---\nid: s\ntitle: S\n---\nsecret")
@@ -210,7 +238,9 @@ class TestRebuildIndexVector:
         note_repository.rebuild_index()
         # The hostile note is not indexed...
         from sqlalchemy import select
+
         from slipbox_mcp.models.db_models import DBNote
+
         with note_repository.session_factory() as session:
             ids = session.scalars(select(DBNote.id)).all()
         assert "../../tmp/payload" not in ids
@@ -225,7 +255,9 @@ class TestRebuildIndexVector:
         )
         note_repository.rebuild_index()
         from sqlalchemy import select
+
         from slipbox_mcp.models.db_models import DBNote
+
         with note_repository.session_factory() as session:
             ids = session.scalars(select(DBNote.id)).all()
         assert "/tmp/abs_payload" not in ids
@@ -257,7 +289,9 @@ class TestRebuildIndexVector:
         )
         note_repository.rebuild_index()
         from sqlalchemy import select
+
         from slipbox_mcp.models.db_models import DBNote
+
         with note_repository.session_factory() as session:
             db_count = len(session.scalars(select(DBNote.id)).all())
         assert note_repository._count_indexable_files() == db_count

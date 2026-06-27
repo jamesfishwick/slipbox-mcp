@@ -3,21 +3,21 @@
 Tests that Claude correctly uses MCP tools to find and surface information
 from the slipbox. Requires claude CLI to be installed and authenticated.
 """
+
 import pytest
+
 from evals.conftest import run_claude_eval
 
 
 @pytest.mark.eval
 class TestSearch:
-
     def test_finds_notes_by_topic(self, seeded_slipbox, test_config):
         """LLM should find panpsychism-related notes when asked."""
         svc, refs = seeded_slipbox
 
         result = run_claude_eval(
             prompt=(
-                "What notes do I have about panpsychism? "
-                "List them with their titles."
+                "What notes do I have about panpsychism? List them with their titles."
             ),
             notes_dir=svc.repository.notes_dir,
             db_path=test_config.get_absolute_path(test_config.database_path),
@@ -27,11 +27,13 @@ class TestSearch:
         # Grade: output should mention at least 2 of the panpsychism-related notes
         # (Faggin, IIT, Russellian Monism, Panpsychism Overview, Spinoza)
         output = result["output"].lower()
-        mentions = sum([
-            "faggin" in output or "quantum" in output,
-            "iit" in output or "integrated information" in output,
-            "panpsychism overview" in output or "russellian" in output,
-        ])
+        mentions = sum(
+            [
+                "faggin" in output or "quantum" in output,
+                "iit" in output or "integrated information" in output,
+                "panpsychism overview" in output or "russellian" in output,
+            ]
+        )
         assert mentions >= 2, (
             f"Expected output to mention at least 2 panpsychism-related notes, "
             f"found {mentions}. Output: {output[:500]}"
@@ -54,9 +56,9 @@ class TestSearch:
         # Grade: output should mention the hard problem (bridge between branches)
         # and at least one note from each branch
         output = result["output"].lower()
-        assert "hard problem" in output or "consciousness" in output or "qualia" in output, (
-            f"Expected mention of hard problem / consciousness. Output: {output[:500]}"
-        )
+        assert (
+            "hard problem" in output or "consciousness" in output or "qualia" in output
+        ), f"Expected mention of hard problem / consciousness. Output: {output[:500]}"
         panpsychism_mentions = (
             "faggin" in output
             or "panpsych" in output

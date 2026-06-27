@@ -1,4 +1,5 @@
 """Service for detecting emergent knowledge clusters in the Zettelkasten."""
+
 import json
 import logging
 from collections import defaultdict
@@ -23,7 +24,11 @@ logger = logging.getLogger(__name__)
 class ClusterService:
     """Service for detecting and managing knowledge clusters."""
 
-    def __init__(self, zettel_service: Optional[ZettelService] = None, report_path: Optional[Path] = None):
+    def __init__(
+        self,
+        zettel_service: Optional[ZettelService] = None,
+        report_path: Optional[Path] = None,
+    ):
         self.zettel_service = zettel_service or ZettelService()
         self.report_path = Path(report_path) if report_path is not None else REPORT_PATH
 
@@ -38,7 +43,9 @@ class ClusterService:
         # Filter by threshold
         return {k: v for k, v in cooccurrence.items() if v >= CO_OCCURRENCE_THRESHOLD}
 
-    def find_tag_clusters(self, cooccurrence: Dict[Tuple[str, str], int]) -> List[Set[str]]:
+    def find_tag_clusters(
+        self, cooccurrence: Dict[Tuple[str, str], int]
+    ) -> List[Set[str]]:
         """Group tags that frequently co-occur using union-find approach."""
         tag_to_cluster: Dict[str, Set[str]] = {}
         clusters: List[Set[str]] = []
@@ -94,8 +101,7 @@ class ClusterService:
         """Count notes with no links at all (no outgoing or incoming within the cluster)."""
         all_target_ids = {link.target_id for note in notes for link in note.links}
         return sum(
-            1 for note in notes
-            if not note.links and note.id not in all_target_ids
+            1 for note in notes if not note.links and note.id not in all_target_ids
         )
 
     def score_cluster(self, notes: List[Note]) -> Optional[Dict[str, Any]]:
@@ -125,10 +131,10 @@ class ClusterService:
         freshness = max(0, 1 - (days_old / 90))
 
         final_score = (
-            (count_score * 0.3) +
-            (urgency_score * 0.4) +
-            ((1 - density) * 0.2) +
-            (freshness * 0.1)
+            (count_score * 0.3)
+            + (urgency_score * 0.4)
+            + ((1 - density) * 0.2)
+            + (freshness * 0.1)
         )
 
         return {
@@ -137,7 +143,7 @@ class ClusterService:
             "internal_links": internal_links,
             "density": round(density, 3),
             "score": round(min(final_score, 1.0), 3),
-            "newest_date": newest
+            "newest_date": newest,
         }
 
     def suggest_title(self, tags: Set[str]) -> str:
@@ -163,26 +169,27 @@ class ClusterService:
             metrics = self.score_cluster(cluster_notes)
             if metrics and metrics["score"] >= 0.4:
                 cluster_id = "-".join(sorted(tags)[:3])
-                results.append(ClusterCandidate(
-                    id=cluster_id,
-                    suggested_title=self.suggest_title(tags),
-                    tags=sorted(tags),
-                    notes=[{"id": n.id, "title": n.title} for n in cluster_notes],
-                    note_count=metrics["note_count"],
-                    orphan_count=metrics["orphan_count"],
-                    internal_links=metrics["internal_links"],
-                    density=metrics["density"],
-                    score=metrics["score"],
-                    newest_date=metrics["newest_date"]
-                ))
+                results.append(
+                    ClusterCandidate(
+                        id=cluster_id,
+                        suggested_title=self.suggest_title(tags),
+                        tags=sorted(tags),
+                        notes=[{"id": n.id, "title": n.title} for n in cluster_notes],
+                        note_count=metrics["note_count"],
+                        orphan_count=metrics["orphan_count"],
+                        internal_links=metrics["internal_links"],
+                        density=metrics["density"],
+                        score=metrics["score"],
+                        newest_date=metrics["newest_date"],
+                    )
+                )
 
         results.sort(key=lambda x: -x.score)
 
         # Build target-ID set once for O(n) orphan counting instead of O(n^2).
         all_target_ids = {link.target_id for n in all_notes for link in n.links}
         total_orphans = sum(
-            1 for n in all_notes
-            if not n.links and n.id not in all_target_ids
+            1 for n in all_notes if not n.links and n.id not in all_target_ids
         )
 
         return ClusterReport(
@@ -192,8 +199,8 @@ class ClusterService:
                 "total_notes": len(all_notes),
                 "total_orphans": total_orphans,
                 "clusters_detected": len(tag_clusters),
-                "clusters_needing_structure": len(results)
-            }
+                "clusters_needing_structure": len(results),
+            },
         )
 
     def save_report(self, report: ClusterReport) -> Path:
@@ -213,12 +220,12 @@ class ClusterService:
                     "internal_links": c.internal_links,
                     "density": c.density,
                     "score": c.score,
-                    "newest_date": c.newest_date.isoformat() if c.newest_date else None
+                    "newest_date": c.newest_date.isoformat() if c.newest_date else None,
                 }
                 for c in report.clusters
             ],
             "stats": report.stats,
-            "dismissed_cluster_ids": report.dismissed_cluster_ids
+            "dismissed_cluster_ids": report.dismissed_cluster_ids,
         }
 
         self.report_path.write_text(json.dumps(data, indent=2))
@@ -244,12 +251,14 @@ class ClusterService:
                         internal_links=c["internal_links"],
                         density=c["density"],
                         score=c["score"],
-                        newest_date=datetime.fromisoformat(c["newest_date"]) if c.get("newest_date") else None
+                        newest_date=datetime.fromisoformat(c["newest_date"])
+                        if c.get("newest_date")
+                        else None,
                     )
                     for c in data["clusters"]
                 ],
                 stats=data["stats"],
-                dismissed_cluster_ids=data.get("dismissed_cluster_ids", [])
+                dismissed_cluster_ids=data.get("dismissed_cluster_ids", []),
             )
         except Exception as e:
             logger.error("Failed to load cluster report: %s", e)

@@ -1,7 +1,8 @@
 """Service for searching and discovering notes in the Zettelkasten."""
+
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-import logging
 from typing import List, Optional, Set, Tuple, Union
 
 from sqlalchemy import select, text
@@ -48,10 +49,12 @@ def _build_fts_match(query: str, column: Optional[str] = None) -> str:
 @dataclass
 class SearchResult:
     """A search result with a note and its relevance score."""
+
     note: Note
     score: float
     matched_terms: Set[str]
     matched_context: str
+
 
 class SearchService:
     """Service for searching notes in the Zettelkasten."""
@@ -83,11 +86,18 @@ class SearchService:
                 err = str(e).lower()
                 if "no such table" in err:
                     if "notes_fts" in err:
-                        logger.error("FTS5 table 'notes_fts' missing -- run slipbox_rebuild_index: %s", e)
+                        logger.error(
+                            "FTS5 table 'notes_fts' missing -- run slipbox_rebuild_index: %s",
+                            e,
+                        )
                     else:
-                        logger.error("Required table missing from database schema: %s", e)
+                        logger.error(
+                            "Required table missing from database schema: %s", e
+                        )
                     raise
-                if "fts5" in err or ("unterminated string" in err and "notes_fts" in err):
+                if "fts5" in err or (
+                    "unterminated string" in err and "notes_fts" in err
+                ):
                     logger.warning("FTS5 query syntax error for %r: %s", fts_query, e)
                     return []
                 raise
@@ -123,12 +133,14 @@ class SearchService:
                 continue
             # bm25() returns negative float; negate so higher = better
             score = -row.bm25_score
-            results.append(SearchResult(
-                note=note,
-                score=score,
-                matched_terms=set(query.split()),
-                matched_context=f"Content: ...{row.matched_context}...",
-            ))
+            results.append(
+                SearchResult(
+                    note=note,
+                    score=score,
+                    matched_terms=set(query.split()),
+                    matched_context=f"Content: ...{row.matched_context}...",
+                )
+            )
 
         return results
 
@@ -154,7 +166,7 @@ class SearchService:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        use_updated: bool = False
+        use_updated: bool = False,
     ) -> List[Note]:
         """Find notes created or updated within a date range."""
         date_col = DBNote.updated_at if use_updated else DBNote.created_at
@@ -207,7 +219,9 @@ class SearchService:
             if not query_text or not query_text.strip():
                 notes = [repository._db_note_to_note(n) for n in db_notes]
                 return [
-                    SearchResult(note=n, score=1.0, matched_terms=set(), matched_context="")
+                    SearchResult(
+                        note=n, score=1.0, matched_terms=set(), matched_context=""
+                    )
                     for n in notes
                 ]
 
@@ -221,11 +235,13 @@ class SearchService:
                 continue
             note = repository._db_note_to_note(candidate_ids[row.id])
             score = -row.bm25_score
-            results.append(SearchResult(
-                note=note,
-                score=score,
-                matched_terms=set(query_text.split()),
-                matched_context=f"Content: ...{row.matched_context}...",
-            ))
+            results.append(
+                SearchResult(
+                    note=note,
+                    score=score,
+                    matched_terms=set(query_text.split()),
+                    matched_context=f"Content: ...{row.matched_context}...",
+                )
+            )
 
         return results

@@ -1,4 +1,5 @@
 """Cluster analysis and structure note tools."""
+
 import logging
 from typing import Optional
 
@@ -26,14 +27,20 @@ def register_cluster_tools(server) -> None:
         min_score: float = 0.5,
         limit: int = 5,
         include_notes: bool = False,
-        refresh: bool = False
+        refresh: bool = False,
     ) -> str:
         try:
             if not 0.0 <= min_score <= 1.0:
-                logger.warning("slipbox_get_cluster_report: min_score %r out of range [0.0, 1.0]", min_score)
+                logger.warning(
+                    "slipbox_get_cluster_report: min_score %r out of range [0.0, 1.0]",
+                    min_score,
+                )
                 return "Error: min_score must be between 0.0 and 1.0."
             if limit <= 0:
-                logger.warning("slipbox_get_cluster_report: limit %r must be a positive integer", limit)
+                logger.warning(
+                    "slipbox_get_cluster_report: limit %r must be a positive integer",
+                    limit,
+                )
                 return "Error: limit must be a positive integer."
             if refresh:
                 report = cluster_service.detect_clusters()
@@ -54,17 +61,20 @@ def register_cluster_tools(server) -> None:
             output += f"{report.stats['clusters_needing_structure']} clusters need structure notes\n\n"
 
             for i, cluster in enumerate(clusters, 1):
-                output += format_cluster_summary(cluster, index=i, include_notes=include_notes)
+                output += format_cluster_summary(
+                    cluster, index=i, include_notes=include_notes
+                )
 
             return output
         except Exception as e:
             return format_error(e)
 
-    @mcp.tool(name="slipbox_create_structure_from_cluster", description=SLIPBOX_CREATE_STRUCTURE_FROM_CLUSTER)
+    @mcp.tool(
+        name="slipbox_create_structure_from_cluster",
+        description=SLIPBOX_CREATE_STRUCTURE_FROM_CLUSTER,
+    )
     def slipbox_create_structure_from_cluster(
-        cluster_id: str,
-        title: Optional[str] = None,
-        create_links: bool = True
+        cluster_id: str, title: Optional[str] = None, create_links: bool = True
     ) -> str:
         try:
             report = cluster_service.load_report()
@@ -73,7 +83,7 @@ def register_cluster_tools(server) -> None:
 
             cluster = next((c for c in report.clusters if c.id == cluster_id), None)
             if not cluster:
-                available = ', '.join(c.id for c in report.clusters[:5])
+                available = ", ".join(c.id for c in report.clusters[:5])
                 return f"Cluster '{cluster_id}' not found. Available: {available}"
 
             final_title = title or cluster.suggested_title
@@ -84,13 +94,15 @@ def register_cluster_tools(server) -> None:
             for note_info in cluster.notes:
                 content += f"- [[{note_info['id']}]] {note_info['title']}\n"
 
-            content += "\n## Synthesis\n\n_TODO: Synthesize key insights from these notes._\n"
+            content += (
+                "\n## Synthesis\n\n_TODO: Synthesize key insights from these notes._\n"
+            )
 
             structure_note = zettel_service.create_note(
                 title=final_title,
                 content=content,
                 note_type=NoteType.STRUCTURE,
-                tags=cluster.tags[:5]
+                tags=cluster.tags[:5],
             )
 
             links_created = 0
@@ -99,14 +111,18 @@ def register_cluster_tools(server) -> None:
                     try:
                         zettel_service.create_link(
                             source_id=structure_note.id,
-                            target_id=note_info['id'],
+                            target_id=note_info["id"],
                             link_type=LinkType.REFERENCE,
                             description="Member of structure note",
-                            bidirectional=True
+                            bidirectional=True,
                         )
                         links_created += 1
                     except Exception as link_error:
-                        logger.warning("Failed to create link to %s: %s", note_info['id'], link_error)
+                        logger.warning(
+                            "Failed to create link to %s: %s",
+                            note_info["id"],
+                            link_error,
+                        )
 
             cluster_service.dismiss_cluster(cluster_id)
 
@@ -131,7 +147,9 @@ def register_cluster_tools(server) -> None:
             if report.clusters:
                 output += "\nTop clusters:\n"
                 for cluster in report.clusters[:3]:
-                    output += f"  - {cluster.suggested_title} (score: {cluster.score})\n"
+                    output += (
+                        f"  - {cluster.suggested_title} (score: {cluster.score})\n"
+                    )
 
             return output
         except Exception as e:
@@ -145,8 +163,10 @@ def register_cluster_tools(server) -> None:
                 return "No cluster report found. Run slipbox_refresh_clusters first."
 
             if cluster_id not in [c.id for c in report.clusters]:
-                available = ', '.join(c.id for c in report.clusters[:5])
-                return f"Cluster '{cluster_id}' not found. Available clusters: {available}"
+                available = ", ".join(c.id for c in report.clusters[:5])
+                return (
+                    f"Cluster '{cluster_id}' not found. Available clusters: {available}"
+                )
 
             cluster_service.dismiss_cluster(cluster_id)
             return f"Cluster '{cluster_id}' dismissed. You won't be reminded about it again."

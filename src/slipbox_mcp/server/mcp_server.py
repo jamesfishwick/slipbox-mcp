@@ -1,12 +1,15 @@
 """MCP server implementation for the Zettelkasten."""
+
 import logging
 import uuid
 from datetime import datetime
+
 from mcp.server.fastmcp import FastMCP
 from pydantic import ValidationError
+
 from slipbox_mcp.config import config
-from slipbox_mcp.services.search_service import SearchService
 from slipbox_mcp.services.cluster_service import ClusterService
+from slipbox_mcp.services.search_service import SearchService
 from slipbox_mcp.services.zettel_service import ZettelService
 
 logger = logging.getLogger(__name__)
@@ -14,10 +17,9 @@ logger = logging.getLogger(__name__)
 
 class ZettelkastenMcpServer:
     """MCP server for Zettelkasten."""
+
     def __init__(self):
-        self.mcp = FastMCP(
-            config.server_name
-        )
+        self.mcp = FastMCP(config.server_name)
         self.zettel_service = ZettelService()
         self.search_service = SearchService(self.zettel_service)
         self.cluster_service = ClusterService(self.zettel_service)
@@ -40,7 +42,9 @@ class ZettelkastenMcpServer:
             if not report:
                 should_refresh = True
             else:
-                age_hours = (datetime.now() - report.generated_at).total_seconds() / 3600
+                age_hours = (
+                    datetime.now() - report.generated_at
+                ).total_seconds() / 3600
                 should_refresh = age_hours > 24
 
             if should_refresh:
@@ -80,15 +84,18 @@ class ZettelkastenMcpServer:
     def _register_tools(self) -> None:
         """Register MCP tools."""
         from slipbox_mcp.server.tools import register_all_tools
+
         register_all_tools(self)
 
     def _register_resources(self) -> None:
         from slipbox_mcp.server.resources import register_resources
+
         register_resources(self)
 
     def _register_prompts(self) -> None:
         """Register MCP prompts for knowledge workflows."""
         from slipbox_mcp.server.prompts import register_prompts
+
         register_prompts(self)
 
     def run(self) -> None:

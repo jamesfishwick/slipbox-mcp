@@ -3,13 +3,14 @@
 Tests that Claude correctly creates links between notes and avoids duplicates.
 Requires claude CLI to be installed and authenticated.
 """
+
 import pytest
+
 from evals.conftest import run_claude_eval
 
 
 @pytest.mark.eval
 class TestLinking:
-
     def test_creates_bidirectional_link(self, seeded_slipbox, test_config):
         """LLM should create a contradicts link between private language and hard problem."""
         svc, refs = seeded_slipbox

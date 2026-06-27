@@ -1,4 +1,5 @@
 """Shared formatting helpers for MCP tools and CLI output."""
+
 from __future__ import annotations
 
 from slipbox_mcp.models.schema import Note

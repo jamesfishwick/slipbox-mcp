@@ -1,8 +1,8 @@
 # tests/test_utils.py
 """Tests for utility functions in slipbox_mcp.utils."""
+
 import logging
 from unittest.mock import patch
-
 
 from slipbox_mcp.models.schema import Tag
 from slipbox_mcp.utils import (
@@ -39,9 +39,7 @@ class TestParseTags:
         result = parse_tags(tags_str)
 
         # Assert
-        assert result == EXPECTED_TAGS, (
-            f"Expected {EXPECTED_TAGS}, got {result}"
-        )
+        assert result == EXPECTED_TAGS, f"Expected {EXPECTED_TAGS}, got {result}"
 
     def test_empty_string_returns_empty_list(self):
         # Arrange
@@ -72,9 +70,7 @@ class TestParseTags:
         result = parse_tags(tags_str)
 
         # Assert
-        assert result == [SINGLE_TAG], (
-            f"Expected ['{SINGLE_TAG}'], got {result}"
-        )
+        assert result == [SINGLE_TAG], f"Expected ['{SINGLE_TAG}'], got {result}"
 
 
 # ---------------------------------------------------------------------------

@@ -4,13 +4,14 @@ Tests that Claude can execute complex knowledge management workflows
 involving multiple MCP tool calls. Requires claude CLI to be installed
 and authenticated.
 """
+
 import pytest
+
 from evals.conftest import run_claude_eval
 
 
 @pytest.mark.eval
 class TestWorkflow:
-
     def test_knowledge_creation_workflow(self, seeded_slipbox, test_config):
         """LLM should create a note, tag it, and link to existing consciousness notes."""
         svc, refs = seeded_slipbox
@@ -38,8 +39,15 @@ class TestWorkflow:
         new_note = new_notes[0]
 
         # Grade: tagged with consciousness-related tags
-        relevant_tags = {"consciousness", "iit", "tononi", "panpsychism",
-                        "philosophy-of-mind", "intrinsic", "information"}
+        relevant_tags = {
+            "consciousness",
+            "iit",
+            "tononi",
+            "panpsychism",
+            "philosophy-of-mind",
+            "intrinsic",
+            "information",
+        }
         tag_names = {t.name.lower() for t in new_note.tags}
         assert tag_names & relevant_tags, (
             f"Expected consciousness-related tags, got: {tag_names}"

@@ -1,4 +1,5 @@
 """MCP resource registrations."""
+
 from datetime import datetime
 
 
@@ -19,18 +20,17 @@ def register_resources(server) -> None:
         if not report or not report.clusters:
             return {
                 "pending_maintenance": False,
-                "message": "No pending maintenance. Your Zettelkasten is well-organized!"
+                "message": "No pending maintenance. Your Zettelkasten is well-organized!",
             }
 
         active_clusters = [
-            c for c in report.clusters
-            if c.id not in report.dismissed_cluster_ids
+            c for c in report.clusters if c.id not in report.dismissed_cluster_ids
         ]
 
         if not active_clusters:
             return {
                 "pending_maintenance": False,
-                "message": "All detected clusters have been addressed or dismissed."
+                "message": "All detected clusters have been addressed or dismissed.",
             }
 
         top = active_clusters[0]
@@ -43,10 +43,10 @@ def register_resources(server) -> None:
                 "note_count": top.note_count,
                 "orphan_count": top.orphan_count,
                 "tags": top.tags[:5],
-                "score": top.score
+                "score": top.score,
             },
             "report_generated_at": report.generated_at.isoformat(),
             "report_age_hours": round(
                 (datetime.now() - report.generated_at).total_seconds() / 3600, 1
-            )
+            ),
         }

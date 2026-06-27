@@ -3,13 +3,14 @@
 Tests that Claude correctly uses MCP tools to add knowledge to the slipbox.
 Requires claude CLI to be installed and authenticated.
 """
+
 import pytest
+
 from evals.conftest import run_claude_eval
 
 
 @pytest.mark.eval
 class TestNoteCreation:
-
     def test_creates_note_with_relevant_tags(self, seeded_slipbox, test_config):
         """LLM should create a note with appropriate tags when asked to add knowledge."""
         svc, refs = seeded_slipbox
@@ -35,8 +36,16 @@ class TestNoteCreation:
         )
 
         # Grade: does the new note have relevant tags?
-        relevant_tags = {"panpsychism", "consciousness", "spinoza", "faggin",
-                        "quantum", "conatus", "information", "philosophy-of-mind"}
+        relevant_tags = {
+            "panpsychism",
+            "consciousness",
+            "spinoza",
+            "faggin",
+            "quantum",
+            "conatus",
+            "information",
+            "philosophy-of-mind",
+        }
         new_note = new_notes[0]
         tag_names = {t.name.lower() for t in new_note.tags}
         assert tag_names & relevant_tags, (

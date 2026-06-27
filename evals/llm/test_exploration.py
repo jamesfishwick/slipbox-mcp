@@ -3,13 +3,14 @@
 Tests that Claude correctly explores the slipbox without creating new content.
 Requires claude CLI to be installed and authenticated.
 """
+
 import pytest
+
 from evals.conftest import run_claude_eval
 
 
 @pytest.mark.eval
 class TestExploration:
-
     def test_explores_without_creating_notes(self, seeded_slipbox, test_config):
         """LLM should explore connections without creating new notes."""
         svc, refs = seeded_slipbox
@@ -34,9 +35,9 @@ class TestExploration:
 
         # Grade: output mentions existing panpsychism-related notes
         output = result["output"].lower()
-        assert "panpsych" in output or "consciousness" in output or "faggin" in output, (
-            "Exploration output should mention existing panpsychism notes"
-        )
+        assert (
+            "panpsych" in output or "consciousness" in output or "faggin" in output
+        ), "Exploration output should mention existing panpsychism notes"
 
     def test_finds_similar_notes(self, seeded_slipbox, test_config):
         """LLM should find notes related to Faggin's quantum information panpsychism."""
@@ -95,6 +96,4 @@ class TestExploration:
             or "cooking" in output
             or "russellian" in output
         )
-        assert has_analysis, (
-            f"Expected gap analysis in output. Output: {output[:500]}"
-        )
+        assert has_analysis, f"Expected gap analysis in output. Output: {output[:500]}"

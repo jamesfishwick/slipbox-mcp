@@ -1,4 +1,5 @@
 """Tests for LinkType.inverse property."""
+
 from slipbox_mcp.models.schema import LinkType
 
 

@@ -1,4 +1,5 @@
 """Tests for repository query methods."""
+
 from slipbox_mcp.models.schema import LinkType
 
 

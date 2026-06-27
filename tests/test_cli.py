@@ -1,4 +1,5 @@
 """Tests for CLI --base-dir flag and config warnings."""
+
 import os
 import subprocess
 import sys
@@ -16,8 +17,9 @@ def _run_cli(*args, env=None):
     )
 
 
-def _write_note(notes_dir: Path, note_id: str, note_type: str,
-                refs: list[str] | None = None) -> Path:
+def _write_note(
+    notes_dir: Path, note_id: str, note_type: str, refs: list[str] | None = None
+) -> Path:
     """Write a minimal markdown note with the given frontmatter.
 
     Built without textwrap.dedent because dedent's common-prefix logic
@@ -115,8 +117,12 @@ def test_audit_references_clean_slipbox():
         base_path = Path(base)
         notes_dir = base_path / "data" / "notes"
         notes_dir.mkdir(parents=True)
-        _write_note(notes_dir, "20260101T000000000000001", "literature",
-                    refs=["https://example.com/source"])
+        _write_note(
+            notes_dir,
+            "20260101T000000000000001",
+            "literature",
+            refs=["https://example.com/source"],
+        )
         _write_note(notes_dir, "20260101T000000000000002", "permanent")
 
         result = _run_cli("--base-dir", str(base_path), "audit-references")
@@ -151,12 +157,19 @@ def test_audit_references_fix_downgrade():
         notes_dir = base_path / "data" / "notes"
         notes_dir.mkdir(parents=True)
         _write_note(notes_dir, "20260101T000000000000005", "literature")
-        _write_note(notes_dir, "20260101T000000000000006", "literature",
-                    refs=["https://example.com/source"])
+        _write_note(
+            notes_dir,
+            "20260101T000000000000006",
+            "literature",
+            refs=["https://example.com/source"],
+        )
 
         result = _run_cli(
-            "--base-dir", str(base_path),
-            "audit-references", "--fix", "downgrade",
+            "--base-dir",
+            str(base_path),
+            "audit-references",
+            "--fix",
+            "downgrade",
         )
         assert result.returncode == 0, result.stderr
 
@@ -200,8 +213,11 @@ def test_audit_references_fix_preserves_frontmatter_key_order():
         path.write_text(original)
 
         result = _run_cli(
-            "--base-dir", str(base_path),
-            "audit-references", "--fix", "downgrade",
+            "--base-dir",
+            str(base_path),
+            "audit-references",
+            "--fix",
+            "downgrade",
         )
         assert result.returncode == 0, result.stderr
 
@@ -227,7 +243,9 @@ def test_audit_references_surfaces_malformed_yaml_on_stdout():
         _write_note(notes_dir, "20260101T000000000000010", "literature")
         # Malformed frontmatter: unterminated key value, will fail YAML parse
         broken = notes_dir / "20260101T000000000000011.md"
-        broken.write_text("---\nid: 20260101T000000000000011\ntitle: \"unterminated\n---\n\nbody\n")
+        broken.write_text(
+            '---\nid: 20260101T000000000000011\ntitle: "unterminated\n---\n\nbody\n'
+        )
 
         result = _run_cli("--base-dir", str(base_path), "audit-references")
         # Unparseable file present → non-zero exit even without --fix
@@ -251,8 +269,11 @@ def test_audit_references_fix_makes_subsequent_runs_clean():
         _write_note(notes_dir, "20260101T000000000000007", "literature")
 
         fix_result = _run_cli(
-            "--base-dir", str(base_path),
-            "audit-references", "--fix", "downgrade",
+            "--base-dir",
+            str(base_path),
+            "audit-references",
+            "--fix",
+            "downgrade",
         )
         assert fix_result.returncode == 0, fix_result.stderr
 
@@ -261,8 +282,9 @@ def test_audit_references_fix_makes_subsequent_runs_clean():
         assert "All literature notes have references" in rerun.stdout
 
 
-def _write_note_with_link(notes_dir: Path, note_id: str, target_id: str,
-                          link_type: str = "extends") -> Path:
+def _write_note_with_link(
+    notes_dir: Path, note_id: str, target_id: str, link_type: str = "extends"
+) -> Path:
     """Write a permanent note carrying a single ## Links entry to target_id."""
     path = _write_note(notes_dir, note_id, "permanent")
     body = path.read_text()
@@ -293,9 +315,7 @@ def test_prune_links_dry_run_lists_and_exits_nonzero():
         notes_dir = base_path / "data" / "notes"
         notes_dir.mkdir(parents=True)
         missing = "20260101T000000000000199"
-        referrer = _write_note_with_link(
-            notes_dir, "20260101T000000000000103", missing
-        )
+        referrer = _write_note_with_link(notes_dir, "20260101T000000000000103", missing)
         before = referrer.read_text()
 
         result = _run_cli("--base-dir", str(base_path), "prune-links")
@@ -312,9 +332,7 @@ def test_prune_links_fix_removes_and_exits_zero():
         notes_dir = base_path / "data" / "notes"
         notes_dir.mkdir(parents=True)
         missing = "20260101T000000000000199"
-        referrer = _write_note_with_link(
-            notes_dir, "20260101T000000000000104", missing
-        )
+        referrer = _write_note_with_link(notes_dir, "20260101T000000000000104", missing)
 
         result = _run_cli("--base-dir", str(base_path), "prune-links", "--fix")
         assert result.returncode == 0, result.stderr

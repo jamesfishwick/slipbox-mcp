@@ -1,4 +1,5 @@
 """Repository for note storage and retrieval."""
+
 import datetime
 import json
 import logging
@@ -15,8 +16,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from slipbox_mcp.config import config
-from slipbox_mcp.models.db_models import (DBLink, DBNote, DBTag,
-                                            get_session_factory, init_db)
+from slipbox_mcp.models.db_models import (
+    DBLink,
+    DBNote,
+    DBTag,
+    get_session_factory,
+    init_db,
+)
 from slipbox_mcp.models.schema import Link, LinkType, Note, NoteType, Tag
 from slipbox_mcp.storage.base import Repository
 
@@ -61,6 +67,7 @@ def _is_safe_note_id(note_id: Any) -> bool:
 # ---------------------------------------------------------------------------
 # Markdown parsing helpers (module-level, no instance state needed)
 # ---------------------------------------------------------------------------
+
 
 def _parse_frontmatter_tags(raw: Any) -> list[Tag]:
     """Parse tags from frontmatter value (str, list, or None)."""
@@ -134,13 +141,9 @@ def _parse_frontmatter_dates(
 ) -> tuple[datetime.datetime, datetime.datetime]:
     """Parse created/updated datetimes from frontmatter metadata."""
     created_at = (
-        _coerce_frontmatter_datetime(metadata.get("created"))
-        or datetime.datetime.now()
+        _coerce_frontmatter_datetime(metadata.get("created")) or datetime.datetime.now()
     )
-    updated_at = (
-        _coerce_frontmatter_datetime(metadata.get("updated"))
-        or created_at
-    )
+    updated_at = _coerce_frontmatter_datetime(metadata.get("updated")) or created_at
     return created_at, updated_at
 
 
@@ -151,6 +154,7 @@ _NOTE_EAGER_LOADS = [
     joinedload(DBNote.outgoing_links),
     joinedload(DBNote.incoming_links),
 ]
+
 
 class NoteRepository(Repository[Note]):
     """Repository for note storage and retrieval.
@@ -217,7 +221,11 @@ class NoteRepository(Repository[Note]):
                 if _is_safe_note_id(meta.get("id")):
                     count += 1
             except (OSError, UnicodeDecodeError) as e:
-                logger.warning("Could not read %s during indexable count; skipping: %s", file_path, e)
+                logger.warning(
+                    "Could not read %s during indexable count; skipping: %s",
+                    file_path,
+                    e,
+                )
         return count
 
     def rebuild_index(self) -> None:
@@ -233,7 +241,7 @@ class NoteRepository(Repository[Note]):
         # Process files in batches to avoid memory issues with large Zettelkasten systems
         batch_size = 100
         for i in range(0, len(note_files), batch_size):
-            batch = note_files[i:i + batch_size]
+            batch = note_files[i : i + batch_size]
             notes = []
 
             for file_path in batch:
@@ -274,7 +282,8 @@ class NoteRepository(Repository[Note]):
                 "Skipping note %s: id %r is not an accepted stem "
                 "(allowed: [A-Za-z0-9_-], 1-255 chars). If this is a legacy "
                 "note, rename its frontmatter id to re-index it.",
-                metadata.get("title", "<untitled>"), note_id,
+                metadata.get("title", "<untitled>"),
+                note_id,
             )
             return None
 
@@ -315,8 +324,20 @@ class NoteRepository(Repository[Note]):
             references=references,
             created_at=created_at,
             updated_at=updated_at,
-            metadata={k: v for k, v in metadata.items()
-                     if k not in ["id", "title", "type", "tags", "created", "updated", "references"]}
+            metadata={
+                k: v
+                for k, v in metadata.items()
+                if k
+                not in [
+                    "id",
+                    "title",
+                    "type",
+                    "tags",
+                    "created",
+                    "updated",
+                    "references",
+                ]
+            },
         )
         try:
             return Note(**kwargs)
@@ -430,7 +451,7 @@ class NoteRepository(Repository[Note]):
                     note_type=note.note_type.value,
                     references_json=json.dumps(note.references),
                     created_at=note.created_at,
-                    updated_at=note.updated_at
+                    updated_at=note.updated_at,
                 )
                 session.add(db_note)
 
@@ -442,9 +463,9 @@ class NoteRepository(Repository[Note]):
             for link in note.links:
                 existing_link = session.scalar(
                     select(DBLink).where(
-                        (DBLink.source_id == link.source_id) &
-                        (DBLink.target_id == link.target_id) &
-                        (DBLink.link_type == link.link_type.value)
+                        (DBLink.source_id == link.source_id)
+                        & (DBLink.target_id == link.target_id)
+                        & (DBLink.link_type == link.link_type.value)
                     )
                 )
 
@@ -454,7 +475,7 @@ class NoteRepository(Repository[Note]):
                         target_id=link.target_id,
                         link_type=link.link_type.value,
                         description=link.description,
-                        created_at=link.created_at
+                        created_at=link.created_at,
                     )
                     session.add(db_link)
 
@@ -468,7 +489,7 @@ class NoteRepository(Repository[Note]):
             "type": note.note_type.value,
             "tags": [tag.name for tag in note.tags],
             "created": note.created_at.isoformat(),
-            "updated": note.updated_at.isoformat()
+            "updated": note.updated_at.isoformat(),
         }
         if note.references:
             metadata["references"] = note.references
@@ -529,6 +550,7 @@ class NoteRepository(Repository[Note]):
         """Create a new note."""
         if not note.id:
             from slipbox_mcp.models.schema import generate_id
+
             note.id = generate_id()
 
         markdown = self.note_to_markdown(note)
@@ -570,9 +592,7 @@ class NoteRepository(Repository[Note]):
     def get_by_title(self, title: str) -> Optional[Note]:
         """Get a note by title."""
         with self.session_factory() as session:
-            db_note = session.scalar(
-                select(DBNote).where(DBNote.title == title)
-            )
+            db_note = session.scalar(select(DBNote).where(DBNote.title == title))
             if not db_note:
                 return None
             return self.get(db_note.id)
@@ -620,9 +640,13 @@ class NoteRepository(Repository[Note]):
 
                         db_note.tags = []
                         for tag in note.tags:
-                            db_note.tags.append(self._get_or_create_tag(session, tag.name))
+                            db_note.tags.append(
+                                self._get_or_create_tag(session, tag.name)
+                            )
 
-                        session.execute(delete(DBLink).where(DBLink.source_id == note.id))
+                        session.execute(
+                            delete(DBLink).where(DBLink.source_id == note.id)
+                        )
 
                         for link in note.links:
                             db_link = DBLink(
@@ -630,7 +654,7 @@ class NoteRepository(Repository[Note]):
                                 target_id=link.target_id,
                                 link_type=link.link_type.value,
                                 description=link.description,
-                                created_at=link.created_at
+                                created_at=link.created_at,
                             )
                             session.add(db_link)
 
@@ -642,7 +666,9 @@ class NoteRepository(Repository[Note]):
                     with open(file_path, "w", encoding="utf-8") as f:
                         f.write(original_content)
                 except IOError:
-                    logger.error("Failed to roll back file %s after DB error", file_path)
+                    logger.error(
+                        "Failed to roll back file %s after DB error", file_path
+                    )
                 raise
 
         return note
@@ -710,7 +736,8 @@ class NoteRepository(Repository[Note]):
                     logger.error(
                         "Index lists %s as a referrer of %s but its file is "
                         "missing (DB/filesystem desync); skipping sweep",
-                        referrer.id, id,
+                        referrer.id,
+                        id,
                     )
                     continue
                 remaining = [lnk for lnk in fresh.links if lnk.target_id != id]
@@ -722,7 +749,9 @@ class NoteRepository(Repository[Note]):
                 except Exception as e:
                     logger.error(
                         "Failed to sweep dead link to %s from referrer %s: %s",
-                        id, referrer.id, e,
+                        id,
+                        referrer.id,
+                        e,
                     )
                     sweep_failures.append((referrer.id, str(e)))
 
@@ -734,17 +763,19 @@ class NoteRepository(Repository[Note]):
         with self.session_factory() as session:
             query = select(DBNote).options(*_NOTE_EAGER_LOADS)
             if "content" in kwargs:
-                search_term = kwargs['content']
+                search_term = kwargs["content"]
                 # Search in both content and title since content might include the title
                 query = query.where(
                     or_(
                         DBNote.content.like(f"%{search_term}%"),
-                        DBNote.title.like(f"%{search_term}%")
+                        DBNote.title.like(f"%{search_term}%"),
                     )
                 )
             if "title" in kwargs:
-                search_title = kwargs['title']
-                query = query.where(func.lower(DBNote.title).like(f"%{search_title.lower()}%"))
+                search_title = kwargs["title"]
+                query = query.where(
+                    func.lower(DBNote.title).like(f"%{search_title.lower()}%")
+                )
             if "note_type" in kwargs:
                 note_type = (
                     kwargs["note_type"].value
@@ -761,10 +792,14 @@ class NoteRepository(Repository[Note]):
                     query = query.join(DBNote.tags).where(DBTag.name.in_(tag_names))
             if "linked_to" in kwargs:
                 target_id = kwargs["linked_to"]
-                query = query.join(DBNote.outgoing_links).where(DBLink.target_id == target_id)
+                query = query.join(DBNote.outgoing_links).where(
+                    DBLink.target_id == target_id
+                )
             if "linked_from" in kwargs:
                 source_id = kwargs["linked_from"]
-                query = query.join(DBNote.incoming_links).where(DBLink.source_id == source_id)
+                query = query.join(DBNote.incoming_links).where(
+                    DBLink.source_id == source_id
+                )
             if "created_after" in kwargs:
                 query = query.where(DBNote.created_at >= kwargs["created_after"])
             if "created_before" in kwargs:
@@ -783,7 +818,9 @@ class NoteRepository(Repository[Note]):
         tag_name = tag.name if isinstance(tag, Tag) else tag
         return self.search(tag=tag_name)
 
-    def find_linked_notes(self, note_id: str, direction: str = "outgoing") -> List[Note]:
+    def find_linked_notes(
+        self, note_id: str, direction: str = "outgoing"
+    ) -> List[Note]:
         """Find notes linked to/from this note."""
         with self.session_factory() as session:
             if direction == "outgoing":
@@ -806,14 +843,22 @@ class NoteRepository(Repository[Note]):
                     .join(
                         DBLink,
                         or_(
-                            and_(DBNote.id == DBLink.target_id, DBLink.source_id == note_id),
-                            and_(DBNote.id == DBLink.source_id, DBLink.target_id == note_id)
-                        )
+                            and_(
+                                DBNote.id == DBLink.target_id,
+                                DBLink.source_id == note_id,
+                            ),
+                            and_(
+                                DBNote.id == DBLink.source_id,
+                                DBLink.target_id == note_id,
+                            ),
+                        ),
                     )
                     .options(*_NOTE_EAGER_LOADS)
                 )
             else:
-                raise ValueError(f"Invalid direction: {direction}. Use 'outgoing', 'incoming', or 'both'")
+                raise ValueError(
+                    f"Invalid direction: {direction}. Use 'outgoing', 'incoming', or 'both'"
+                )
 
             result = session.execute(query)
             # unique() required to collapse duplicate rows from eager loading joins
@@ -832,14 +877,16 @@ class NoteRepository(Repository[Note]):
         with self.session_factory() as session:
             notes_with_links = (
                 select(DBNote.id)
-                .outerjoin(DBLink, or_(
-                    DBNote.id == DBLink.source_id,
-                    DBNote.id == DBLink.target_id
-                ))
-                .where(or_(
-                    DBLink.source_id.is_not(None),
-                    DBLink.target_id.is_not(None),
-                ))
+                .outerjoin(
+                    DBLink,
+                    or_(DBNote.id == DBLink.source_id, DBNote.id == DBLink.target_id),
+                )
+                .where(
+                    or_(
+                        DBLink.source_id.is_not(None),
+                        DBLink.target_id.is_not(None),
+                    )
+                )
                 .subquery()
             )
 
@@ -924,9 +971,7 @@ class NoteRepository(Repository[Note]):
         for note in self.get_all():
             for link in note.links:
                 if link.target_id not in existing:
-                    dangling.append(
-                        (note.id, link.target_id, link.link_type.value)
-                    )
+                    dangling.append((note.id, link.target_id, link.link_type.value))
         return dangling
 
     def prune_dangling_links(self) -> tuple[List[tuple], List[tuple]]:

@@ -1,4 +1,5 @@
 """Service layer for Zettelkasten operations."""
+
 import datetime
 import logging
 from typing import Any, Dict, List, Optional, Tuple
@@ -7,6 +8,7 @@ from slipbox_mcp.models.schema import LinkType, Note, NoteType, Tag
 from slipbox_mcp.storage.note_repository import NoteRepository
 
 logger = logging.getLogger(__name__)
+
 
 class ZettelService:
     """Service for managing Zettelkasten notes."""
@@ -21,7 +23,7 @@ class ZettelService:
         note_type: NoteType = NoteType.PERMANENT,
         tags: Optional[List[str]] = None,
         references: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Note:
         """Create a new note."""
         if not title:
@@ -35,7 +37,7 @@ class ZettelService:
             note_type=note_type,
             tags=[Tag(name=tag) for tag in (tags or [])],
             references=references or [],
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         return self.repository.create(note)
@@ -56,7 +58,7 @@ class ZettelService:
         note_type: Optional[NoteType] = None,
         tags: Optional[List[str]] = None,
         references: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Note:
         """Update an existing note.
 
@@ -138,7 +140,7 @@ class ZettelService:
         link_type: LinkType = LinkType.REFERENCE,
         description: Optional[str] = None,
         bidirectional: bool = False,
-        bidirectional_type: Optional[LinkType] = None
+        bidirectional_type: Optional[LinkType] = None,
     ) -> Tuple[Note, Optional[Note]]:
         """Create a link between notes with proper bidirectional semantics.
 
@@ -187,7 +189,7 @@ class ZettelService:
         source_id: str,
         target_id: str,
         link_type: Optional[LinkType] = None,
-        bidirectional: bool = False
+        bidirectional: bool = False,
     ) -> Tuple[Note, Optional[Note]]:
         """Remove a link between notes."""
         source_note = self.repository.get(source_id)
@@ -206,9 +208,7 @@ class ZettelService:
 
         return source_note, reverse_note
 
-    def get_linked_notes(
-        self, note_id: str, direction: str = "outgoing"
-    ) -> List[Note]:
+    def get_linked_notes(self, note_id: str, direction: str = "outgoing") -> List[Note]:
         """Get notes linked to/from a note."""
         note = self.repository.get(note_id)
         if not note:
@@ -229,11 +229,15 @@ class ZettelService:
             try:
                 return self.repository.note_to_markdown(note)
             except Exception as e:
-                raise ValueError(f"Failed to serialize note {note_id} to markdown: {e}") from e
+                raise ValueError(
+                    f"Failed to serialize note {note_id} to markdown: {e}"
+                ) from e
         else:
             raise ValueError(f"Unsupported export format: {format}")
 
-    def find_similar_notes(self, note_id: str, threshold: float = 0.5) -> List[Tuple[Note, float]]:
+    def find_similar_notes(
+        self, note_id: str, threshold: float = 0.5
+    ) -> List[Tuple[Note, float]]:
         """Find notes similar to the given note based on shared tags and links."""
         note = self.repository.get(note_id)
         if not note:
@@ -263,20 +267,20 @@ class ZettelService:
 
             # Weight: 40% tags, 20% outgoing links, 20% incoming links, 20% direct connections
             total_possible = (
-                max(len(note_tags), len(other_tags)) * 0.4 +
-                max(len(note_links), len(other_links)) * 0.2 +
-                1 * 0.2 +
-                1 * 0.2
+                max(len(note_tags), len(other_tags)) * 0.4
+                + max(len(note_links), len(other_links)) * 0.2
+                + 1 * 0.2
+                + 1 * 0.2
             )
 
             if total_possible == 0:
                 similarity = 0.0
             else:
                 similarity = (
-                    (tag_overlap * 0.4) +
-                    (link_overlap * 0.2) +
-                    (incoming_overlap * 0.2) +
-                    (outgoing_overlap * 0.2)
+                    (tag_overlap * 0.4)
+                    + (link_overlap * 0.2)
+                    + (incoming_overlap * 0.2)
+                    + (outgoing_overlap * 0.2)
                 ) / total_possible
 
             if similarity >= threshold:

@@ -7,6 +7,7 @@ Safe: if no output block follows a bash block, it's left alone.
 Usage:
     python scripts/lib/update-demo-blocks.py [--dry-run]
 """
+
 import argparse
 import os
 import re
@@ -55,9 +56,10 @@ def update_demo(dry_run: bool = False) -> int:
         new_output = execute_block(cmd, cwd=REPO_ROOT, env=env)
 
         # Normalize: strip trailing whitespace per line, ensure ends with \n
-        new_output = "\n".join(
-            line.rstrip() for line in new_output.rstrip("\n").split("\n")
-        ) + "\n"
+        new_output = (
+            "\n".join(line.rstrip() for line in new_output.rstrip("\n").split("\n"))
+            + "\n"
+        )
 
         if new_output != old_output:
             changed += 1
