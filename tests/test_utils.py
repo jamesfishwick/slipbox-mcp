@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from slipbox_mcp.models.schema import LinkType, NoteType, Tag
 from slipbox_mcp.utils import (
+    atomic_write_text,
     content_preview,
     format_tags,
     parse_enum,
@@ -232,3 +233,24 @@ class TestParseEnum:
     def test_label_appears_in_error(self):
         _, err = parse_enum("nope", LinkType, "link type")
         assert err.startswith("Invalid link type: nope.")
+
+
+# atomic_write_text
+class TestAtomicWriteText:
+    """Tests for the atomic file-write helper."""
+
+    def test_writes_content(self, tmp_path):
+        target = tmp_path / "note.md"
+        atomic_write_text(target, "hello")
+        assert target.read_text(encoding="utf-8") == "hello"
+
+    def test_overwrites_existing(self, tmp_path):
+        target = tmp_path / "note.md"
+        target.write_text("old", encoding="utf-8")
+        atomic_write_text(target, "new")
+        assert target.read_text(encoding="utf-8") == "new"
+
+    def test_leaves_no_temp_file(self, tmp_path):
+        target = tmp_path / "note.md"
+        atomic_write_text(target, "data")
+        assert [p.name for p in tmp_path.iterdir()] == ["note.md"]

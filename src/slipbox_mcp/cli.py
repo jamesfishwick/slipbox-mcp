@@ -13,7 +13,6 @@ import os
 import re
 import signal
 import sys
-import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -31,6 +30,7 @@ from slipbox_mcp.services.cluster_service import ClusterService  # noqa: E402
 from slipbox_mcp.services.search_service import SearchService  # noqa: E402
 from slipbox_mcp.services.zettel_service import ZettelService  # noqa: E402
 from slipbox_mcp.storage.note_repository import NoteRepository  # noqa: E402
+from slipbox_mcp.utils import atomic_write_text  # noqa: E402
 
 
 def cmd_status(args):
@@ -231,26 +231,6 @@ def _rewrite_type_to_permanent(content: str) -> str:
     return "---\n" + new_block + content[end_marker:]
 
 
-def _atomic_write_text(path: Path, text: str) -> None:
-    """Write text to path via temp file + os.replace for atomicity.
-
-    Avoids leaving the target half-written on a crash mid-write.
-    """
-    tmp_dir = path.parent
-    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=tmp_dir)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
-        os.replace(tmp_name, path)
-    except Exception:
-        # Cleanup the temp file on any failure before replace succeeds.
-        try:
-            os.unlink(tmp_name)
-        except OSError:
-            pass
-        raise
-
-
 def cmd_audit_references(args):
     """Audit literature notes for missing references.
 
@@ -309,7 +289,7 @@ def cmd_audit_references(args):
             try:
                 content = path.read_text(encoding="utf-8")
                 rewritten = _rewrite_type_to_permanent(content)
-                _atomic_write_text(path, rewritten)
+                atomic_write_text(path, rewritten)
                 succeeded.append(path)
                 print(f"  downgraded {path.name}")
             except (OSError, ValueError) as e:

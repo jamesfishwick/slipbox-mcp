@@ -1,11 +1,37 @@
 """Utility functions for the Zettelkasten MCP server."""
 
 import logging
+import os
 import sys
+import tempfile
 from enum import Enum
+from pathlib import Path
 from typing import Optional, TypeVar
 
 E = TypeVar("E", bound=Enum)
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Write *text* to *path* atomically via a temp file + os.replace.
+
+    The replace is atomic on POSIX, so a crash mid-write leaves either the old
+    file or the complete new one -- never a half-written file. The temp file is
+    created in the target directory (same filesystem) so the rename can't fail
+    with EXDEV, and is cleaned up if anything before the replace raises.
+    """
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
 
 
 def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
