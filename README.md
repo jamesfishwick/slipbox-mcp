@@ -616,7 +616,7 @@ ruff check src/ evals/
 |----------|---------|--------|------|
 | `CI` | Every PR + push to main | GitHub-hosted | Unit + contract tests, ruff |
 | `LLM Evals` | PRs changing prompt files | Self-hosted | 28 LLM evals via claude CLI |
-| `Release` | Push of a `v*.*.*` tag | GitHub-hosted | Build, verify, publish to PyPI |
+| `Release` | Push to `main` | GitHub-hosted | release-please PR; on its merge, build + publish to PyPI |
 
 The LLM eval workflow triggers only when these files change:
 
@@ -652,31 +652,26 @@ tar xzf actions-runner.tar.gz
 nohup ./run.sh &
 ```
 
-### Publishing to PyPI
+### Releasing to PyPI
 
-Releases go out via the `Release` workflow (`.github/workflows/release.yml`) using PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) — OIDC, so no API token is stored in repo secrets.
+Releases are automated. The `Release` workflow (`.github/workflows/release.yml`) runs [release-please](https://github.com/googleapis/release-please) on every push to `main` and publishes via PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) — OIDC, so no API token is stored in repo secrets.
 
-**One-time setup** (before the first release):
+**The flow — you never hand-edit a version or push a tag:**
 
-1. On PyPI, register a [pending trusted publisher](https://pypi.org/manage/account/publishing/) for the project name `slipbox-mcp`:
-   - **Owner:** `jamesfishwick` · **Repository:** `slipbox-mcp`
-   - **Workflow:** `release.yml` · **Environment:** `release`
-2. In the GitHub repo, create an environment named `release` (Settings → Environments). Optionally restrict it to tags matching `v*`.
+1. Land changes on `main` with [Conventional Commit](https://www.conventionalcommits.org/) messages (`feat:` → minor bump, `fix:` → patch, `feat!:`/`BREAKING CHANGE:` → major). The repo's commit hooks already enforce this shape.
+2. release-please keeps a standing **"release PR"** open, accumulating the next version bump (in `src/slipbox_mcp/__init__.py`) and the `CHANGELOG.md` entries derived from those commits.
+3. When you're ready to ship, **merge the release PR.** That tags the release (`v<version>`) and, in the same workflow run, builds the sdist + wheel, runs `twine check`, and publishes to PyPI.
 
-**Cut a release:**
+So cutting a release is one click: merge the bot's PR. Nothing else.
 
-```bash
-# 1. Bump __version__ in src/slipbox_mcp/__init__.py (the single source of truth --
-#    pyproject.toml reads it dynamically via [tool.setuptools.dynamic]).
-# 2. Commit the bump via PR and merge to main, then tag the merge commit:
+**One-time setup** (already done for this repo, documented for forks):
 
-git tag v1.2.2
-git push origin v1.2.2
-```
+1. On PyPI, register a [pending trusted publisher](https://pypi.org/manage/account/publishing/) for project `slipbox-mcp` — **Owner:** `jamesfishwick` · **Repository:** `slipbox-mcp` · **Workflow:** `release.yml` · **Environment:** `release`. All four must match exactly.
+2. In GitHub, create an environment named `release` (Settings → Environments). If you restrict its deployment refs, add a **tag** rule `v*` (a *branch* rule of the same name will not match the tag).
 
-The workflow verifies the tag matches the package version, builds the sdist + wheel, runs `twine check`, and publishes to PyPI. To rehearse without publishing for real, build and upload to [TestPyPI](https://test.pypi.org) by hand first — `python -m build && twine upload --repository testpypi dist/*` (needs a TestPyPI token); the tagged workflow itself only targets production PyPI.
+> The version is defined once, in `src/slipbox_mcp/__init__.py` (release-please bumps it; the `# x-release-please-version` marker tells it which line). `pyproject.toml` (`dynamic = ["version"]`) and the server's `server_version` both read from it, so there is nothing to keep in sync — and the tag release-please cuts always matches the package version by construction.
 
-> The version is defined once, in `src/slipbox_mcp/__init__.py`. `pyproject.toml` (`dynamic = ["version"]`) and the MCP server's reported `server_version` both read from it, so there is nothing to keep in sync.
+To rehearse a build without publishing, run it by hand: `python -m build && twine check dist/*` (and `twine upload --repository testpypi dist/*` with a TestPyPI token to dry-run the upload).
 
 ### Shared prompt constants
 
