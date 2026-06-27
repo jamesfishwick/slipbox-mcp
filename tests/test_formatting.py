@@ -5,8 +5,6 @@ from slipbox_mcp.formatting import (
     content_preview,
     format_cluster_summary,
     format_note_compact,
-    format_note_detail,
-    format_note_summary,
     format_tag_list,
 )
 from slipbox_mcp.models.schema import Note, NoteType, Tag
@@ -65,36 +63,6 @@ class TestFormatTagList:
         assert format_tag_list([]) == ""
 
 
-class TestFormatNoteSummary:
-    def test_basic(self):
-        note = make_note()
-        result = format_note_summary(note, index=1)
-        assert "1. Test Note (ID: 20250101T120000000000000)" in result
-        assert "Tags: test, example" in result
-        assert "Preview: Test content here" in result
-
-    def test_with_extra_lines(self):
-        note = make_note()
-        result = format_note_summary(note, index=2, extra_lines=["Similarity: 0.85"])
-        assert "2. Test Note" in result
-        assert "Similarity: 0.85" in result
-
-    def test_no_index(self):
-        note = make_note()
-        result = format_note_summary(note, index=0)
-        assert result.startswith("Test Note (ID:")
-
-    def test_no_tags(self):
-        note = make_note(tags=[])
-        result = format_note_summary(note, index=1)
-        assert "Tags:" not in result
-
-    def test_preview_length(self):
-        note = make_note(content="x" * 200)
-        result = format_note_summary(note, index=1, preview_len=100)
-        assert "x" * 100 + "..." in result
-
-
 class TestFormatNoteCompact:
     def test_basic(self):
         note = make_note()
@@ -117,27 +85,6 @@ class TestFormatNoteCompact:
         result = format_note_compact(note)
         assert "t0, t1, t2" in result
         assert "t3" not in result
-
-
-class TestFormatNoteDetail:
-    def test_includes_full_metadata(self):
-        note = make_note(references=["Ahrens 2017", "https://example.com"])
-        result = format_note_detail(note)
-        assert "# Test Note" in result
-        assert "ID: 20250101T120000000000000" in result
-        assert "Type: permanent" in result
-        assert "Created:" in result
-        assert "Updated:" in result
-        assert "Tags: test, example" in result
-        assert "Ahrens 2017" in result
-        assert "https://example.com" in result
-        assert "Test content here" in result
-
-    def test_no_tags_or_refs(self):
-        note = make_note(tags=[], references=[])
-        result = format_note_detail(note)
-        assert "Tags:" not in result
-        assert "References:" not in result
 
 
 class TestFormatClusterSummary:

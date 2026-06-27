@@ -3,7 +3,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import textwrap
 from pathlib import Path
 
 
@@ -51,7 +50,6 @@ def test_help_shows_base_dir():
 
 def test_warns_on_default_base_dir():
     """Running with no --base-dir and no SLIPBOX_BASE_DIR should warn on stderr."""
-    import os
 
     env = os.environ.copy()
     env.pop("SLIPBOX_BASE_DIR", None)
@@ -80,7 +78,6 @@ def test_status_shows_orphan_count():
 
 def test_status_handles_error_gracefully():
     """Service errors should produce clean 'Error:' messages, not tracebacks."""
-    import os
 
     env = os.environ.copy()
     env["SLIPBOX_BASE_DIR"] = "/nonexistent/readonly/path"
@@ -92,7 +89,6 @@ def test_status_handles_error_gracefully():
 
 def test_search_handles_error_gracefully():
     """Search against a broken path should produce clean error output."""
-    import os
 
     env = os.environ.copy()
     env["SLIPBOX_BASE_DIR"] = "/nonexistent/readonly/path"
@@ -104,7 +100,6 @@ def test_search_handles_error_gracefully():
 
 def test_rebuild_handles_error_gracefully():
     """Rebuild against a broken path should produce clean error output."""
-    import os
 
     env = os.environ.copy()
     env["SLIPBOX_BASE_DIR"] = "/nonexistent/readonly/path"

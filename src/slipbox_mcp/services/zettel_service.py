@@ -99,10 +99,6 @@ class ZettelService:
         """Get all notes."""
         return self.repository.get_all()
 
-    def search_notes(self, **kwargs: Any) -> List[Note]:
-        """Search for notes based on criteria."""
-        return self.repository.search(**kwargs)
-
     def get_notes_by_tag(self, tag: str) -> List[Note]:
         """Get notes by tag."""
         return self.repository.find_by_tag(tag)
