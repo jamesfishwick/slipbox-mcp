@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.4.0...v1.5.0) (2026-06-28)
+
+
+### Miscellaneous Chores
+
+* release 1.5.0 ([#51](https://github.com/jamesfishwick/slipbox-mcp/issues/51)) ([05798c5](https://github.com/jamesfishwick/slipbox-mcp/commit/05798c58eee7be0aaddc0cf029e98cf4f506f21b))
+
 ## [1.4.0](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.3.0...v1.4.0) (2026-06-27)
 
 
