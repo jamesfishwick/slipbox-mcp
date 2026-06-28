@@ -270,11 +270,12 @@ tail -f ~/.local/share/mcp/slipbox/watcher.log
 
 ## Recommended System Prompt
 
-Add the system prompt from `docs/SYSTEM_PROMPT.md` to your agent's preferences or system prompt. This enables:
+Slipbox ships a baseline automatically: every client receives the [server instructions](src/slipbox_mcp/server/descriptions.py) on connect, covering how to use the tools well -- note types, link semantics, quality standards, and core workflows like search-before-create. You don't add those yourself.
+
+`docs/SYSTEM_PROMPT.md` is the **opt-in** layer on top: the autonomy and initiative directives a server shouldn't assert on its own. Add it to your agent's preferences or system prompt to enable:
 
 - Automatic knowledge capture during conversations
 - Cluster emergence detection at conversation start
-- Proper Zettelkasten workflows (search before create, link immediately)
 
 ---
 
