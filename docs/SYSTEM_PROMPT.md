@@ -8,7 +8,7 @@ You do **not** need to paste the operating reference (note types, link
 semantics, quality standards, workflow patterns). The server ships that to every
 client automatically via its MCP `instructions`, so it can't drift against a
 stale copy. What remains here is only the autonomy/initiative layer, which a
-server shouldn't assert on its own — it's your call whether the assistant acts
+server shouldn't assert on its own. It's your call whether the assistant acts
 unprompted.
 
 ---
