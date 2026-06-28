@@ -6,7 +6,7 @@ Give your AI assistant an active role in managing your knowledge. Slipbox is an 
 
 Your ideas in, structured knowledge out. The agent handles the formatting, linking, and integration.
 
-New to the method? Start with [*Introduction to the Zettelkasten Method*](https://zettelkasten.de/introduction/) for the why behind atomic notes and linked thinking.
+New to the method? Start with [*Introduction to the Zettelkasten Method*](https://zettelkasten.de/introduction/) for the why behind atomic notes and linked thinking. To see how Slipbox primes your agent with that method, read the [server instructions](src/slipbox_mcp/server/descriptions.py) it ships automatically on connect.
 
 Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude Code, OpenCode, Copilot, or anything that speaks MCP).
 
