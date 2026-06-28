@@ -52,7 +52,10 @@ class MockServerBase:
                 return_value=self.mock_cluster_service,
             ),
         ]
-        for p in self._patchers:
+        # _patchers[0] patches FastMCP; keep its mock so tests can assert how
+        # the server constructed it (e.g. that instructions= was passed).
+        self.mock_fastmcp = self._patchers[0].start()
+        for p in self._patchers[1:]:
             p.start()
 
         self.server = ZettelkastenMcpServer()
@@ -79,6 +82,20 @@ class TestServerInitialization(MockServerBase):
 
     def test_server_is_initialized(self):
         assert self.server is not None, "Server should be constructed"
+
+    def test_server_constructed_with_instructions(self):
+        """FastMCP must receive SERVER_INSTRUCTIONS so the operating guidance
+        ships with the server and can't drift against a stale pasted copy.
+
+        Identity check, not content: this guards the wiring contract without
+        churning when the instructions prose is edited.
+        """
+        from slipbox_mcp.server.descriptions import SERVER_INSTRUCTIONS
+
+        assert (
+            self.mock_fastmcp.call_args.kwargs.get("instructions")
+            is SERVER_INSTRUCTIONS
+        ), "FastMCP must be constructed with instructions=SERVER_INSTRUCTIONS"
 
 
 # ---------------------------------------------------------------------------
