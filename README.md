@@ -6,7 +6,7 @@ Give your AI assistant an active role in managing your knowledge. Slipbox is an 
 
 Your ideas in, structured knowledge out. The agent handles the formatting, linking, and integration.
 
-New to the method? Start with [*Introduction to the Zettelkasten Method*](https://zettelkasten.de/introduction/) for the why behind atomic notes and linked thinking.
+New to the method? Start with [*Introduction to the Zettelkasten Method*](https://zettelkasten.de/introduction/) for the why behind atomic notes and linked thinking. To see how Slipbox primes your agent with that method, read the [server instructions](src/slipbox_mcp/server/descriptions.py) it ships automatically on connect.
 
 Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude Code, OpenCode, Copilot, or anything that speaks MCP).
 
@@ -270,11 +270,12 @@ tail -f ~/.local/share/mcp/slipbox/watcher.log
 
 ## Recommended System Prompt
 
-Add the system prompt from `docs/SYSTEM_PROMPT.md` to your agent's preferences or system prompt. This enables:
+Slipbox ships a baseline automatically: every client receives the [server instructions](src/slipbox_mcp/server/descriptions.py) on connect, covering how to use the tools well -- note types, link semantics, quality standards, and core workflows like search-before-create. You don't add those yourself.
+
+`docs/SYSTEM_PROMPT.md` is the **opt-in** layer on top: the autonomy and initiative directives a server shouldn't assert on its own. Add it to your agent's preferences or system prompt to enable:
 
 - Automatic knowledge capture during conversations
 - Cluster emergence detection at conversation start
-- Proper Zettelkasten workflows (search before create, link immediately)
 
 ---
 

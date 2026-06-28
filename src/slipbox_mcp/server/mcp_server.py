@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import ValidationError
 
 from slipbox_mcp.config import config
+from slipbox_mcp.server.descriptions import SERVER_INSTRUCTIONS
 from slipbox_mcp.services.cluster_service import ClusterService
 from slipbox_mcp.services.search_service import SearchService
 from slipbox_mcp.services.zettel_service import ZettelService
@@ -19,7 +20,7 @@ class ZettelkastenMcpServer:
     """MCP server for Zettelkasten."""
 
     def __init__(self):
-        self.mcp = FastMCP(config.server_name)
+        self.mcp = FastMCP(config.server_name, instructions=SERVER_INSTRUCTIONS)
         self.zettel_service = ZettelService()
         self.search_service = SearchService(self.zettel_service)
         self.cluster_service = ClusterService(self.zettel_service)

@@ -11,7 +11,80 @@ Re-run that build after editing a template so the skills don't drift.
 Note/link/search tool descriptions live as docstrings on the function
 bodies in server/tools/{note_tools,link_tools,search_tools}.py — those
 docstrings ARE the description the LLM sees, so this file deliberately
-does not duplicate them.
+does not duplicate them. The one exception is SERVER_INSTRUCTIONS below,
+which intentionally paraphrases note/link semantics into a single
+condensed operating guide shipped to every client on connect (clients
+may never fetch per-tool docstrings). When the two disagree, the tool
+docstrings are authoritative.
+"""
+
+# ---------------------------------------------------------------------------
+# Server instructions (passed to FastMCP(instructions=...))
+# ---------------------------------------------------------------------------
+#
+# Shipped to every connecting client during MCP initialize, so the operating
+# guidance travels with the server and can never drift against a user's pasted
+# copy. This deliberately covers only *how to use the tools well* (note types,
+# link semantics, quality standards, workflows). Autonomy/initiative directives
+# — auto-capturing without asking, proactively raising maintenance at session
+# start — are NOT here: a server should not assert those on every client. They
+# remain an opt-in the user adds to their own system prompt (docs/SYSTEM_PROMPT.md).
+
+SERVER_INSTRUCTIONS = """\
+This server manages a Zettelkasten knowledge system. Prioritize knowledge
+emergence — meaningful connections that reveal insight — over plain storage.
+Before creating a note, search first (slipbox_search_notes) to avoid duplicates
+and find connection points.
+
+Note types:
+- fleeting: quick, unprocessed capture — temporary, to be refined or discarded
+- literature: an idea from a specific source, in the user's words, with citation
+- permanent: a fully formulated, standalone insight — the core unit
+- structure: organizes and synthesizes a cluster of related permanent notes
+- hub: entry point into a broad area; links to structure and key permanent notes
+
+Default to `permanent`. Use `fleeting` when an idea needs more thought. Create
+`structure` and `hub` notes intentionally, not automatically.
+
+Note quality:
+- Atomicity: one idea per note. If you write "also" or "another point", that's a
+  second note.
+- Verbatim by default: when the user hands you explicit text to save, store it
+  exactly as written. Author or refine only when explicitly asked, and show a
+  draft in chat before writing substantial refinements.
+- Voice: when you compose a note, write in the user's voice as a standalone
+  insight, not a summary.
+- Length: a permanent note typically runs 3-7 paragraphs. Match the length of
+  what the user gave you; don't pad.
+- Titles: the idea in brief; should make sense without reading the note.
+- Tags: 2-5 specific tags. Prefer existing tags when they fit.
+
+Link types (choose the most specific; use bidirectional=true for important ones):
+- reference: generic "see also" connection
+- extends: this note builds on that one
+- refines: this note clarifies or improves that one
+- contradicts: this note presents an opposing view
+- questions: this note raises questions about that one
+- supports: this note provides evidence for that one
+- related: loose thematic connection
+
+Structure notes: create one when 7-15 notes cluster around a concept without one.
+It should organize members into sections, synthesize what they reveal together,
+name tensions and open questions, and link bidirectionally to each member. Use
+slipbox_get_cluster_report to find clusters needing structure notes.
+
+Workflow patterns:
+- New information: search for existing coverage, create if novel, link immediately.
+- Exploring a topic: search, find central notes, follow links, then
+  slipbox_find_similar_notes to surface unexpected connections.
+- Batch processing: extract 5-10 atomic ideas first, search each, create the
+  novel ones, then link the batch to each other and to existing knowledge.
+- Maintenance: integrate orphans, find emergent clusters, formalize them into
+  structure notes.
+
+Workflow prompts (knowledge_creation, knowledge_creation_batch,
+knowledge_exploration, knowledge_synthesis, analyze_note, cluster_maintenance)
+package these steps — invoke them rather than reciting the steps yourself.\
 """
 
 # ---------------------------------------------------------------------------
