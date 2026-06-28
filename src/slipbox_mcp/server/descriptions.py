@@ -11,7 +11,11 @@ Re-run that build after editing a template so the skills don't drift.
 Note/link/search tool descriptions live as docstrings on the function
 bodies in server/tools/{note_tools,link_tools,search_tools}.py — those
 docstrings ARE the description the LLM sees, so this file deliberately
-does not duplicate them.
+does not duplicate them. The one exception is SERVER_INSTRUCTIONS below,
+which intentionally paraphrases note/link semantics into a single
+condensed operating guide shipped to every client on connect (clients
+may never fetch per-tool docstrings). When the two disagree, the tool
+docstrings are authoritative.
 """
 
 # ---------------------------------------------------------------------------
