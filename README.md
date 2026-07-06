@@ -720,6 +720,25 @@ Install: `pipx install --editable .` (adds `slipbox` to your PATH)
 
 ---
 
+## Experimental: Slipbox as agent memory
+
+An untested hypothesis, not a recommended setup. Everything above helps an agent manage _your_ knowledge. This inverts it: the agent uses a slipbox as its own persistent memory across sessions, in place of native memory or a rules file.
+
+The model has no memory between sessions, so the slipbox is the only channel one session leaves for the next. It writes briefings for a cold successor (a failure and why, a recurring constraint, a correction, a hard-won fact), tags them `agent-memory`, and searches that tag before acting. The bet is that a _connected_ memory beats a flat rules file, because you retrieve it by traversal.
+
+Three things to know first: namespace isolation is a tag convention, not enforced, so run it against a separate slipbox instance; "memory" is a misnomer, since nothing persists but the notes themselves; and the growth discipline is the unproven part, so expect sprawl on the first run. Full write-up and caveats: [Slipbox as Agent Self-Memory](docs/SYSTEM_PROMPT.md#experimental-slipbox-as-agent-self-memory).
+
+## Documentation
+
+| Doc                                                            | What's in it                                                                                 |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [Quick Reference](docs/QUICK_REFERENCE.md)                     | Note ID format, the five note types, and a one-page cheat sheet for the method.              |
+| [Manual Zettelkasten Guide](docs/MANUAL_ZETTELKASTEN_GUIDE.md) | Running the same workflow by hand in Obsidian, no agent involved.                            |
+| [Link Format](docs/LINK_FORMAT.md)                             | How Slipbox's links map to `[[wikilinks]]` and other editors' formats.                       |
+| [Ecosystem Compatibility](docs/ECOSYSTEM_COMPATIBILITY.md)     | Which other tools can read and write the same vault.                                         |
+| [System Prompt](docs/SYSTEM_PROMPT.md)                         | The opt-in autonomy layer: auto-capture, cluster detection, and the agent-memory experiment. |
+| [Demo](demo.md)                                                | A worked session showing the tools in use.                                                   |
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, coding standards, and how to submit changes.
