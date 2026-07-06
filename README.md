@@ -24,7 +24,7 @@ Python 3.10+ | macOS or Linux
 
 ## Walkthrough
 
-[![Watch the Slipbox walkthrough](https://cdn.loom.com/sessions/thumbnails/0eedecce86bc4eaeb57278ee4b79a259-with-play.gif)](https://www.loom.com/share/0eedecce86bc4eaeb57278ee4b79a259)
+[![Watch the Slipbox walkthrough](https://cdn.loom.com/sessions/thumbnails/0eedecce86bc4eaeb57278ee4b79a259-25a1ee822d272879-full-play.gif)](https://www.loom.com/share/0eedecce86bc4eaeb57278ee4b79a259)
 
 ## Quick Start
 
