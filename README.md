@@ -20,7 +20,7 @@ Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude 
 
 Python 3.10+ | macOS or Linux
 
-![Direct idea capture — your raw thinking in, a formatted atomic note with tags and links out](assets/recordings/04-idea-capture.gif)
+![Direct idea capture: your raw thinking in, a formatted atomic note with tags and links out](assets/recordings/04-idea-capture.gif)
 
 ## Walkthrough
 
@@ -36,7 +36,7 @@ pipx install slipbox-mcp
 uv tool install slipbox-mcp
 ```
 
-This puts a `slipbox-mcp` launcher on your PATH (in `~/.local/bin`). That single command is the whole MCP server — no clone, no `PYTHONPATH`, no hardcoded venv Python path. Everything below uses it. To try it without installing at all, `uvx slipbox-mcp` runs the server in a throwaway environment.
+This puts a `slipbox-mcp` launcher on your PATH (in `~/.local/bin`). That single command is the whole MCP server: no clone, no `PYTHONPATH`, no hardcoded venv Python path. Everything below uses it. To try it without installing at all, `uvx slipbox-mcp` runs the server in a throwaway environment.
 
 (Working on Slipbox itself? See [Development](#development) for the clone + editable-install setup.)
 
@@ -45,7 +45,7 @@ This puts a `slipbox-mcp` launcher on your PATH (in `~/.local/bin`). That single
 One variable, `SLIPBOX_BASE_DIR`, configures everything: notes land in `<base>/data/notes` and the SQLite index in `<base>/data/db/zettelkasten.db`. The server creates these on first run.
 
 ```bash
-# Example — use any absolute path you like
+# Example: use any absolute path you like
 /Users/yourname/.local/share/mcp/slipbox
 ```
 
@@ -53,7 +53,7 @@ One variable, `SLIPBOX_BASE_DIR`, configures everything: notes land in `<base>/d
 
 ### 3. Connect to Your MCP Client
 
-**Claude Code** — one command, no file editing:
+**Claude Code** (one command, no file editing):
 
 ```bash
 claude mcp add slipbox \
@@ -61,10 +61,10 @@ claude mcp add slipbox \
   -- slipbox-mcp
 ```
 
-**Claude Desktop** — edit the config file:
+**Claude Desktop** (edit the config file):
 
-- **macOS** — `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Linux** — `~/.config/claude/claude_desktop_config.json`
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/claude/claude_desktop_config.json`
 
 ```json
 {
@@ -115,7 +115,7 @@ Ask your agent:
 The hero above is the core loop. Here's the rest of what the agent does.
 
 <details>
-<summary><b>See Slipbox in action</b> — eleven more demos, plus the Obsidian semantic-graph integration</summary>
+<summary><b>See Slipbox in action</b>: eleven more demos, plus the Obsidian semantic-graph integration</summary>
 
 ### Proactive Maintenance
 
@@ -189,11 +189,11 @@ Notes are plain markdown. Open the vault in Obsidian and everything works -- ren
 
 For a graph that renders the _typed_ links in color (supports, extends, refines, ...) rather than Obsidian's untyped built-in graph, install the companion plugin **[Slipbox Semantic Graph](https://github.com/jamesfishwick/obsidian-slipbox-graph)** -- a force-directed view with human-readable titles and color-coded semantic link types. Install it manually from the [0.1.0 release](https://github.com/jamesfishwick/obsidian-slipbox-graph/releases/tag/0.1.0): copy `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/slipbox-graph/`, then enable it in Settings → Community plugins. (Once it's accepted into the official directory, you'll also be able to install it via Settings → Community plugins → Browse → search "Slipbox Semantic Graph".) It reads the same frontmatter `id` and `## Links` section the server writes, so no extra configuration is needed. Open the view with the **Open semantic graph** command (Command Palette) or the **git-fork** ribbon icon.
 
-![Slipbox Semantic Graph — the full vault, with typed links color-coded by relationship](assets/screenshots/obsidian-graph.png)
+![Slipbox Semantic Graph: the full vault, with typed links color-coded by relationship](assets/screenshots/obsidian-graph.png)
 
-The legend across the top maps each color to a link type (extends, refines, supports, contradicts, questions, related). Focus a structure note and its constellation comes into view — here, `Contract Testing Knowledge Map` with its member notes orbiting it:
+The legend across the top maps each color to a link type (extends, refines, supports, contradicts, questions, related). Focus a structure note and its constellation comes into view. Here, `Contract Testing Knowledge Map` with its member notes orbiting it:
 
-![Slipbox Semantic Graph — a structure note and its member-note constellation](assets/screenshots/obsidian-graph-structure-note.png)
+![Slipbox Semantic Graph: a structure note and its member-note constellation](assets/screenshots/obsidian-graph-structure-note.png)
 
 </details>
 
@@ -255,7 +255,7 @@ source .venv/bin/activate
 python scripts/watch_notes.py
 ```
 
-Edit a note file—you should see "rebuilding index..." in the watcher output.
+Edit a note file. You should see "rebuilding index..." in the watcher output.
 
 ### Check Status
 
@@ -351,8 +351,8 @@ MCP prompts are reusable workflow templates that encode the Zettelkasten method 
 
 Each workflow ships two ways:
 
-- **MCP prompts** — served by the running server.
-- **Skills** — standalone bundles (`skills/<name>/`) that run the same workflow and add natural-language triggering.
+- **MCP prompts**: served by the running server.
+- **Skills**: standalone bundles (`skills/<name>/`) that run the same workflow and add natural-language triggering.
 
 Five of the six skills are generated from the same `PROMPT_*` templates the server uses (`src/slipbox_mcp/server/descriptions.py`), and CI fails if the committed `skills/` drift from those templates. The sixth, `cluster-maintenance`, is authored directly in `scripts/build_skills.py` because its MCP prompt is a runtime-rendered status message rather than a reusable workflow.
 
@@ -369,7 +369,7 @@ Five of the six skills are generated from the same `PROMPT_*` templates the serv
 
 (Installed skills also expose their own slash commands by directory name, e.g. `/slipbox-analyze-note`.)
 
-**Natural language** works once the matching skill is installed — just describe what you want:
+**Natural language** works once the matching skill is installed. Just describe what you want:
 
 ```text
 Analyze this note for my slipbox: [paste note]
@@ -379,11 +379,11 @@ Add this to my slipbox: [paste article]
 Synthesize my notes on attention and memory.
 ```
 
-Prose triggering depends on the skill being installed and your phrasing matching its description; fall back to the slash command if it doesn't fire. Asking the model to "use the analyze_note prompt" by name does **not** work — the model can't invoke an MCP prompt by name. Use a slash command, or let a skill trigger from natural language.
+Prose triggering depends on the skill being installed and your phrasing matching its description; fall back to the slash command if it doesn't fire. Asking the model to "use the analyze_note prompt" by name does **not** work. The model can't invoke an MCP prompt by name. Use a slash command, or let a skill trigger from natural language.
 
 ### Installing Skills
 
-**Claude Code** discovers skills from `.claude/skills/` (per project) or `~/.claude/skills/` (global), not from a bare top-level `skills/`. Symlink or copy the ones you want into a discovery path — e.g. for this project:
+**Claude Code** discovers skills from `.claude/skills/` (per project) or `~/.claude/skills/` (global), not from a bare top-level `skills/`. Symlink or copy the ones you want into a discovery path (e.g. for this project):
 
 ```bash
 mkdir -p .claude/skills
@@ -427,7 +427,7 @@ After editing a prompt template in `descriptions.py`, re-run the build to regene
 | `structure`  | Maps organizing 7-15 related notes on a specific topic                                           |
 | `hub`        | Domain overview linking to structure notes; entry point for navigating a broad area of knowledge |
 
-**Structure vs. Hub:** A structure note organizes a cluster of permanent notes around a single topic — it is a curated map one level above the notes themselves. A hub note operates one level higher still: it links to structure notes (and occasionally key permanent notes) across an entire knowledge domain. Where a structure note answers "what do I know about X?", a hub note answers "how is my knowledge of this whole domain organized?" Most Zettelkastens need only a handful of hub notes.
+**Structure vs. Hub:** A structure note organizes a cluster of permanent notes around a single topic. It is a curated map one level above the notes themselves. A hub note operates one level higher still: it links to structure notes (and occasionally key permanent notes) across an entire knowledge domain. Where a structure note answers "what do I know about X?", a hub note answers "how is my knowledge of this whole domain organized?" Most Zettelkastens need only a handful of hub notes.
 
 ---
 
@@ -498,7 +498,7 @@ If your notes directory ends up at `./~/...` relative to CWD, you used `~` in th
 
 ### `slipbox_list_notes_by_date` returns empty results
 
-If `start_date` is later than `end_date`, no notes match and an empty result is returned — this is expected behavior, not an error.
+If `start_date` is later than `end_date`, no notes match and an empty result is returned. This is expected behavior, not an error.
 
 ### Database out of sync
 
@@ -626,9 +626,9 @@ ruff check src/ evals/
 | `LLM Evals` | Opt-in (label or manual) | Self-hosted   | 28 LLM evals via claude CLI                              |
 | `Release`   | Push to `main`           | GitHub-hosted | release-please PR; on its merge, build + publish to PyPI |
 
-The LLM eval suite is expensive (~$3-5, ~10 min) and self-hosted, so it **never runs automatically** — a path-based trigger can't distinguish a real prompt change from a cosmetic reformat. Run it deliberately when you change prompt or tool-description semantics:
+The LLM eval suite is expensive (~$3-5, ~10 min) and self-hosted, so it **never runs automatically**. A path-based trigger can't distinguish a real prompt change from a cosmetic reformat. Run it deliberately when you change prompt or tool-description semantics:
 
-- **Add the `run-llm-evals` label** to the PR — it runs, and re-runs on each push while the label is present.
+- **Add the `run-llm-evals` label** to the PR. It runs, and re-runs on each push while the label is present.
 - **Or trigger it manually** from the Actions tab (`workflow_dispatch`).
 - **Or run it locally** without the runner: `pytest evals/llm/ -v`.
 
@@ -638,7 +638,7 @@ Without a label or manual dispatch, the job is skipped (no runner allocated, no 
 
 **If you don't want a self-hosted runner:** remove `.github/workflows/llm-evals.yml` and run `pytest evals/llm/ -v` locally before merging prompt changes.
 
-**If you want LLM evals on every PR automatically:** add a `pull_request` trigger with the relevant `paths:` filter and drop the label gate in the job's `if:` — but expect incidental triggers from formatting-only edits.
+**If you want LLM evals on every PR automatically:** add a `pull_request` trigger with the relevant `paths:` filter and drop the label gate in the job's `if:`. But expect incidental triggers from formatting-only edits.
 
 **To change the default eval model:** Set `EVAL_MODEL` in your environment or in the workflow file. Default is `haiku` for speed/cost.
 
@@ -660,9 +660,9 @@ nohup ./run.sh &
 
 ### Releasing to PyPI
 
-Releases are automated. The `Release` workflow (`.github/workflows/release.yml`) runs [release-please](https://github.com/googleapis/release-please) on every push to `main` and publishes via PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) — OIDC, so no API token is stored in repo secrets.
+Releases are automated. The `Release` workflow (`.github/workflows/release.yml`) runs [release-please](https://github.com/googleapis/release-please) on every push to `main` and publishes via PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) (OIDC, so no API token is stored in repo secrets).
 
-**The flow — you never hand-edit a version or push a tag:**
+**The flow (you never hand-edit a version or push a tag):**
 
 1. Land changes on `main` with [Conventional Commit](https://www.conventionalcommits.org/) messages (`feat:` → minor bump, `fix:` → patch, `feat!:`/`BREAKING CHANGE:` → major). The repo's commit hooks already enforce this shape.
 2. release-please keeps a standing **"release PR"** open, accumulating the next version bump (in `src/slipbox_mcp/__init__.py`) and the `CHANGELOG.md` entries derived from those commits.
@@ -670,7 +670,7 @@ Releases are automated. The `Release` workflow (`.github/workflows/release.yml`)
 
 So cutting a release is one click: merge the bot's PR. Nothing else.
 
-**Commit types decide the version — so type accurately.** The bump is computed mechanically from the Conventional Commit prefixes since the last release, not from the size of the change. Reserve `feat:`/`fix:` for changes to the **shipped package**; use the non-releasing types for everything else:
+**Commit types decide the version. So type accurately.** The bump is computed mechanically from the Conventional Commit prefixes since the last release, not from the size of the change. Reserve `feat:`/`fix:` for changes to the **shipped package**; use the non-releasing types for everything else:
 
 | Prefix                                              | Version effect        | Use for                                             |
 | --------------------------------------------------- | --------------------- | --------------------------------------------------- |
@@ -679,14 +679,14 @@ So cutting a release is one click: merge the bot's PR. Nothing else.
 | `feat!:` / `BREAKING CHANGE:`                       | major (1.3.0 → 2.0.0) | backwards-incompatible change                       |
 | `docs:` `ci:` `build:` `chore:` `test:` `refactor:` | **none**              | docs, tooling, CI, packaging, internal-only changes |
 
-A batch of only non-releasing commits produces **no release PR at all**. The squash-merge title is the commit release-please reads, so the PR title's prefix is what counts — label it for what the _package_ gains, not for the effort spent.
+A batch of only non-releasing commits produces **no release PR at all**. The squash-merge title is the commit release-please reads, so the PR title's prefix is what counts. Label it for what the _package_ gains, not for the effort spent.
 
 **One-time setup** (already done for this repo, documented for forks):
 
-1. On PyPI, register a [pending trusted publisher](https://pypi.org/manage/account/publishing/) for project `slipbox-mcp` — **Owner:** `jamesfishwick` · **Repository:** `slipbox-mcp` · **Workflow:** `release.yml` · **Environment:** `release`. All four must match exactly.
+1. On PyPI, register a [pending trusted publisher](https://pypi.org/manage/account/publishing/) for project `slipbox-mcp`: **Owner:** `jamesfishwick` · **Repository:** `slipbox-mcp` · **Workflow:** `release.yml` · **Environment:** `release`. All four must match exactly.
 2. In GitHub, create an environment named `release` (Settings → Environments). If you restrict its deployment refs, add a **tag** rule `v*` (a _branch_ rule of the same name will not match the tag).
 
-> The version is defined once, in `src/slipbox_mcp/__init__.py` (release-please bumps it; the `# x-release-please-version` marker tells it which line). `pyproject.toml` (`dynamic = ["version"]`) and the server's `server_version` both read from it, so there is nothing to keep in sync — and the tag release-please cuts always matches the package version by construction.
+> The version is defined once, in `src/slipbox_mcp/__init__.py` (release-please bumps it; the `# x-release-please-version` marker tells it which line). `pyproject.toml` (`dynamic = ["version"]`) and the server's `server_version` both read from it, so there is nothing to keep in sync; the tag release-please cuts always matches the package version by construction.
 
 To rehearse a build without publishing, run it by hand: `python -m build && twine check dist/*` (and `twine upload --repository testpypi dist/*` with a TestPyPI token to dry-run the upload).
 
