@@ -6,7 +6,7 @@ Give your AI assistant an active role in managing your knowledge. Slipbox is an 
 
 Your ideas in, structured knowledge out. The agent handles the formatting, linking, and integration.
 
-New to the method? Start with [*Introduction to the Zettelkasten Method*](https://zettelkasten.de/introduction/) for the why behind atomic notes and linked thinking. To see how Slipbox primes your agent with that method, read the [server instructions](src/slipbox_mcp/server/descriptions.py) it ships automatically on connect.
+New to the method? Start with [_Introduction to the Zettelkasten Method_](https://zettelkasten.de/introduction/) for the why behind atomic notes and linked thinking. To see how Slipbox primes your agent with that method, read the [server instructions](src/slipbox_mcp/server/descriptions.py) it ships automatically on connect.
 
 Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude Code, OpenCode, Copilot, or anything that speaks MCP).
 
@@ -20,93 +20,7 @@ Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude 
 
 Python 3.10+ | macOS or Linux
 
-## In Action
-
-### Proactive Maintenance
-
-The agent reads the `slipbox://maintenance-status` resource at session start and surfaces clusters that need organizing.
-
-![Proactive Maintenance](assets/recordings/01-maintenance.gif)
-
-### Full-Text Search
-
-BM25-ranked search across notes via `zk_search_notes`.
-
-![FTS5 Search](assets/recordings/02-search.gif)
-
-### Knowledge Graph: Central Notes
-
-`zk_find_central_notes` surfaces the structural anchors of the graph -- the notes everything else orbits.
-
-![Central Notes](assets/recordings/03-central-notes.gif)
-
-### Direct Idea Capture
-
-Your raw thinking in, a formatted atomic note with tags and links out. The agent formats and integrates -- the ideas stay yours.
-
-![Idea Capture](assets/recordings/04-idea-capture.gif)
-
-### Note Analysis
-
-The `analyze_note` prompt evaluates atomicity, finds real connections in the existing graph, suggests tags, and rewrites for clarity.
-
-![Note Analysis](assets/recordings/05-analyze-note.gif)
-
-### Source Decomposition
-
-The `knowledge_creation` prompt splits an article into atomic literature notes with proper citation and links.
-
-![Source Decomposition](assets/recordings/06-source-decomposition.gif)
-
-### Cluster Detection
-
-`zk_get_cluster_report` finds groups of co-occurring tags that lack a structure note. Scored by size, orphan ratio, link density, and recency.
-
-![Cluster Report](assets/recordings/07-cluster-report.gif)
-
-### Structure Note Creation
-
-`zk_create_structure_from_cluster` scaffolds a structure note, links all member notes, and dismisses the cluster.
-
-![Structure Note](assets/recordings/08-structure-note.gif)
-
-### Orphaned Notes
-
-`zk_find_orphaned_notes` surfaces unintegrated knowledge -- candidates for connection or deletion.
-
-![Orphans](assets/recordings/10-orphans.gif)
-
-### Similar Notes
-
-`zk_find_similar_notes` computes similarity from shared tags, common links, and content overlap.
-
-![Similar Notes](assets/recordings/11-similar-notes.gif)
-
-### Graph Traversal
-
-`zk_get_linked_notes` shows typed links from a hub note, grouped by link type.
-
-![Linked Notes](assets/recordings/12-linked-notes.gif)
-
-### Knowledge Synthesis
-
-The `knowledge_synthesis` prompt finds bridges between unconnected areas and proposes synthesis notes from your existing knowledge.
-
-![Knowledge Synthesis](assets/recordings/17-knowledge-synthesis.gif)
-
-### Zero Lock-In: Plain Files in Obsidian
-
-Notes are plain markdown. Open the vault in Obsidian and everything works -- rendered content, backlinks, and the knowledge graph.
-
-For a graph that renders the *typed* links in color (supports, extends, refines, ...) rather than Obsidian's untyped built-in graph, install the companion plugin **[Slipbox Semantic Graph](https://github.com/jamesfishwick/obsidian-slipbox-graph)** -- a force-directed view with human-readable titles and color-coded semantic link types. Install it manually from the [0.1.0 release](https://github.com/jamesfishwick/obsidian-slipbox-graph/releases/tag/0.1.0): copy `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/slipbox-graph/`, then enable it in Settings → Community plugins. (Once it's accepted into the official directory, you'll also be able to install it via Settings → Community plugins → Browse → search "Slipbox Semantic Graph".) It reads the same frontmatter `id` and `## Links` section the server writes, so no extra configuration is needed. Open the view with the **Open semantic graph** command (Command Palette) or the **git-fork** ribbon icon.
-
-![Slipbox Semantic Graph — the full vault, with typed links color-coded by relationship](assets/screenshots/obsidian-graph.png)
-
-The legend across the top maps each color to a link type (extends, refines, supports, contradicts, questions, related). Focus a structure note and its constellation comes into view — here, `Contract Testing Knowledge Map` with its member notes orbiting it:
-
-![Slipbox Semantic Graph — a structure note and its member-note constellation](assets/screenshots/obsidian-graph-structure-note.png)
-
----
+![Direct idea capture — your raw thinking in, a formatted atomic note with tags and links out](assets/recordings/04-idea-capture.gif)
 
 ## Quick Start
 
@@ -189,6 +103,95 @@ Ask your agent:
 - "Create a test note about something"
 - "Search my slipbox for test"
 - "Find orphaned notes"
+
+---
+
+## In Action
+
+The hero above is the core loop. Here's the rest of what the agent does.
+
+<details>
+<summary><b>See Slipbox in action</b> — eleven more demos, plus the Obsidian semantic-graph integration</summary>
+
+### Proactive Maintenance
+
+The agent reads the `slipbox://maintenance-status` resource at session start and surfaces clusters that need organizing.
+
+![Proactive Maintenance](assets/recordings/01-maintenance.gif)
+
+### Full-Text Search
+
+BM25-ranked search across notes via `slipbox_search_notes`.
+
+![FTS5 Search](assets/recordings/02-search.gif)
+
+### Knowledge Graph: Central Notes
+
+`slipbox_find_central_notes` surfaces the structural anchors of the graph -- the notes everything else orbits.
+
+![Central Notes](assets/recordings/03-central-notes.gif)
+
+### Note Analysis
+
+The `analyze_note` prompt evaluates atomicity, finds real connections in the existing graph, suggests tags, and rewrites for clarity.
+
+![Note Analysis](assets/recordings/05-analyze-note.gif)
+
+### Source Decomposition
+
+The `knowledge_creation` prompt splits an article into atomic literature notes with proper citation and links.
+
+![Source Decomposition](assets/recordings/06-source-decomposition.gif)
+
+### Cluster Detection
+
+`slipbox_get_cluster_report` finds groups of co-occurring tags that lack a structure note. Scored by size, orphan ratio, link density, and recency.
+
+![Cluster Report](assets/recordings/07-cluster-report.gif)
+
+### Structure Note Creation
+
+`slipbox_create_structure_from_cluster` scaffolds a structure note, links all member notes, and dismisses the cluster.
+
+![Structure Note](assets/recordings/08-structure-note.gif)
+
+### Orphaned Notes
+
+`slipbox_find_orphaned_notes` surfaces unintegrated knowledge -- candidates for connection or deletion.
+
+![Orphans](assets/recordings/10-orphans.gif)
+
+### Similar Notes
+
+`slipbox_find_similar_notes` computes similarity from shared tags, common links, and content overlap.
+
+![Similar Notes](assets/recordings/11-similar-notes.gif)
+
+### Graph Traversal
+
+`slipbox_get_linked_notes` shows typed links from a hub note, grouped by link type.
+
+![Linked Notes](assets/recordings/12-linked-notes.gif)
+
+### Knowledge Synthesis
+
+The `knowledge_synthesis` prompt finds bridges between unconnected areas and proposes synthesis notes from your existing knowledge.
+
+![Knowledge Synthesis](assets/recordings/17-knowledge-synthesis.gif)
+
+### Zero Lock-In: Plain Files in Obsidian
+
+Notes are plain markdown. Open the vault in Obsidian and everything works -- rendered content, backlinks, and the knowledge graph.
+
+For a graph that renders the _typed_ links in color (supports, extends, refines, ...) rather than Obsidian's untyped built-in graph, install the companion plugin **[Slipbox Semantic Graph](https://github.com/jamesfishwick/obsidian-slipbox-graph)** -- a force-directed view with human-readable titles and color-coded semantic link types. Install it manually from the [0.1.0 release](https://github.com/jamesfishwick/obsidian-slipbox-graph/releases/tag/0.1.0): copy `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/slipbox-graph/`, then enable it in Settings → Community plugins. (Once it's accepted into the official directory, you'll also be able to install it via Settings → Community plugins → Browse → search "Slipbox Semantic Graph".) It reads the same frontmatter `id` and `## Links` section the server writes, so no extra configuration is needed. Open the view with the **Open semantic graph** command (Command Palette) or the **git-fork** ribbon icon.
+
+![Slipbox Semantic Graph — the full vault, with typed links color-coded by relationship](assets/screenshots/obsidian-graph.png)
+
+The legend across the top maps each color to a link type (extends, refines, supports, contradicts, questions, related). Focus a structure note and its constellation comes into view — here, `Contract Testing Knowledge Map` with its member notes orbiting it:
+
+![Slipbox Semantic Graph — a structure note and its member-note constellation](assets/screenshots/obsidian-graph-structure-note.png)
+
+</details>
 
 ---
 
@@ -283,46 +286,46 @@ Slipbox ships a baseline automatically: every client receives the [server instru
 
 ### Core Note Operations
 
-| Tool | Description |
-|------|-------------|
+| Tool                  | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
 | `slipbox_create_note` | Create atomic notes (fleeting/literature/permanent/structure/hub) |
-| `slipbox_get_note` | Retrieve note by ID or title |
-| `slipbox_update_note` | Update existing notes |
-| `slipbox_delete_note` | Delete notes |
+| `slipbox_get_note`    | Retrieve note by ID or title                                      |
+| `slipbox_update_note` | Update existing notes                                             |
+| `slipbox_delete_note` | Delete notes                                                      |
 
 ### Linking
 
-| Tool | Description |
-|------|-------------|
-| `slipbox_create_link` | Create semantic links between notes |
-| `slipbox_remove_link` | Remove links |
-| `slipbox_delete_link` | Delete a specific link (errors if link does not exist) |
-| `slipbox_get_linked_notes` | Get notes linked to/from a note |
+| Tool                       | Description                                            |
+| -------------------------- | ------------------------------------------------------ |
+| `slipbox_create_link`      | Create semantic links between notes                    |
+| `slipbox_remove_link`      | Remove links                                           |
+| `slipbox_delete_link`      | Delete a specific link (errors if link does not exist) |
+| `slipbox_get_linked_notes` | Get notes linked to/from a note                        |
 
 ### Search & Discovery
 
-| Tool | Description |
-|------|-------------|
-| `slipbox_search_notes` | Search by text (BM25-ranked), tags, or type |
-| `slipbox_find_similar_notes` | Find notes similar to a given note |
-| `slipbox_find_central_notes` | Find most connected notes |
-| `slipbox_find_orphaned_notes` | Find unconnected notes |
-| `slipbox_list_notes_by_date` | List notes by date range |
-| `slipbox_get_all_tags` | List all tags |
+| Tool                          | Description                                 |
+| ----------------------------- | ------------------------------------------- |
+| `slipbox_search_notes`        | Search by text (BM25-ranked), tags, or type |
+| `slipbox_find_similar_notes`  | Find notes similar to a given note          |
+| `slipbox_find_central_notes`  | Find most connected notes                   |
+| `slipbox_find_orphaned_notes` | Find unconnected notes                      |
+| `slipbox_list_notes_by_date`  | List notes by date range                    |
+| `slipbox_get_all_tags`        | List all tags                               |
 
 ### Cluster Analysis
 
-| Tool | Description |
-|------|-------------|
-| `slipbox_get_cluster_report` | Get pending clusters needing structure notes |
-| `slipbox_create_structure_from_cluster` | Create structure note from cluster |
-| `slipbox_refresh_clusters` | Regenerate cluster analysis |
-| `slipbox_dismiss_cluster` | Permanently dismiss cluster from suggestions |
+| Tool                                    | Description                                  |
+| --------------------------------------- | -------------------------------------------- |
+| `slipbox_get_cluster_report`            | Get pending clusters needing structure notes |
+| `slipbox_create_structure_from_cluster` | Create structure note from cluster           |
+| `slipbox_refresh_clusters`              | Regenerate cluster analysis                  |
+| `slipbox_dismiss_cluster`               | Permanently dismiss cluster from suggestions |
 
 ### Maintenance
 
-| Tool | Description |
-|------|-------------|
+| Tool                    | Description                       |
+| ----------------------- | --------------------------------- |
 | `slipbox_rebuild_index` | Rebuild database index from files |
 
 ---
@@ -331,14 +334,14 @@ Slipbox ships a baseline automatically: every client receives the [server instru
 
 MCP prompts are reusable workflow templates that encode the Zettelkasten method so you don't re-explain it every session.
 
-| Prompt | Description | Use When |
-|--------|-------------|----------|
-| `knowledge_creation` | Process information into 3-5 atomic notes | Adding articles, ideas, or notes |
-| `knowledge_creation_batch` | Process larger volumes into 5-10 notes | Processing books or long-form content |
-| `knowledge_exploration` | Map connections to existing knowledge | Exploring how topics relate |
-| `knowledge_synthesis` | Create higher-order insights | Finding bridges between ideas |
-| `analyze_note` | Evaluate a note's fitness for the slipbox | Reviewing a new or existing note |
-| `cluster_maintenance` | Surface pending housekeeping | Start of a working session |
+| Prompt                     | Description                               | Use When                              |
+| -------------------------- | ----------------------------------------- | ------------------------------------- |
+| `knowledge_creation`       | Process information into 3-5 atomic notes | Adding articles, ideas, or notes      |
+| `knowledge_creation_batch` | Process larger volumes into 5-10 notes    | Processing books or long-form content |
+| `knowledge_exploration`    | Map connections to existing knowledge     | Exploring how topics relate           |
+| `knowledge_synthesis`      | Create higher-order insights              | Finding bridges between ideas         |
+| `analyze_note`             | Evaluate a note's fitness for the slipbox | Reviewing a new or existing note      |
+| `cluster_maintenance`      | Surface pending housekeeping              | Start of a working session            |
 
 ### How to Invoke: Slash Commands and Skills
 
@@ -398,27 +401,27 @@ After editing a prompt template in `descriptions.py`, re-run the build to regene
 
 ## Link Types
 
-| Type | Use When | Inverse |
-|------|----------|---------|
-| `reference` | Generic "see also" connection | reference |
-| `extends` | Building on another idea | extended_by |
-| `refines` | Clarifying or improving | refined_by |
-| `contradicts` | Opposing view | contradicted_by |
-| `questions` | Raising questions about | questioned_by |
-| `supports` | Providing evidence for | supported_by |
-| `related` | Loose thematic connection | related |
+| Type          | Use When                      | Inverse         |
+| ------------- | ----------------------------- | --------------- |
+| `reference`   | Generic "see also" connection | reference       |
+| `extends`     | Building on another idea      | extended_by     |
+| `refines`     | Clarifying or improving       | refined_by      |
+| `contradicts` | Opposing view                 | contradicted_by |
+| `questions`   | Raising questions about       | questioned_by   |
+| `supports`    | Providing evidence for        | supported_by    |
+| `related`     | Loose thematic connection     | related         |
 
 ---
 
 ## Note Types
 
-| Type | Purpose |
-|------|---------|
-| `fleeting` | Quick captures, unprocessed thoughts |
-| `literature` | Ideas from sources with citation |
-| `permanent` | Refined ideas in your own words |
-| `structure` | Maps organizing 7-15 related notes on a specific topic |
-| `hub` | Domain overview linking to structure notes; entry point for navigating a broad area of knowledge |
+| Type         | Purpose                                                                                          |
+| ------------ | ------------------------------------------------------------------------------------------------ |
+| `fleeting`   | Quick captures, unprocessed thoughts                                                             |
+| `literature` | Ideas from sources with citation                                                                 |
+| `permanent`  | Refined ideas in your own words                                                                  |
+| `structure`  | Maps organizing 7-15 related notes on a specific topic                                           |
+| `hub`        | Domain overview linking to structure notes; entry point for navigating a broad area of knowledge |
 
 **Structure vs. Hub:** A structure note organizes a cluster of permanent notes around a single topic — it is a curated map one level above the notes themselves. A hub note operates one level higher still: it links to structure notes (and occasionally key permanent notes) across an entire knowledge domain. Where a structure note answers "what do I know about X?", a hub note answers "how is my knowledge of this whole domain organized?" Most Zettelkastens need only a handful of hub notes.
 
@@ -537,13 +540,13 @@ cat ~/.local/share/mcp/slipbox/watcher.log
 
 If you previously used `ZETTELKASTEN_NOTES_DIR`, `ZETTELKASTEN_DATABASE_PATH`, or other `ZETTELKASTEN_*` variables, they are **no longer read**. Rename them to their `SLIPBOX_*` equivalents:
 
-| Old | New |
-|-----|-----|
-| `ZETTELKASTEN_NOTES_DIR` | `SLIPBOX_NOTES_DIR` |
+| Old                          | New                     |
+| ---------------------------- | ----------------------- |
+| `ZETTELKASTEN_NOTES_DIR`     | `SLIPBOX_NOTES_DIR`     |
 | `ZETTELKASTEN_DATABASE_PATH` | `SLIPBOX_DATABASE_PATH` |
-| `ZETTELKASTEN_LOG_LEVEL` | `SLIPBOX_LOG_LEVEL` |
-| `ZETTELKASTEN_BASE_DIR` | `SLIPBOX_BASE_DIR` |
-| `ZETTELKASTEN_SERVER_NAME` | `SLIPBOX_SERVER_NAME` |
+| `ZETTELKASTEN_LOG_LEVEL`     | `SLIPBOX_LOG_LEVEL`     |
+| `ZETTELKASTEN_BASE_DIR`      | `SLIPBOX_BASE_DIR`      |
+| `ZETTELKASTEN_SERVER_NAME`   | `SLIPBOX_SERVER_NAME`   |
 
 The server logs a warning if old names are detected, but does not migrate them automatically.
 
@@ -575,11 +578,11 @@ uv venv && uv pip install -e ".[dev]"
 
 The project has three tiers of tests:
 
-| Tier | Count | Speed | Cost | Command |
-|------|-------|-------|------|---------|
-| Unit + integration | 219 | ~2s | Free | `pytest tests/` |
-| Tool contract tests | 22 | ~0.5s | Free | `pytest evals/tool_contracts/` |
-| LLM evals | 28 | ~10min | ~$3-5 | `pytest evals/llm/` |
+| Tier                | Count | Speed  | Cost  | Command                        |
+| ------------------- | ----- | ------ | ----- | ------------------------------ |
+| Unit + integration  | 219   | ~2s    | Free  | `pytest tests/`                |
+| Tool contract tests | 22    | ~0.5s  | Free  | `pytest evals/tool_contracts/` |
+| LLM evals           | 28    | ~10min | ~$3-5 | `pytest evals/llm/`            |
 
 ```bash
 # Default: runs unit + contract tests (CI runs this)
@@ -613,11 +616,11 @@ ruff check src/ evals/
 
 **Branch protection:** Direct pushes to `main` are blocked. All changes go through PRs.
 
-| Workflow | Trigger | Runner | What |
-|----------|---------|--------|------|
-| `CI` | Every PR + push to main | GitHub-hosted | Unit + contract tests, ruff lint + format |
-| `LLM Evals` | Opt-in (label or manual) | Self-hosted | 28 LLM evals via claude CLI |
-| `Release` | Push to `main` | GitHub-hosted | release-please PR; on its merge, build + publish to PyPI |
+| Workflow    | Trigger                  | Runner        | What                                                     |
+| ----------- | ------------------------ | ------------- | -------------------------------------------------------- |
+| `CI`        | Every PR + push to main  | GitHub-hosted | Unit + contract tests, ruff lint + format                |
+| `LLM Evals` | Opt-in (label or manual) | Self-hosted   | 28 LLM evals via claude CLI                              |
+| `Release`   | Push to `main`           | GitHub-hosted | release-please PR; on its merge, build + publish to PyPI |
 
 The LLM eval suite is expensive (~$3-5, ~10 min) and self-hosted, so it **never runs automatically** — a path-based trigger can't distinguish a real prompt change from a cosmetic reformat. Run it deliberately when you change prompt or tool-description semantics:
 
@@ -665,19 +668,19 @@ So cutting a release is one click: merge the bot's PR. Nothing else.
 
 **Commit types decide the version — so type accurately.** The bump is computed mechanically from the Conventional Commit prefixes since the last release, not from the size of the change. Reserve `feat:`/`fix:` for changes to the **shipped package**; use the non-releasing types for everything else:
 
-| Prefix | Version effect | Use for |
-|---|---|---|
-| `feat:` | minor (1.3.0 → 1.4.0) | new runtime capability in the package |
-| `fix:` | patch (1.3.0 → 1.3.1) | bug fix in the package |
-| `feat!:` / `BREAKING CHANGE:` | major (1.3.0 → 2.0.0) | backwards-incompatible change |
-| `docs:` `ci:` `build:` `chore:` `test:` `refactor:` | **none** | docs, tooling, CI, packaging, internal-only changes |
+| Prefix                                              | Version effect        | Use for                                             |
+| --------------------------------------------------- | --------------------- | --------------------------------------------------- |
+| `feat:`                                             | minor (1.3.0 → 1.4.0) | new runtime capability in the package               |
+| `fix:`                                              | patch (1.3.0 → 1.3.1) | bug fix in the package                              |
+| `feat!:` / `BREAKING CHANGE:`                       | major (1.3.0 → 2.0.0) | backwards-incompatible change                       |
+| `docs:` `ci:` `build:` `chore:` `test:` `refactor:` | **none**              | docs, tooling, CI, packaging, internal-only changes |
 
-A batch of only non-releasing commits produces **no release PR at all**. The squash-merge title is the commit release-please reads, so the PR title's prefix is what counts — label it for what the *package* gains, not for the effort spent.
+A batch of only non-releasing commits produces **no release PR at all**. The squash-merge title is the commit release-please reads, so the PR title's prefix is what counts — label it for what the _package_ gains, not for the effort spent.
 
 **One-time setup** (already done for this repo, documented for forks):
 
 1. On PyPI, register a [pending trusted publisher](https://pypi.org/manage/account/publishing/) for project `slipbox-mcp` — **Owner:** `jamesfishwick` · **Repository:** `slipbox-mcp` · **Workflow:** `release.yml` · **Environment:** `release`. All four must match exactly.
-2. In GitHub, create an environment named `release` (Settings → Environments). If you restrict its deployment refs, add a **tag** rule `v*` (a *branch* rule of the same name will not match the tag).
+2. In GitHub, create an environment named `release` (Settings → Environments). If you restrict its deployment refs, add a **tag** rule `v*` (a _branch_ rule of the same name will not match the tag).
 
 > The version is defined once, in `src/slipbox_mcp/__init__.py` (release-please bumps it; the `# x-release-please-version` marker tells it which line). `pyproject.toml` (`dynamic = ["version"]`) and the server's `server_version` both read from it, so there is nothing to keep in sync — and the tag release-please cuts always matches the package version by construction.
 
