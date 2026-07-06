@@ -22,6 +22,10 @@ Python 3.10+ | macOS or Linux
 
 ![Direct idea capture — your raw thinking in, a formatted atomic note with tags and links out](assets/recordings/04-idea-capture.gif)
 
+## Walkthrough
+
+[![Watch the Slipbox walkthrough](https://cdn.loom.com/sessions/thumbnails/0eedecce86bc4eaeb57278ee4b79a259-with-play.gif)](https://www.loom.com/share/0eedecce86bc4eaeb57278ee4b79a259)
+
 ## Quick Start
 
 ### 1. Install
