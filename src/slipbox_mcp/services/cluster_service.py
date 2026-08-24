@@ -3,7 +3,7 @@
 import json
 import logging
 from collections import defaultdict
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from datetime import datetime
 from itertools import combinations
 from pathlib import Path
@@ -20,6 +20,10 @@ from slipbox_mcp.models.schema import Note, NoteType
 from slipbox_mcp.services.zettel_service import ZettelService
 
 logger = logging.getLogger(__name__)
+
+# Field names for tolerant load: an unknown key in a saved report (e.g. from a
+# newer version) is dropped rather than crashing the ClusterCandidate constructor.
+_CANDIDATE_FIELDS = {f.name for f in fields(ClusterCandidate)}
 
 
 def _json_default(value: Any) -> str:
@@ -247,17 +251,15 @@ class ClusterService:
     def _candidate_from_dict(data: Dict[str, Any]) -> ClusterCandidate:
         """Rebuild a ClusterCandidate from its ``asdict`` form.
 
-        The saved keys match the dataclass fields exactly, so the dict spreads
-        straight into the constructor; only ``newest_date`` needs parsing back
-        from its ISO string.
+        Keep only keys that are real fields (derived from the dataclass, so no
+        hardcoded list), which lets a report written by a future version with an
+        extra field still load rather than raising on an unexpected kwarg. Only
+        ``newest_date`` needs parsing back from its ISO string.
         """
-        newest = data.get("newest_date")
-        return ClusterCandidate(
-            **{
-                **data,
-                "newest_date": datetime.fromisoformat(newest) if newest else None,
-            }
-        )
+        kwargs = {k: v for k, v in data.items() if k in _CANDIDATE_FIELDS}
+        newest = kwargs.get("newest_date")
+        kwargs["newest_date"] = datetime.fromisoformat(newest) if newest else None
+        return ClusterCandidate(**kwargs)
 
     def dismiss_cluster(self, cluster_id: str) -> None:
         """Mark cluster as dismissed; hides it from maintenance suggestions."""

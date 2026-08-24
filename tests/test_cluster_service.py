@@ -411,6 +411,48 @@ class TestReportPath:
         assert loaded is not None
         assert loaded.stats == {"total_notes": 0}
 
+    def test_load_tolerates_unknown_candidate_key(self, tmp_path):
+        """A report written by a future version (extra candidate field) still
+        loads: the unknown key is dropped rather than crashing the constructor."""
+        import json
+        from datetime import datetime
+
+        from slipbox_mcp.models.cluster_models import ClusterCandidate
+
+        path = tmp_path / "report.json"
+        service = ClusterService(report_path=path)
+        report = ClusterReport(
+            generated_at=datetime.now(),
+            clusters=[
+                ClusterCandidate(
+                    id="c1",
+                    suggested_title="C1",
+                    tags=["alpha"],
+                    notes=[{"id": "n1", "title": "N1"}],
+                    note_count=1,
+                    orphan_count=0,
+                    internal_links=0,
+                    density=0.0,
+                    score=0.5,
+                    newest_date=datetime.now(),
+                )
+            ],
+            stats={"total_notes": 1},
+            dismissed_cluster_ids=[],
+        )
+        service.save_report(report)
+
+        # Simulate a newer schema by injecting an unknown candidate field.
+        data = json.loads(path.read_text())
+        data["clusters"][0]["future_field"] = "ignore me"
+        path.write_text(json.dumps(data))
+
+        loaded = service.load_report()
+        assert loaded is not None, "unknown key must not fail the whole load"
+        assert len(loaded.clusters) == 1
+        assert loaded.clusters[0].id == "c1"
+        assert not hasattr(loaded.clusters[0], "future_field")
+
 
 class TestDetectClusters:
     """detect_clusters runs the full cluster detection pipeline."""
