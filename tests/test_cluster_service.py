@@ -389,7 +389,12 @@ class TestReportPath:
         report = ClusterReport(
             generated_at=datetime.now(),
             clusters=[],
-            stats={},
+            stats={
+                "total_notes": 0,
+                "total_orphans": 0,
+                "clusters_detected": 0,
+                "clusters_needing_structure": 0,
+            },
             dismissed_cluster_ids=[],
         )
         path = service.save_report(report)
@@ -401,16 +406,22 @@ class TestReportPath:
         from datetime import datetime
 
         service = ClusterService(report_path=tmp_path / "report.json")
+        stats = {
+            "total_notes": 3,
+            "total_orphans": 1,
+            "clusters_detected": 2,
+            "clusters_needing_structure": 1,
+        }
         report = ClusterReport(
             generated_at=datetime.now(),
             clusters=[],
-            stats={"total_notes": 0},
+            stats=stats,
             dismissed_cluster_ids=[],
         )
         service.save_report(report)
         loaded = service.load_report()
         assert loaded is not None
-        assert loaded.stats == {"total_notes": 0}
+        assert loaded.stats == stats
 
     def test_load_tolerates_unknown_candidate_key(self, tmp_path):
         """A report written by a future version (extra candidate field) still
@@ -438,7 +449,12 @@ class TestReportPath:
                     newest_date=datetime.now(),
                 )
             ],
-            stats={"total_notes": 1},
+            stats={
+                "total_notes": 1,
+                "total_orphans": 0,
+                "clusters_detected": 1,
+                "clusters_needing_structure": 0,
+            },
             dismissed_cluster_ids=[],
         )
         service.save_report(report)
@@ -453,6 +469,46 @@ class TestReportPath:
         assert len(loaded.clusters) == 1
         assert loaded.clusters[0].id == "c1"
         assert not hasattr(loaded.clusters[0], "future_field")
+
+    def test_load_report_written_in_legacy_format(self, tmp_path):
+        """A report file written by the old dataclass/asdict serializer (ISO
+        datetime strings, plain dicts) must still load via the Pydantic path."""
+        import json
+        from datetime import datetime
+
+        path = tmp_path / "report.json"
+        legacy = {
+            "generated_at": "2026-01-02T03:04:05.678901",
+            "clusters": [
+                {
+                    "id": "c1",
+                    "suggested_title": "C1",
+                    "tags": ["alpha"],
+                    "notes": [{"id": "n1", "title": "N1"}],
+                    "note_count": 1,
+                    "orphan_count": 0,
+                    "internal_links": 0,
+                    "density": 0.0,
+                    "score": 0.5,
+                    "newest_date": "2026-01-01T00:00:00",
+                }
+            ],
+            "stats": {
+                "total_notes": 1,
+                "total_orphans": 0,
+                "clusters_detected": 1,
+                "clusters_needing_structure": 0,
+            },
+            "dismissed_cluster_ids": ["x"],
+        }
+        path.write_text(json.dumps(legacy))
+
+        loaded = ClusterService(report_path=path).load_report()
+        assert loaded is not None
+        assert loaded.generated_at == datetime(2026, 1, 2, 3, 4, 5, 678901)
+        assert loaded.clusters[0].newest_date == datetime(2026, 1, 1, 0, 0, 0)
+        assert loaded.clusters[0].id == "c1"
+        assert loaded.dismissed_cluster_ids == ["x"]
 
 
 class TestDetectClusters:
