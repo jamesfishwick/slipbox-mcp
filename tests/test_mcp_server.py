@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from slipbox_mcp.models.schema import LinkType, NoteType
 from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
+from slipbox_mcp.services import Services
 from slipbox_mcp.utils import parse_refs
 
 # ---------------------------------------------------------------------------
@@ -15,8 +16,8 @@ from slipbox_mcp.utils import parse_refs
 class MockServerBase:
     """Shared setup/teardown for tests that need a fully-mocked MCP server.
 
-    Patches FastMCP, ZettelService, SearchService, and ClusterService so that
-    server construction is fast and side-effect-free.  Tool functions registered
+    Patches FastMCP and the ``build_services`` factory so that server
+    construction is fast and side-effect-free.  Tool functions registered
     with the mock are captured in ``self.registered_tools`` for direct invocation.
     """
 
@@ -37,19 +38,18 @@ class MockServerBase:
         self.mock_search_service = MagicMock()
         self.mock_cluster_service = MagicMock()
 
+        mock_services = Services(
+            repository=MagicMock(),
+            zettel=self.mock_zettel_service,
+            search=self.mock_search_service,
+            cluster=self.mock_cluster_service,
+        )
+
         self._patchers = [
             patch("slipbox_mcp.server.mcp_server.FastMCP", return_value=self.mock_mcp),
             patch(
-                "slipbox_mcp.server.mcp_server.ZettelService",
-                return_value=self.mock_zettel_service,
-            ),
-            patch(
-                "slipbox_mcp.server.mcp_server.SearchService",
-                return_value=self.mock_search_service,
-            ),
-            patch(
-                "slipbox_mcp.server.mcp_server.ClusterService",
-                return_value=self.mock_cluster_service,
+                "slipbox_mcp.server.mcp_server.build_services",
+                return_value=mock_services,
             ),
         ]
         # _patchers[0] patches FastMCP; keep its mock so tests can assert how
@@ -1557,19 +1557,18 @@ class MockServerWithPromptsBase(MockServerBase):
         self.mock_search_service = MagicMock()
         self.mock_cluster_service = MagicMock()
 
+        mock_services = Services(
+            repository=MagicMock(),
+            zettel=self.mock_zettel_service,
+            search=self.mock_search_service,
+            cluster=self.mock_cluster_service,
+        )
+
         self._patchers = [
             patch("slipbox_mcp.server.mcp_server.FastMCP", return_value=self.mock_mcp),
             patch(
-                "slipbox_mcp.server.mcp_server.ZettelService",
-                return_value=self.mock_zettel_service,
-            ),
-            patch(
-                "slipbox_mcp.server.mcp_server.SearchService",
-                return_value=self.mock_search_service,
-            ),
-            patch(
-                "slipbox_mcp.server.mcp_server.ClusterService",
-                return_value=self.mock_cluster_service,
+                "slipbox_mcp.server.mcp_server.build_services",
+                return_value=mock_services,
             ),
         ]
         for p in self._patchers:

@@ -26,26 +26,21 @@ from slipbox_mcp.formatting import (  # noqa: E402
     format_cluster_summary,
     format_note_compact,
 )
-from slipbox_mcp.services.cluster_service import ClusterService  # noqa: E402
-from slipbox_mcp.services.search_service import SearchService  # noqa: E402
-from slipbox_mcp.services.zettel_service import ZettelService  # noqa: E402
-from slipbox_mcp.storage.note_repository import NoteRepository  # noqa: E402
+from slipbox_mcp.services import build_services  # noqa: E402
 from slipbox_mcp.utils import atomic_write_text  # noqa: E402
 
 
 def cmd_status(args: argparse.Namespace) -> None:
     """Show Zettelkasten status."""
     try:
-        zettel = ZettelService()
-        cluster = ClusterService(zettel)
+        services = build_services()
 
-        notes = zettel.get_all_notes()
-        tags = zettel.get_all_tags()
-        report = cluster.load_report()
+        notes = services.zettel.get_all_notes()
+        tags = services.zettel.get_all_tags()
+        report = services.cluster.load_report()
 
         # Count orphans via SQL (replaces O(n^2) in-memory loop)
-        search = SearchService(zettel)
-        orphan_count = len(search.find_orphaned_notes())
+        orphan_count = len(services.search.find_orphaned_notes())
 
         print(f"Notes: {len(notes)}")
         print(f"Tags: {len(tags)}")
@@ -66,9 +61,8 @@ def cmd_status(args: argparse.Namespace) -> None:
 def cmd_search(args: argparse.Namespace) -> None:
     """Search notes."""
     try:
-        zettel = ZettelService()
-        search = SearchService(zettel)
-        results = search.search_by_text(args.query)
+        services = build_services()
+        results = services.search.search_by_text(args.query)
 
         if not results:
             print("No results found.")
@@ -84,9 +78,8 @@ def cmd_search(args: argparse.Namespace) -> None:
 def cmd_clusters(args: argparse.Namespace) -> None:
     """Show clusters needing structure notes."""
     try:
-        zettel = ZettelService()
-        cluster = ClusterService(zettel)
-        report = cluster.load_report()
+        services = build_services()
+        report = services.cluster.load_report()
 
         if not report:
             print("No cluster report. Run: slipbox rebuild --clusters")
@@ -110,9 +103,8 @@ def cmd_clusters(args: argparse.Namespace) -> None:
 def cmd_orphans(args: argparse.Namespace) -> None:
     """List orphaned notes."""
     try:
-        zettel = ZettelService()
-        search = SearchService(zettel)
-        orphans = search.find_orphaned_notes()
+        services = build_services()
+        orphans = services.search.find_orphaned_notes()
 
         if not orphans:
             print("No orphaned notes.")
@@ -129,17 +121,15 @@ def cmd_orphans(args: argparse.Namespace) -> None:
 def cmd_rebuild(args: argparse.Namespace) -> None:
     """Rebuild the index."""
     try:
-        repo = NoteRepository()
+        services = build_services()
         print("Rebuilding index...")
-        repo.rebuild_index()
+        services.repository.rebuild_index()
         print("Index rebuilt.")
 
         if args.clusters:
             print("Refreshing clusters...")
-            zettel = ZettelService()
-            cluster = ClusterService(zettel)
-            report = cluster.detect_clusters()
-            cluster.save_report(report)
+            report = services.cluster.detect_clusters()
+            services.cluster.save_report(report)
             print(f"Found {report.stats['clusters_needing_structure']} clusters.")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -149,15 +139,15 @@ def cmd_rebuild(args: argparse.Namespace) -> None:
 def cmd_export(args: argparse.Namespace) -> None:
     """Export a note to stdout."""
     try:
-        zettel = ZettelService()
-        note = zettel.get_note(args.note_id)
+        services = build_services()
+        note = services.zettel.get_note(args.note_id)
 
         if not note:
             print(f"Note not found: {args.note_id}", file=sys.stderr)
             sys.exit(1)
 
         try:
-            print(zettel.export_note(note.id))
+            print(services.zettel.export_note(note.id))
         except ValueError as e:
             print(f"Export failed: {e}", file=sys.stderr)
             sys.exit(1)
@@ -300,8 +290,8 @@ def cmd_audit_references(args: argparse.Namespace) -> None:
         # so the SQLite DB never lags behind disk on partial-failure runs.
         if succeeded:
             print("\nRe-indexing database...")
-            repo = NoteRepository()
-            repo.rebuild_index()
+            services = build_services()
+            services.repository.rebuild_index()
             print("Done.")
 
         if failed or unparseable:
@@ -325,7 +315,7 @@ def cmd_prune_links(args: argparse.Namespace) -> None:
     is usable as a CI gate.
     """
     try:
-        repo = NoteRepository()
+        repo = build_services().repository
 
         if not args.fix:
             dangling = repo.find_dangling_links()
@@ -367,8 +357,8 @@ def cmd_prune_links(args: argparse.Namespace) -> None:
 def cmd_tags(args: argparse.Namespace) -> None:
     """List all tags."""
     try:
-        zettel = ZettelService()
-        notes = zettel.get_all_notes()
+        services = build_services()
+        notes = services.zettel.get_all_notes()
 
         # Count notes per tag
         tag_counts: dict[str, int] = {}

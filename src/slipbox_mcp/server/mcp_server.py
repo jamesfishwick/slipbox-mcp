@@ -9,9 +9,7 @@ from pydantic import ValidationError
 
 from slipbox_mcp.config import config
 from slipbox_mcp.server.descriptions import SERVER_INSTRUCTIONS
-from slipbox_mcp.services.cluster_service import ClusterService
-from slipbox_mcp.services.search_service import SearchService
-from slipbox_mcp.services.zettel_service import ZettelService
+from slipbox_mcp.services import build_services
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +19,10 @@ class ZettelkastenMcpServer:
 
     def __init__(self) -> None:
         self.mcp = FastMCP(config.server_name, instructions=SERVER_INSTRUCTIONS)
-        self.zettel_service = ZettelService()
-        self.search_service = SearchService(self.zettel_service)
-        self.cluster_service = ClusterService(self.zettel_service)
+        services = build_services()
+        self.zettel_service = services.zettel
+        self.search_service = services.search
+        self.cluster_service = services.cluster
         self.initialize()
         self._register_tools()
         self._register_resources()

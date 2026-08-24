@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 class ZettelService:
     """Service for managing Zettelkasten notes."""
 
-    def __init__(self, repository: Optional[NoteRepository] = None):
-        self.repository = repository or NoteRepository()
+    def __init__(self, repository: NoteRepository):
+        self.repository = repository
 
     def _get_or_raise(self, note_id: str, label: str = "Note") -> Note:
         """Fetch a note by ID or raise NoteNotFoundError if it does not exist."""

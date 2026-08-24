@@ -385,7 +385,7 @@ class TestReportPath:
         """save_report should use the configured report path."""
         from datetime import datetime
 
-        service = ClusterService(report_path=tmp_path / "report.json")
+        service = ClusterService(MagicMock(), report_path=tmp_path / "report.json")
         report = ClusterReport(
             generated_at=datetime.now(),
             clusters=[],
@@ -405,7 +405,7 @@ class TestReportPath:
         """load_report should read from the configured report path."""
         from datetime import datetime
 
-        service = ClusterService(report_path=tmp_path / "report.json")
+        service = ClusterService(MagicMock(), report_path=tmp_path / "report.json")
         stats = {
             "total_notes": 3,
             "total_orphans": 1,
@@ -432,7 +432,7 @@ class TestReportPath:
         from slipbox_mcp.models.cluster_models import ClusterCandidate
 
         path = tmp_path / "report.json"
-        service = ClusterService(report_path=path)
+        service = ClusterService(MagicMock(), report_path=path)
         report = ClusterReport(
             generated_at=datetime.now(),
             clusters=[
@@ -503,7 +503,7 @@ class TestReportPath:
         }
         path.write_text(json.dumps(legacy))
 
-        loaded = ClusterService(report_path=path).load_report()
+        loaded = ClusterService(MagicMock(), report_path=path).load_report()
         assert loaded is not None
         assert loaded.generated_at == datetime(2026, 1, 2, 3, 4, 5, 678901)
         assert loaded.clusters[0].newest_date == datetime(2026, 1, 1, 0, 0, 0)
@@ -518,7 +518,7 @@ class TestDetectClusters:
         """detect_clusters should work with a plain note list."""
         from slipbox_mcp.models.schema import Note, NoteType, Tag
 
-        service = ClusterService()
+        service = ClusterService(MagicMock())
         # Create enough notes with shared tags to form a cluster
         notes = []
         for i in range(6):
