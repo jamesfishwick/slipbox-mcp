@@ -4,6 +4,7 @@ import logging
 from typing import Optional
 
 from slipbox_mcp.models.schema import NoteType
+from slipbox_mcp.server.tools import tool_error_handler
 from slipbox_mcp.utils import format_tags, parse_enum, parse_refs, parse_tags
 
 logger = logging.getLogger(__name__)
@@ -13,9 +14,10 @@ def register_note_tools(server) -> None:
     """Register note CRUD tools."""
     mcp = server.mcp
     zettel_service = server.zettel_service
-    format_error = server.format_error_response
+    handle = tool_error_handler(server.format_error_response)
 
     @mcp.tool(name="slipbox_create_note")
+    @handle
     def slipbox_create_note(
         title: str,
         content: str,
@@ -58,26 +60,24 @@ def register_note_tools(server) -> None:
             tags: Comma-separated tags, e.g. "poetry,revision,craft"
             references: Newline-separated citations to external sources (e.g. "Ahrens, S. (2017). How to Take Smart Notes.\nhttps://zettelkasten.de")
         """
-        try:
-            note_type_enum, type_err = parse_enum(note_type, NoteType, "note type")
-            if type_err:
-                return type_err
+        note_type_enum, type_err = parse_enum(note_type, NoteType, "note type")
+        if type_err:
+            return type_err
 
-            tag_list = parse_tags(tags)
-            ref_list = parse_refs(references)
+        tag_list = parse_tags(tags)
+        ref_list = parse_refs(references)
 
-            note = zettel_service.create_note(
-                title=title,
-                content=content,
-                note_type=note_type_enum,
-                tags=tag_list,
-                references=ref_list,
-            )
-            return f"Note created successfully with ID: {note.id}"
-        except Exception as e:
-            return format_error(e)
+        note = zettel_service.create_note(
+            title=title,
+            content=content,
+            note_type=note_type_enum,
+            tags=tag_list,
+            references=ref_list,
+        )
+        return f"Note created successfully with ID: {note.id}"
 
     @mcp.tool(name="slipbox_get_note")
+    @handle
     def slipbox_get_note(identifier: str) -> str:
         """Retrieve a note by ID or title.
 
@@ -87,31 +87,29 @@ def register_note_tools(server) -> None:
         Args:
             identifier: Either the note ID (e.g. "20251217T172432480464000") or exact title
         """
-        try:
-            identifier = str(identifier)
-            note = zettel_service.get_note(identifier)
-            if not note:
-                note = zettel_service.get_note_by_title(identifier)
-            if not note:
-                return f"Note not found: {identifier}"
+        identifier = str(identifier)
+        note = zettel_service.get_note(identifier)
+        if not note:
+            note = zettel_service.get_note_by_title(identifier)
+        if not note:
+            return f"Note not found: {identifier}"
 
-            result = f"# {note.title}\n"
-            result += f"ID: {note.id}\n"
-            result += f"Type: {note.note_type.value}\n"
-            result += f"Created: {note.created_at.isoformat()}\n"
-            result += f"Updated: {note.updated_at.isoformat()}\n"
-            if note.tags:
-                result += f"Tags: {format_tags(note.tags)}\n"
-            if note.references:
-                result += "References:\n"
-                for ref in note.references:
-                    result += f"  - {ref}\n"
-            result += f"\n{note.content}\n"
-            return result
-        except Exception as e:
-            return format_error(e)
+        result = f"# {note.title}\n"
+        result += f"ID: {note.id}\n"
+        result += f"Type: {note.note_type.value}\n"
+        result += f"Created: {note.created_at.isoformat()}\n"
+        result += f"Updated: {note.updated_at.isoformat()}\n"
+        if note.tags:
+            result += f"Tags: {format_tags(note.tags)}\n"
+        if note.references:
+            result += "References:\n"
+            for ref in note.references:
+                result += f"  - {ref}\n"
+        result += f"\n{note.content}\n"
+        return result
 
     @mcp.tool(name="slipbox_update_note")
+    @handle
     def slipbox_update_note(
         note_id: str,
         title: Optional[str] = None,
@@ -138,36 +136,34 @@ def register_note_tools(server) -> None:
             tags: New comma-separated tags, or empty string to clear (optional)
             references: New newline-separated citations, or empty string to clear (optional)
         """
-        try:
-            note = zettel_service.get_note(str(note_id))
-            if not note:
-                return f"Note not found: {note_id}"
+        note = zettel_service.get_note(str(note_id))
+        if not note:
+            return f"Note not found: {note_id}"
 
-            note_type_enum = None
-            if note_type:
-                note_type_enum, type_err = parse_enum(note_type, NoteType, "note type")
-                if type_err:
-                    return type_err
+        note_type_enum = None
+        if note_type:
+            note_type_enum, type_err = parse_enum(note_type, NoteType, "note type")
+            if type_err:
+                return type_err
 
-            tag_list = None
-            if tags is not None:  # Allow empty string to clear tags
-                tag_list = parse_tags(tags)
+        tag_list = None
+        if tags is not None:  # Allow empty string to clear tags
+            tag_list = parse_tags(tags)
 
-            ref_list = parse_refs(references) if references is not None else None
+        ref_list = parse_refs(references) if references is not None else None
 
-            updated_note = zettel_service.update_note(
-                note_id=note_id,
-                title=title,
-                content=content,
-                note_type=note_type_enum,
-                tags=tag_list,
-                references=ref_list,
-            )
-            return f"Note updated successfully: {updated_note.id}"
-        except Exception as e:
-            return format_error(e)
+        updated_note = zettel_service.update_note(
+            note_id=note_id,
+            title=title,
+            content=content,
+            note_type=note_type_enum,
+            tags=tag_list,
+            references=ref_list,
+        )
+        return f"Note updated successfully: {updated_note.id}"
 
     @mcp.tool(name="slipbox_delete_note")
+    @handle
     def slipbox_delete_note(note_id: str) -> str:
         """Delete a note permanently.
 
@@ -177,12 +173,9 @@ def register_note_tools(server) -> None:
         Args:
             note_id: The ID of the note to delete
         """
-        try:
-            note = zettel_service.get_note(note_id)
-            if not note:
-                return f"Note not found: {note_id}"
+        note = zettel_service.get_note(note_id)
+        if not note:
+            return f"Note not found: {note_id}"
 
-            zettel_service.delete_note(str(note_id))
-            return f"Note deleted successfully: {note_id}"
-        except Exception as e:
-            return format_error(e)
+        zettel_service.delete_note(str(note_id))
+        return f"Note deleted successfully: {note_id}"

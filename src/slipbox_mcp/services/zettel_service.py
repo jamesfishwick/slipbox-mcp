@@ -5,6 +5,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from slipbox_mcp.models.schema import LinkType, Note, NoteType, Tag
+from slipbox_mcp.services.exceptions import NoteNotFoundError
 from slipbox_mcp.storage.note_repository import NoteRepository
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,13 @@ class ZettelService:
 
     def __init__(self, repository: Optional[NoteRepository] = None):
         self.repository = repository or NoteRepository()
+
+    def _get_or_raise(self, note_id: str, label: str = "Note") -> Note:
+        """Fetch a note by ID or raise NoteNotFoundError if it does not exist."""
+        note = self.repository.get(note_id)
+        if not note:
+            raise NoteNotFoundError(note_id, label)
+        return note
 
     def create_note(
         self,
@@ -68,9 +76,7 @@ class ZettelService:
         with validate_assignment=True, where mid-update validation failure
         would leave the in-memory note partially modified.
         """
-        note = self.repository.get(note_id)
-        if not note:
-            raise ValueError(f"Note with ID {note_id} not found")
+        note = self._get_or_raise(note_id)
 
         changes: Dict[str, Any] = {}
         if title is not None:
@@ -107,17 +113,13 @@ class ZettelService:
 
     def add_tag_to_note(self, note_id: str, tag: str) -> Note:
         """Add a tag to a note."""
-        note = self.repository.get(note_id)
-        if not note:
-            raise ValueError(f"Note with ID {note_id} not found")
+        note = self._get_or_raise(note_id)
         note.add_tag(tag)
         return self.repository.update(note)
 
     def remove_tag_from_note(self, note_id: str, tag: str) -> Note:
         """Remove a tag from a note."""
-        note = self.repository.get(note_id)
-        if not note:
-            raise ValueError(f"Note with ID {note_id} not found")
+        note = self._get_or_raise(note_id)
         note.remove_tag(tag)
         return self.repository.update(note)
 
@@ -156,12 +158,8 @@ class ZettelService:
         Returns:
             Tuple of (source_note, target_note or None)
         """
-        source_note = self.repository.get(source_id)
-        if not source_note:
-            raise ValueError(f"Source note with ID {source_id} not found")
-        target_note = self.repository.get(target_id)
-        if not target_note:
-            raise ValueError(f"Target note with ID {target_id} not found")
+        source_note = self._get_or_raise(source_id, "Source note")
+        target_note = self._get_or_raise(target_id, "Target note")
 
         if self._note_has_link(source_note, target_id, link_type):
             if not bidirectional:
@@ -192,9 +190,7 @@ class ZettelService:
         bidirectional: bool = False,
     ) -> Tuple[Note, Optional[Note]]:
         """Remove a link between notes."""
-        source_note = self.repository.get(source_id)
-        if not source_note:
-            raise ValueError(f"Source note with ID {source_id} not found")
+        source_note = self._get_or_raise(source_id, "Source note")
 
         source_note.remove_link(target_id, link_type)
         source_note = self.repository.update(source_note)
@@ -210,9 +206,7 @@ class ZettelService:
 
     def get_linked_notes(self, note_id: str, direction: str = "outgoing") -> List[Note]:
         """Get notes linked to/from a note."""
-        note = self.repository.get(note_id)
-        if not note:
-            raise ValueError(f"Note with ID {note_id} not found")
+        self._get_or_raise(note_id)  # validate existence; links come from the repo
         return self.repository.find_linked_notes(note_id, direction)
 
     def rebuild_index(self) -> None:
@@ -221,9 +215,7 @@ class ZettelService:
 
     def export_note(self, note_id: str, format: str = "markdown") -> str:
         """Export a note in the specified format."""
-        note = self.repository.get(note_id)
-        if not note:
-            raise ValueError(f"Note with ID {note_id} not found")
+        note = self._get_or_raise(note_id)
 
         if format.lower() == "markdown":
             try:
@@ -239,14 +231,12 @@ class ZettelService:
         self, note_id: str, threshold: float = 0.5
     ) -> List[Tuple[Note, float]]:
         """Find notes similar to the given note based on shared tags and links."""
-        note = self.repository.get(note_id)
-        if not note:
-            raise ValueError(f"Note with ID {note_id} not found")
+        note = self._get_or_raise(note_id)
 
         all_notes = self.repository.get_all()
         results = []
 
-        note_tags = {tag.name for tag in note.tags}
+        note_tags = note.tag_names()
         note_links = {link.target_id for link in note.links}
 
         incoming_notes = self.repository.find_linked_notes(note_id, "incoming")
@@ -256,7 +246,7 @@ class ZettelService:
             if other_note.id == note_id:
                 continue
 
-            other_tags = {tag.name for tag in other_note.tags}
+            other_tags = other_note.tag_names()
             tag_overlap = len(note_tags.intersection(other_tags))
 
             other_links = {link.target_id for link in other_note.links}
