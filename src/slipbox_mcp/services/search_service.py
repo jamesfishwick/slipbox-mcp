@@ -62,6 +62,21 @@ class SearchService:
     def __init__(self, zettel_service: Optional[ZettelService] = None):
         self.zettel_service = zettel_service or ZettelService()
 
+    @staticmethod
+    def _build_result(
+        note: Note,
+        score: float = 1.0,
+        matched_terms: Optional[Set[str]] = None,
+        matched_context: str = "",
+    ) -> SearchResult:
+        """Construct a SearchResult with consistent defaults."""
+        return SearchResult(
+            note=note,
+            score=score,
+            matched_terms=matched_terms or set(),
+            matched_context=matched_context,
+        )
+
     def _run_fts5_query(self, fts_query: str) -> list:
         """Execute an FTS5 MATCH query and return raw result rows.
 
@@ -170,8 +185,8 @@ class SearchService:
             # bm25() returns negative float; negate so higher = better
             score = -row.bm25_score
             results.append(
-                SearchResult(
-                    note=repository._db_note_to_note(db_note),
+                self._build_result(
+                    repository._db_note_to_note(db_note),
                     score=score,
                     matched_terms=set(query.split()),
                     matched_context=f"Content: ...{row.matched_context}...",
@@ -254,12 +269,7 @@ class SearchService:
             # MATCH (which would swallow a misleading FTS5 syntax error to []).
             if not query_text or not query_text.strip():
                 notes = [repository._db_note_to_note(n) for n in db_notes]
-                return [
-                    SearchResult(
-                        note=n, score=1.0, matched_terms=set(), matched_context=""
-                    )
-                    for n in notes
-                ]
+                return [self._build_result(n) for n in notes]
 
             fts_query = _build_fts_match(query_text)
 
@@ -272,8 +282,8 @@ class SearchService:
             note = repository._db_note_to_note(candidate_ids[row.id])
             score = -row.bm25_score
             results.append(
-                SearchResult(
-                    note=note,
+                self._build_result(
+                    note,
                     score=score,
                     matched_terms=set(query_text.split()),
                     matched_context=f"Content: ...{row.matched_context}...",

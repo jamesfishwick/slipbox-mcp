@@ -36,7 +36,7 @@ class ClusterService:
         """Build matrix of tag pairs that appear together on notes."""
         cooccurrence = defaultdict(int)
         for note in notes:
-            tag_names = sorted([tag.name for tag in note.tags])
+            tag_names = sorted(note.tag_names())
             for tag_a, tag_b in combinations(tag_names, 2):
                 cooccurrence[(tag_a, tag_b)] += 1
 
@@ -76,13 +76,13 @@ class ClusterService:
 
     def get_cluster_notes(self, all_notes: List[Note], tags: Set[str]) -> List[Note]:
         """Get notes that have at least 2 tags from the cluster."""
-        return [n for n in all_notes if len(set(t.name for t in n.tags) & tags) >= 2]
+        return [n for n in all_notes if len(n.tag_names() & tags) >= 2]
 
     def has_structure_note(self, all_notes: List[Note], tags: Set[str]) -> bool:
         """Check if a structure note already covers this cluster."""
         for note in all_notes:
             if note.note_type == NoteType.STRUCTURE:
-                note_tags = set(t.name for t in note.tags)
+                note_tags = note.tag_names()
                 if len(note_tags & tags) >= 2:
                     return True
         return False
@@ -97,9 +97,14 @@ class ClusterService:
                     count += 1
         return count
 
+    @staticmethod
+    def _all_target_ids(notes: List[Note]) -> Set[str]:
+        """Collect every note ID that any note in the list links to."""
+        return {link.target_id for note in notes for link in note.links}
+
     def count_orphans(self, notes: List[Note]) -> int:
         """Count notes with no links at all (no outgoing or incoming within the cluster)."""
-        all_target_ids = {link.target_id for note in notes for link in note.links}
+        all_target_ids = self._all_target_ids(notes)
         return sum(
             1 for note in notes if not note.links and note.id not in all_target_ids
         )
@@ -186,11 +191,7 @@ class ClusterService:
 
         results.sort(key=lambda x: -x.score)
 
-        # Build target-ID set once for O(n) orphan counting instead of O(n^2).
-        all_target_ids = {link.target_id for n in all_notes for link in n.links}
-        total_orphans = sum(
-            1 for n in all_notes if not n.links and n.id not in all_target_ids
-        )
+        total_orphans = self.count_orphans(all_notes)
 
         return ClusterReport(
             generated_at=datetime.now(),
