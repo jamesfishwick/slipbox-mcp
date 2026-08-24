@@ -31,7 +31,7 @@ docstrings are authoritative.
 # remain an opt-in the user adds to their own system prompt (docs/SYSTEM_PROMPT.md).
 
 SERVER_INSTRUCTIONS = """\
-This server manages a Zettelkasten knowledge system. Prioritize knowledge
+This server manages a Zettelkasten/Slipbox knowledge system. Prioritize knowledge
 emergence — meaningful connections that reveal insight — over plain storage.
 Before creating a note, search first (slipbox_search_notes) to avoid duplicates
 and find connection points.
