@@ -1450,7 +1450,7 @@ class TestCreateStructureFromClusterTool(MockServerBase):
             },
         )
 
-    def test_happy_path_creates_structure_note_with_links(self):
+    def test_happy_path_delegates_to_service_and_formats_result(self):
         # Arrange
         CLUSTER_ID = "poetry-craft"
         NOTE_INFOS = [{"id": "n1", "title": "Note 1"}, {"id": "n2", "title": "Note 2"}]
@@ -1459,21 +1459,29 @@ class TestCreateStructureFromClusterTool(MockServerBase):
 
         structure_note = MagicMock()
         structure_note.id = "struct001"
-        self.mock_zettel_service.create_note.return_value = structure_note
-        self.mock_zettel_service.create_link.return_value = (MagicMock(), MagicMock())
+        structure_note.title = "Poetry Craft Knowledge Map"
+        self.mock_cluster_service.create_structure_note.return_value = (
+            structure_note,
+            2,
+        )
 
         # Act
         result = self._tool("slipbox_create_structure_from_cluster")(
             cluster_id=CLUSTER_ID
         )
 
-        # Assert
+        # Assert -- the tool formats the service's result and holds no domain logic.
         assert "Structure note created" in result, (
             f"Expected creation message, got {result!r}"
         )
         assert "struct001" in result, f"Expected structure note ID, got {result!r}"
         assert "2/2 member notes" in result, f"Expected link count, got {result!r}"
-        self.mock_cluster_service.dismiss_cluster.assert_called_once_with(CLUSTER_ID)
+        # It hands the found cluster to the service rather than doing the work itself.
+        self.mock_cluster_service.create_structure_note.assert_called_once()
+        passed_cluster = self.mock_cluster_service.create_structure_note.call_args.args[
+            0
+        ]
+        assert passed_cluster.id == CLUSTER_ID
 
     def test_cluster_not_found_returns_error(self):
         # Arrange

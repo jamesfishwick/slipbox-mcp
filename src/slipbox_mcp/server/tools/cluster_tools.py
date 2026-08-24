@@ -4,7 +4,6 @@ import logging
 from typing import Optional
 
 from slipbox_mcp.formatting import format_cluster_summary
-from slipbox_mcp.models.schema import LinkType, NoteType
 from slipbox_mcp.server.descriptions import (
     SLIPBOX_CREATE_STRUCTURE_FROM_CLUSTER,
     SLIPBOX_DISMISS_CLUSTER,
@@ -20,7 +19,6 @@ def register_cluster_tools(server) -> None:
     """Register cluster-related MCP tools."""
     mcp = server.mcp
     cluster_service = server.cluster_service
-    zettel_service = server.zettel_service
     handle = tool_error_handler(server.format_error_response)
 
     @mcp.tool(name="slipbox_get_cluster_report", description=SLIPBOX_GET_CLUSTER_REPORT)
@@ -85,49 +83,15 @@ def register_cluster_tools(server) -> None:
             available = ", ".join(c.id for c in report.clusters[:5])
             return f"Cluster '{cluster_id}' not found. Available: {available}"
 
-        final_title = title or cluster.suggested_title
-        content = f"Structure note for {len(cluster.notes)} related notes.\n\n"
-        content += f"## Overview\n\nThis cluster emerged from notes sharing these tags: {', '.join(cluster.tags)}.\n\n"
-        content += "## Member Notes\n\n"
-
-        for note_info in cluster.notes:
-            content += f"- [[{note_info['id']}]] {note_info['title']}\n"
-
-        content += (
-            "\n## Synthesis\n\n_TODO: Synthesize key insights from these notes._\n"
+        structure_note, links_created = cluster_service.create_structure_note(
+            cluster, title, create_links
         )
 
-        structure_note = zettel_service.create_note(
-            title=final_title,
-            content=content,
-            note_type=NoteType.STRUCTURE,
-            tags=cluster.tags[:5],
+        return (
+            f"Structure note created: {structure_note.title} "
+            f"(ID: {structure_note.id})\n"
+            f"Linked to {links_created}/{len(cluster.notes)} member notes."
         )
-
-        links_created = 0
-        if create_links:
-            for note_info in cluster.notes:
-                # A single unlinkable member should not abort the whole
-                # structure note, so per-link failures are logged and skipped.
-                try:
-                    zettel_service.create_link(
-                        source_id=structure_note.id,
-                        target_id=note_info["id"],
-                        link_type=LinkType.REFERENCE,
-                        description="Member of structure note",
-                        bidirectional=True,
-                    )
-                    links_created += 1
-                except Exception as link_error:
-                    logger.warning(
-                        "Failed to create link to %s: %s",
-                        note_info["id"],
-                        link_error,
-                    )
-
-        cluster_service.dismiss_cluster(cluster_id)
-
-        return f"Structure note created: {final_title} (ID: {structure_note.id})\nLinked to {links_created}/{len(cluster.notes)} member notes."
 
     @mcp.tool(name="slipbox_refresh_clusters", description=SLIPBOX_REFRESH_CLUSTERS)
     @handle

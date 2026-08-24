@@ -16,7 +16,7 @@ from slipbox_mcp.models.cluster_models import (
     ClusterCandidate,
     ClusterReport,
 )
-from slipbox_mcp.models.schema import Note, NoteType
+from slipbox_mcp.models.schema import LinkType, Note, NoteType
 from slipbox_mcp.services.zettel_service import ZettelService
 
 logger = logging.getLogger(__name__)
@@ -260,6 +260,65 @@ class ClusterService:
         newest = kwargs.get("newest_date")
         kwargs["newest_date"] = datetime.fromisoformat(newest) if newest else None
         return ClusterCandidate(**kwargs)
+
+    @staticmethod
+    def _render_structure_content(cluster: ClusterCandidate) -> str:
+        """Render the markdown body of a structure note from a cluster."""
+        content = f"Structure note for {len(cluster.notes)} related notes.\n\n"
+        content += (
+            "## Overview\n\nThis cluster emerged from notes sharing these tags: "
+            f"{', '.join(cluster.tags)}.\n\n"
+        )
+        content += "## Member Notes\n\n"
+        for note_info in cluster.notes:
+            content += f"- [[{note_info['id']}]] {note_info['title']}\n"
+        content += (
+            "\n## Synthesis\n\n_TODO: Synthesize key insights from these notes._\n"
+        )
+        return content
+
+    def create_structure_note(
+        self,
+        cluster: ClusterCandidate,
+        title: Optional[str] = None,
+        create_links: bool = True,
+    ) -> Tuple[Note, int]:
+        """Create a structure note for a cluster and wire it to the members.
+
+        Owns the domain logic that used to live in the MCP tool handler: render
+        the body, create the note, link each member (a per-link failure is logged
+        and skipped so one bad member does not abort the whole note), and dismiss
+        the cluster so it stops surfacing as needing structure. Returns the new
+        note and the count of member links actually created.
+        """
+        structure_note = self.zettel_service.create_note(
+            title=title or cluster.suggested_title,
+            content=self._render_structure_content(cluster),
+            note_type=NoteType.STRUCTURE,
+            tags=cluster.tags[:5],
+        )
+
+        links_created = 0
+        if create_links:
+            for note_info in cluster.notes:
+                try:
+                    self.zettel_service.create_link(
+                        source_id=structure_note.id,
+                        target_id=note_info["id"],
+                        link_type=LinkType.REFERENCE,
+                        description="Member of structure note",
+                        bidirectional=True,
+                    )
+                    links_created += 1
+                except Exception as link_error:
+                    logger.warning(
+                        "Failed to link structure note to %s: %s",
+                        note_info["id"],
+                        link_error,
+                    )
+
+        self.dismiss_cluster(cluster.id)
+        return structure_note, links_created
 
     def dismiss_cluster(self, cluster_id: str) -> None:
         """Mark cluster as dismissed; hides it from maintenance suggestions."""
