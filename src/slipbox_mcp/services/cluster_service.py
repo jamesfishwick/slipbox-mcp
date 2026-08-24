@@ -3,6 +3,7 @@
 import json
 import logging
 from collections import defaultdict
+from dataclasses import asdict, fields
 from datetime import datetime
 from itertools import combinations
 from pathlib import Path
@@ -19,6 +20,17 @@ from slipbox_mcp.models.schema import Note, NoteType
 from slipbox_mcp.services.zettel_service import ZettelService
 
 logger = logging.getLogger(__name__)
+
+# Field names for tolerant load: an unknown key in a saved report (e.g. from a
+# newer version) is dropped rather than crashing the ClusterCandidate constructor.
+_CANDIDATE_FIELDS = {f.name for f in fields(ClusterCandidate)}
+
+
+def _json_default(value: Any) -> str:
+    """json.dumps hook: serialize datetime fields as ISO 8601 strings."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 class ClusterService:
@@ -205,31 +217,17 @@ class ClusterService:
         )
 
     def save_report(self, report: ClusterReport) -> Path:
-        """Save cluster report to JSON file."""
+        """Save cluster report to JSON file.
+
+        ``dataclasses.asdict`` recurses through the nested ClusterCandidate
+        dataclasses, so the serialized shape stays in lockstep with the models
+        (add a field to either and it round-trips without touching this method).
+        ``_json_default`` handles the datetime fields.
+        """
         self.report_path.parent.mkdir(parents=True, exist_ok=True)
-
-        data = {
-            "generated_at": report.generated_at.isoformat(),
-            "clusters": [
-                {
-                    "id": c.id,
-                    "suggested_title": c.suggested_title,
-                    "tags": c.tags,
-                    "notes": c.notes,
-                    "note_count": c.note_count,
-                    "orphan_count": c.orphan_count,
-                    "internal_links": c.internal_links,
-                    "density": c.density,
-                    "score": c.score,
-                    "newest_date": c.newest_date.isoformat() if c.newest_date else None,
-                }
-                for c in report.clusters
-            ],
-            "stats": report.stats,
-            "dismissed_cluster_ids": report.dismissed_cluster_ids,
-        }
-
-        self.report_path.write_text(json.dumps(data, indent=2))
+        self.report_path.write_text(
+            json.dumps(asdict(report), indent=2, default=_json_default)
+        )
         return self.report_path
 
     def load_report(self) -> Optional[ClusterReport]:
@@ -241,29 +239,27 @@ class ClusterService:
             data = json.loads(self.report_path.read_text())
             return ClusterReport(
                 generated_at=datetime.fromisoformat(data["generated_at"]),
-                clusters=[
-                    ClusterCandidate(
-                        id=c["id"],
-                        suggested_title=c["suggested_title"],
-                        tags=c["tags"],
-                        notes=c["notes"],
-                        note_count=c["note_count"],
-                        orphan_count=c["orphan_count"],
-                        internal_links=c["internal_links"],
-                        density=c["density"],
-                        score=c["score"],
-                        newest_date=datetime.fromisoformat(c["newest_date"])
-                        if c.get("newest_date")
-                        else None,
-                    )
-                    for c in data["clusters"]
-                ],
+                clusters=[self._candidate_from_dict(c) for c in data["clusters"]],
                 stats=data["stats"],
                 dismissed_cluster_ids=data.get("dismissed_cluster_ids", []),
             )
         except Exception as e:
             logger.error("Failed to load cluster report: %s", e)
             return None
+
+    @staticmethod
+    def _candidate_from_dict(data: Dict[str, Any]) -> ClusterCandidate:
+        """Rebuild a ClusterCandidate from its ``asdict`` form.
+
+        Keep only keys that are real fields (derived from the dataclass, so no
+        hardcoded list), which lets a report written by a future version with an
+        extra field still load rather than raising on an unexpected kwarg. Only
+        ``newest_date`` needs parsing back from its ISO string.
+        """
+        kwargs = {k: v for k, v in data.items() if k in _CANDIDATE_FIELDS}
+        newest = kwargs.get("newest_date")
+        kwargs["newest_date"] = datetime.fromisoformat(newest) if newest else None
+        return ClusterCandidate(**kwargs)
 
     def dismiss_cluster(self, cluster_id: str) -> None:
         """Mark cluster as dismissed; hides it from maintenance suggestions."""
