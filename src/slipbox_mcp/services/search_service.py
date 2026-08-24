@@ -125,17 +125,53 @@ class SearchService:
             return []
 
         rows = self._run_fts5_query(fts_query)
+        if not rows:
+            return []
+
+        # Hydrate every hit with a single batched DB query instead of one file
+        # read per hit -- the same batching pattern find_central_notes and
+        # search_combined use. The FTS index is DB-derived (an external-content
+        # table kept in lockstep with notes by triggers), so DB content is
+        # authoritative for what matched. Unlike the old repository.get() path
+        # this never reads the backing file, so a corrupt-on-disk note with an
+        # intact DB row is returned from the index rather than raising IOError.
+        # On-disk corruption is surfaced by audit tooling, not by search.
+        ordered_ids = [row.id for row in rows]
+        with repository.session_factory() as session:
+            db_notes_by_id = {
+                db_note.id: db_note
+                for db_note in session.execute(
+                    select(DBNote)
+                    .where(DBNote.id.in_(ordered_ids))
+                    .options(*_NOTE_EAGER_LOADS)
+                )
+                .unique()
+                .scalars()
+                .all()
+            }
 
         results = []
         for row in rows:
-            note = repository.get(row.id)
-            if note is None:
+            db_note = db_notes_by_id.get(row.id)
+            if db_note is None:
+                # db_note is None only via a cross-transaction race: the FTS read
+                # above (a separate transaction) matched the note, but it was
+                # deleted before this batched hydrate query ran. notes_fts is an
+                # external-content index kept in lockstep with notes by triggers,
+                # so this is a TOCTOU gap between the two reads, not index-vs-table
+                # drift. Skip it, mirroring the defensive skip in find_central_notes.
+                logger.warning(
+                    "search_by_text: note '%s' matched the FTS index but was gone "
+                    "from the notes table at hydrate time (deleted between the FTS "
+                    "read and this query); skipping",
+                    row.id,
+                )
                 continue
             # bm25() returns negative float; negate so higher = better
             score = -row.bm25_score
             results.append(
                 SearchResult(
-                    note=note,
+                    note=repository._db_note_to_note(db_note),
                     score=score,
                     matched_terms=set(query.split()),
                     matched_context=f"Content: ...{row.matched_context}...",
