@@ -18,7 +18,15 @@ jobs:
       - run: uv venv --python 3.13 && uv pip install -e ".[dev]"
       - run: uv run ruff check src/ evals/ tests/ scripts/
       - run: uv run ruff format --check src/ evals/ tests/ scripts/
-      - run: uv run pytest -q
+      - run: uv run mypy src/
+      - run: uv run pytest -q --cov=slipbox_mcp --cov-report=term-missing --cov-fail-under=80
+      # Dependency CVE scan. Non-blocking for now: the locked deps carry a
+      # backlog of advisories (mcp, starlette, and others) whose fixes are major
+      # version bumps out of scope here. Dependabot (.github/dependabot.yml)
+      # drives those upgrades; make this blocking once the backlog is cleared.
+      - name: Audit dependencies for known vulnerabilities
+        continue-on-error: true
+        run: uv run --with pip-audit pip-audit
       - name: Skills are regenerated from the prompt templates (no drift)
         run: |
           uv run python scripts/build_skills.py

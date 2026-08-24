@@ -1,7 +1,10 @@
 """MCP tool registrations, split by domain."""
 
 import functools
-from typing import Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
 
 
 def tool_error_handler(format_error: Callable[[Exception], str]) -> Callable:
@@ -22,7 +25,7 @@ def tool_error_handler(format_error: Callable[[Exception], str]) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
@@ -33,7 +36,7 @@ def tool_error_handler(format_error: Callable[[Exception], str]) -> Callable:
     return decorator
 
 
-def register_all_tools(server) -> None:
+def register_all_tools(server: "ZettelkastenMcpServer") -> None:
     """Register all MCP tools on the given server."""
     from slipbox_mcp.server.tools.cluster_tools import register_cluster_tools
     from slipbox_mcp.server.tools.link_tools import register_link_tools

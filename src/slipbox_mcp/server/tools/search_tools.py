@@ -2,16 +2,19 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from slipbox_mcp.models.schema import NoteType
 from slipbox_mcp.server.tools import tool_error_handler
 from slipbox_mcp.utils import content_preview, format_tags, parse_enum, parse_tags
 
+if TYPE_CHECKING:
+    from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
+
 logger = logging.getLogger(__name__)
 
 
-def register_search_tools(server) -> None:
+def register_search_tools(server: "ZettelkastenMcpServer") -> None:
     """Register search-related MCP tools."""
     mcp = server.mcp
     search_service = server.search_service

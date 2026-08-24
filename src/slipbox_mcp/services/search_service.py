@@ -96,7 +96,7 @@ class SearchService:
         """)
         with repository.session_factory() as session:
             try:
-                return session.execute(sql, {"query": fts_query}).fetchall()
+                return list(session.execute(sql, {"query": fts_query}).fetchall())
             except OperationalError as e:
                 err = str(e).lower()
                 if "no such table" in err:

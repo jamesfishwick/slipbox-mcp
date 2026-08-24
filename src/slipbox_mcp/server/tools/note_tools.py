@@ -1,16 +1,19 @@
 """Note CRUD tools."""
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from slipbox_mcp.models.schema import NoteType
 from slipbox_mcp.server.tools import tool_error_handler
 from slipbox_mcp.utils import format_tags, parse_enum, parse_refs, parse_tags
 
+if TYPE_CHECKING:
+    from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
+
 logger = logging.getLogger(__name__)
 
 
-def register_note_tools(server) -> None:
+def register_note_tools(server: "ZettelkastenMcpServer") -> None:
     """Register note CRUD tools."""
     mcp = server.mcp
     zettel_service = server.zettel_service
@@ -63,6 +66,8 @@ def register_note_tools(server) -> None:
         note_type_enum, type_err = parse_enum(note_type, NoteType, "note type")
         if type_err:
             return type_err
+        # The type_err guard above guarantees a parsed member here.
+        assert note_type_enum is not None
 
         tag_list = parse_tags(tags)
         ref_list = parse_refs(references)

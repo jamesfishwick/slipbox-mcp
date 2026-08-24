@@ -34,7 +34,7 @@ def _warn_renamed_env_vars() -> None:
             )
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Zettelkasten MCP Server")
     parser.add_argument(
@@ -58,7 +58,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def update_config(args):
+def update_config(args: argparse.Namespace) -> None:
     """Update the global config with command line arguments."""
     if args.notes_dir:
         config.notes_dir = Path(args.notes_dir)
@@ -66,7 +66,7 @@ def update_config(args):
         config.database_path = Path(args.database_path)
 
 
-def main():
+def main() -> None:
     """Run the Zettelkasten MCP server."""
     args = parse_args()
     update_config(args)

@@ -391,7 +391,7 @@ class NoteRepository(Repository[Note]):
             )
             for lnk in db_note.outgoing_links
         ]
-        kwargs = dict(
+        kwargs: dict[str, Any] = dict(
             id=db_note.id,
             title=db_note.title,
             content=db_note.content,
@@ -548,7 +548,8 @@ class NoteRepository(Repository[Note]):
                 content += f"- {link.link_type.value} [[{link.target_id}]]{desc}\n"
 
         post = frontmatter.Post(content, **metadata)
-        return frontmatter.dumps(post)
+        # frontmatter has no type stubs, so dumps() is typed Any; it returns str.
+        return str(frontmatter.dumps(post))
 
     def _note_path(self, note_id: str) -> Path:
         """Resolve the markdown path for a note id, refusing any escape.

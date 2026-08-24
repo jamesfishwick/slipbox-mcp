@@ -1,16 +1,19 @@
 """Link management and tag tools."""
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from slipbox_mcp.models.schema import LinkType
 from slipbox_mcp.server.tools import tool_error_handler
 from slipbox_mcp.utils import format_tags, parse_enum
 
+if TYPE_CHECKING:
+    from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
+
 logger = logging.getLogger(__name__)
 
 
-def register_link_tools(server) -> None:
+def register_link_tools(server: "ZettelkastenMcpServer") -> None:
     """Register link and tag tools."""
     mcp = server.mcp
     zettel_service = server.zettel_service
@@ -55,6 +58,8 @@ def register_link_tools(server) -> None:
         link_type_enum, type_err = parse_enum(link_type, LinkType, "link type")
         if type_err:
             return type_err
+        # The type_err guard above guarantees a parsed member here.
+        assert link_type_enum is not None
 
         source_note, target_note = zettel_service.create_link(
             source_id=source_id,

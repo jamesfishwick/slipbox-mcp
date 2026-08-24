@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any, Iterable
+
+from slipbox_mcp.models.cluster_models import ClusterCandidate
 from slipbox_mcp.models.schema import Note
 
 
-def format_tag_list(tags) -> str:
+def format_tag_list(tags: Iterable[Any]) -> str:
     """Format tags as comma-separated string. Accepts Note.tags or plain strings."""
     if not tags:
         return ""
@@ -27,7 +30,7 @@ def format_note_compact(note: Note) -> str:
 
 
 def format_cluster_summary(
-    cluster,
+    cluster: ClusterCandidate,
     index: int = 0,
     include_notes: bool = False,
 ) -> str:
