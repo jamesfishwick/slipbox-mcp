@@ -233,7 +233,6 @@ class ZettelService:
         """Find notes similar to the given note based on shared tags and links."""
         note = self._get_or_raise(note_id)
 
-        all_notes = self.repository.get_all()
         results = []
 
         note_tags = note.tag_names()
@@ -242,7 +241,16 @@ class ZettelService:
         incoming_notes = self.repository.find_linked_notes(note_id, "incoming")
         note_incoming = {n.id for n in incoming_notes}
 
-        for other_note in all_notes:
+        # A note that shares no tag or link with this one always scores 0, so
+        # restrict scoring to candidates that share something instead of loading
+        # the whole corpus. At threshold 0 the caller wants every note ranked
+        # (0-similarity notes included), so fall back to the full set there.
+        if threshold <= 0.0:
+            candidates = self.repository.get_all()
+        else:
+            candidates = self.repository.find_similarity_candidates(note_id)
+
+        for other_note in candidates:
             if other_note.id == note_id:
                 continue
 
