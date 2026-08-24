@@ -6,11 +6,11 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import frontmatter
 from sqlalchemy import and_, delete, func, or_, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session, joinedload
 
 from slipbox_mcp.config import config
@@ -227,6 +227,106 @@ class NoteRepository(Repository[Note]):
         original name so existing callers and tests keep working.
         """
         return self.codec.convert_db_notes(db_notes)
+
+    def run_fts_match(self, fts_query: str) -> List[Any]:
+        """Execute an FTS5 MATCH query and return raw result rows.
+
+        Returns list of rows with (id, bm25_score, matched_context).
+        Returns [] on FTS5 syntax errors. Re-raises on missing tables.
+        """
+        sql = text("""
+            SELECT
+                n.id,
+                bm25(notes_fts) AS bm25_score,
+                snippet(notes_fts, 1, '', '', '...', 8) AS matched_context
+            FROM notes_fts
+            JOIN notes n ON notes_fts.rowid = n.rowid
+            WHERE notes_fts MATCH :query
+            ORDER BY bm25(notes_fts)
+        """)
+        with self.session_factory() as session:
+            try:
+                return list(session.execute(sql, {"query": fts_query}).fetchall())
+            except OperationalError as e:
+                err = str(e).lower()
+                if "no such table" in err:
+                    if "notes_fts" in err:
+                        logger.error(
+                            "FTS5 table 'notes_fts' missing -- run slipbox_rebuild_index: %s",
+                            e,
+                        )
+                    else:
+                        logger.error(
+                            "Required table missing from database schema: %s", e
+                        )
+                    raise
+                if "fts5" in err or (
+                    "unterminated string" in err and "notes_fts" in err
+                ):
+                    logger.warning("FTS5 query syntax error for %r: %s", fts_query, e)
+                    return []
+                raise
+
+    def get_notes_by_ids(self, ids: List[str]) -> Dict[str, Note]:
+        """Batch-hydrate notes by id into domain Notes keyed by id.
+
+        Returns an empty dict for an empty id list rather than running an
+        empty IN clause.
+        """
+        if not ids:
+            return {}
+        with self.session_factory() as session:
+            db_notes = (
+                session.execute(
+                    select(DBNote).where(DBNote.id.in_(ids)).options(*_NOTE_EAGER_LOADS)
+                )
+                .unique()
+                .scalars()
+                .all()
+            )
+            return {db_note.id: self._db_note_to_note(db_note) for db_note in db_notes}
+
+    def find_by_date_range(
+        self,
+        start_date: Optional[datetime.datetime] = None,
+        end_date: Optional[datetime.datetime] = None,
+        use_updated: bool = False,
+    ) -> List[Note]:
+        """Find notes created or updated within a date range."""
+        date_col = DBNote.updated_at if use_updated else DBNote.created_at
+        with self.session_factory() as session:
+            query = select(DBNote).options(*_NOTE_EAGER_LOADS)
+            if start_date:
+                query = query.where(date_col >= start_date)
+            if end_date:
+                query = query.where(date_col <= end_date)
+            query = query.order_by(date_col.desc())
+
+            result = session.execute(query)
+            db_notes = result.unique().scalars().all()
+            return [self._db_note_to_note(db_note) for db_note in db_notes]
+
+    def find_metadata_candidates(
+        self,
+        note_type: Optional[NoteType] = None,
+        tags: Optional[List[str]] = None,
+        start_date: Optional[datetime.datetime] = None,
+        end_date: Optional[datetime.datetime] = None,
+    ) -> Dict[str, Note]:
+        """Pre-filter notes by metadata, returning domain Notes keyed by id."""
+        with self.session_factory() as session:
+            query = select(DBNote).options(*_NOTE_EAGER_LOADS)
+            if note_type:
+                query = query.where(DBNote.note_type == note_type.value)
+            if start_date:
+                query = query.where(DBNote.created_at >= start_date)
+            if end_date:
+                query = query.where(DBNote.created_at <= end_date)
+            if tags:
+                query = query.where(DBNote.tags.any(DBTag.name.in_(tags)))
+
+            db_notes = session.execute(query).unique().scalars().all()
+            return {db_note.id: self._db_note_to_note(db_note) for db_note in db_notes}
 
     def _get_or_create_tag(self, session: Session, tag_name: str) -> DBTag:
         """Return the DBTag with the given name, creating it if absent.
