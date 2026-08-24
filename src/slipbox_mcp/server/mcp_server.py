@@ -88,14 +88,27 @@ class ZettelkastenMcpServer:
                 return f"Error: {errors[0]['msg']}"
             return f"Error: {error}"
         elif isinstance(error, ValueError):
+            # ValueError messages are curated validator text, not raw paths, so
+            # they are safe to surface to the caller.
             logger.error("Validation error [%s]: %s", error_id, error)
             return f"Error: {error}"
         elif isinstance(error, (IOError, OSError)):
+            # Filesystem errors carry absolute paths in their message; return a
+            # generic response plus a correlation id and log the full detail so
+            # operators can look it up without leaking paths to the caller.
             logger.error("File system error [%s]: %s", error_id, error, exc_info=True)
-            return f"Error: {error}"
+            return (
+                f"Error: a file system error occurred while handling the request. "
+                f"Reference this error id when reporting the issue: {error_id}"
+            )
         else:
+            # Unexpected errors may embed internal detail (paths, stack context);
+            # keep the same generic-message + correlation-id contract.
             logger.error("Unexpected error [%s]: %s", error_id, error, exc_info=True)
-            return f"Error: {error}"
+            return (
+                f"Error: an unexpected error occurred while handling the request. "
+                f"Reference this error id when reporting the issue: {error_id}"
+            )
 
     def _register_tools(self) -> None:
         """Register MCP tools."""

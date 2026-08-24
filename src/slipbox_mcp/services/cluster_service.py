@@ -7,6 +7,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
+from slipbox_mcp.config import ensure_private_dir
 from slipbox_mcp.models.cluster_models import (
     CO_OCCURRENCE_THRESHOLD,
     MIN_CLUSTER_SIZE,
@@ -213,7 +214,8 @@ class ClusterService:
         the nested ClusterCandidate list round-trip without a custom encoder;
         adding a field to either model round-trips without touching this method.
         """
-        self.report_path.parent.mkdir(parents=True, exist_ok=True)
+        # The report is derived from private notes; keep its dir owner-only.
+        ensure_private_dir(self.report_path.parent)
         self.report_path.write_text(report.model_dump_json(indent=2))
         return self.report_path
 

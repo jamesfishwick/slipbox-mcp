@@ -1,5 +1,6 @@
 """Tests for the MCP server implementation."""
 
+import re
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -387,17 +388,43 @@ class TestErrorHandling(MockServerBase):
             f"Expected 'Error: Invalid input' in result, got {result!r}"
         )
 
-    def test_io_error_is_formatted(self):
-        result = self.server.format_error_response(IOError("File not found"))
-        assert "Error: File not found" in result, (
-            f"Expected 'Error: File not found' in result, got {result!r}"
+    def test_io_error_returns_generic_message_with_error_id(self):
+        """Filesystem errors must not leak their message (which carries absolute
+        paths) to the caller; the caller gets a generic message plus a
+        correlation id, and the full detail is logged instead."""
+        secret_path = "/Users/someone/private/data/notes/secret.md"
+        result = self.server.format_error_response(
+            IOError(f"Failed to write note to {secret_path}: disk full")
+        )
+        assert result.startswith("Error:"), f"Expected error string, got {result!r}"
+        assert "file system error" in result, (
+            f"Expected a generic file-system message, got {result!r}"
+        )
+        assert secret_path not in result, (
+            f"Absolute path leaked to caller in {result!r}"
+        )
+        # A correlation id (uuid4 hex prefix) must be present for operators.
+        match = re.search(r"error id when reporting the issue: ([0-9a-f]+)", result)
+        assert match is not None, f"Expected an error id in {result!r}"
+        assert len(match.group(1)) >= 6, (
+            f"Expected a non-trivial error id in {result!r}"
         )
 
-    def test_generic_exception_is_formatted(self):
-        result = self.server.format_error_response(Exception("Something went wrong"))
-        assert "Error: Something went wrong" in result, (
-            f"Expected 'Error: Something went wrong' in result, got {result!r}"
+    def test_generic_exception_returns_generic_message_with_error_id(self):
+        """Unexpected errors also return a generic message plus a correlation id
+        rather than the raw exception text, which may embed internal detail."""
+        result = self.server.format_error_response(
+            Exception("boom at /Users/someone/private/thing")
         )
+        assert result.startswith("Error:"), f"Expected error string, got {result!r}"
+        assert "unexpected error" in result, (
+            f"Expected a generic unexpected-error message, got {result!r}"
+        )
+        assert "/Users/someone/private" not in result, (
+            f"Internal detail leaked to caller in {result!r}"
+        )
+        match = re.search(r"error id when reporting the issue: ([0-9a-f]+)", result)
+        assert match is not None, f"Expected an error id in {result!r}"
 
     def test_validation_error_returns_curated_message(self):
         """ValidationError should surface the validator's curated message,

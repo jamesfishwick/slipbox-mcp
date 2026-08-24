@@ -1,7 +1,6 @@
 """Repository for note storage and retrieval."""
 
 import datetime
-import json
 import logging
 import os
 import threading
@@ -13,7 +12,7 @@ from sqlalchemy import and_, delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session, joinedload
 
-from slipbox_mcp.config import config
+from slipbox_mcp.config import config, ensure_private_dir
 from slipbox_mcp.models.db_models import (
     DBLink,
     DBNote,
@@ -97,7 +96,9 @@ class NoteRepository:
             else config.get_absolute_path(config.notes_dir)
         )
 
-        self.notes_dir.mkdir(parents=True, exist_ok=True)
+        # Notes can hold private material; create the tree owner-only (0o700)
+        # rather than at the mercy of the process umask.
+        ensure_private_dir(self.notes_dir)
 
         self.codec = NoteMarkdownCodec()
 
@@ -195,8 +196,18 @@ class NoteRepository:
                 except Exception as e:
                     logger.error("Error processing file %s: %s", file_path, e)
 
-            for note in notes:
-                self._index_note(note)
+            # Index the whole batch in one transaction: one commit per batch
+            # instead of per note. Each note is wrapped in a SAVEPOINT so a
+            # single bad/unparseable note is rolled back and skipped without
+            # discarding the rest of the batch or aborting the rebuild.
+            with self.session_factory() as session:
+                for note in notes:
+                    try:
+                        with session.begin_nested():
+                            self._index_note_in_session(session, note)
+                    except Exception as e:
+                        logger.error("Error indexing note %s: %s", note.id, e)
+                session.commit()
 
         # Rebuild FTS index to ensure consistency after bulk delete + re-insert
         with self.session_factory() as session:
@@ -350,55 +361,80 @@ class NoteRepository:
         return db_tag
 
     def _index_note(self, note: Note) -> None:
-        """Index a note in the database."""
+        """Index a single note in its own session/transaction.
+
+        Thin wrapper over :meth:`_index_note_in_session` for the one-note-at-a-time
+        callers (create/update); ``rebuild_index`` instead shares one session
+        across a whole batch.
+        """
         with self.session_factory() as session:
-            db_note = session.scalar(select(DBNote).where(DBNote.id == note.id))
-            if db_note:
-                db_note.title = note.title
-                db_note.content = note.content
-                db_note.note_type = note.note_type.value
-                db_note.references = note.references
-                db_note.updated_at = note.updated_at
-                # Clear existing links and tags to rebuild them
-                session.execute(delete(DBLink).where(DBLink.source_id == note.id))
-                db_note.tags.clear()
-            else:
-                db_note = DBNote(
-                    id=note.id,
-                    title=note.title,
-                    content=note.content,
-                    note_type=note.note_type.value,
-                    references_json=json.dumps(note.references),
-                    created_at=note.created_at,
-                    updated_at=note.updated_at,
-                )
-                session.add(db_note)
-
-            session.flush()  # Flush to get the note ID
-
-            for tag in note.tags:
-                db_note.tags.append(self._get_or_create_tag(session, tag.name))
-
-            for link in note.links:
-                existing_link = session.scalar(
-                    select(DBLink).where(
-                        (DBLink.source_id == link.source_id)
-                        & (DBLink.target_id == link.target_id)
-                        & (DBLink.link_type == link.link_type.value)
-                    )
-                )
-
-                if not existing_link:
-                    db_link = DBLink(
-                        source_id=link.source_id,
-                        target_id=link.target_id,
-                        link_type=link.link_type.value,
-                        description=link.description,
-                        created_at=link.created_at,
-                    )
-                    session.add(db_link)
-
+            self._index_note_in_session(session, note)
             session.commit()
+
+    def _index_note_in_session(self, session: Any, note: Note) -> None:
+        """Index a note into the given session, without committing.
+
+        The caller owns the transaction boundary (commit/rollback). This lets
+        ``rebuild_index`` amortize one commit over a whole batch while
+        ``_index_note`` keeps its per-note commit.
+
+        ``session`` is typed ``Any`` to match the rest of this module: the
+        shared ``session_factory`` is an unparametrized ``sessionmaker``, so
+        every ``with self.session_factory() as session`` block already yields
+        an untyped session. Tightening it here to ``Session`` would surface the
+        SQLAlchemy legacy-``Column`` assignment gap that the rest of the file
+        sidesteps the same way.
+        """
+        db_note = session.scalar(select(DBNote).where(DBNote.id == note.id))
+        if db_note:
+            db_note.title = note.title
+            db_note.content = note.content
+            db_note.note_type = note.note_type.value
+            db_note.references = note.references
+            db_note.updated_at = note.updated_at
+            # Clear existing links and tags to rebuild them
+            session.execute(delete(DBLink).where(DBLink.source_id == note.id))
+            db_note.tags.clear()
+        else:
+            db_note = DBNote(
+                id=note.id,
+                title=note.title,
+                content=note.content,
+                note_type=note.note_type.value,
+                created_at=note.created_at,
+                updated_at=note.updated_at,
+            )
+            # Encode references through the same property setter the update
+            # paths use, so both paths serialize references exactly one way.
+            db_note.references = note.references
+            session.add(db_note)
+
+        session.flush()  # Flush to get the note ID
+
+        for tag in note.tags:
+            db_note.tags.append(self._get_or_create_tag(session, tag.name))
+
+        for link in note.links:
+            # Insert-and-tolerate: the unique_link_type UNIQUE constraint on
+            # (source_id, target_id, link_type) already rejects duplicates,
+            # so skip the per-link pre-SELECT and let a duplicate trip the
+            # constraint. A SAVEPOINT scopes the rollback to this one link so
+            # a duplicate doesn't discard the note or its earlier links.
+            db_link = DBLink(
+                source_id=link.source_id,
+                target_id=link.target_id,
+                link_type=link.link_type.value,
+                description=link.description,
+                created_at=link.created_at,
+            )
+            try:
+                with session.begin_nested():
+                    session.add(db_link)
+                    session.flush()
+            except IntegrityError:
+                # Duplicate link: the SAVEPOINT rolled back just this insert,
+                # leaving the note and earlier links intact.
+                pass
 
     def note_to_markdown(self, note: Note) -> str:
         """Convert a note to markdown with frontmatter.

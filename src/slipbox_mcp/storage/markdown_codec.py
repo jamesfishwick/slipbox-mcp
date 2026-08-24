@@ -104,6 +104,30 @@ def _parse_frontmatter_dates(
     return created_at, updated_at
 
 
+def _construct_or_repair(kwargs: dict[str, Any], *, note_id: Any, source: str) -> Note:
+    """Build a ``Note`` from kwargs, falling back to ``model_construct`` on error.
+
+    A note already on disk (or in the DB) can violate the current schema, e.g.
+    a literature note without references after that validator landed. Rather
+    than drop it, hydrate via ``model_construct`` so it stays visible to queries;
+    the violation is surfaced separately via ``slipbox audit-references``.
+
+    ``source`` names the call site ("markdown" / "DB") so each site keeps its
+    own user-visible log message; the fallback logic itself lives here once.
+    """
+    try:
+        return Note(**kwargs)
+    except ValidationError as e:
+        logger.warning(
+            "Schema violation hydrating note %s from %s "
+            "(run `slipbox audit-references`): %s",
+            note_id,
+            source,
+            e.errors()[0].get("msg", str(e)),
+        )
+        return Note.model_construct(**kwargs)
+
+
 class NoteMarkdownCodec:
     """Stateless codec for note (de)serialization.
 
@@ -188,20 +212,7 @@ class NoteMarkdownCodec:
                 ]
             },
         )
-        try:
-            return Note(**kwargs)
-        except ValidationError as e:
-            # Existing on-disk note violates current schema (e.g. literature
-            # without references after the new validator landed). Hydrate via
-            # model_construct so the note remains visible to queries; surface
-            # the violation via the audit-references CLI.
-            logger.warning(
-                "Schema violation hydrating note %s from markdown "
-                "(run `slipbox audit-references`): %s",
-                note_id,
-                e.errors()[0].get("msg", str(e)),
-            )
-            return Note.model_construct(**kwargs)
+        return _construct_or_repair(kwargs, note_id=note_id, source="markdown")
 
     def db_note_to_note(self, db_note: DBNote) -> Note:
         """Convert a DBNote (with eager-loaded relationships) to a domain Note.
@@ -232,20 +243,7 @@ class NoteMarkdownCodec:
             created_at=db_note.created_at,
             updated_at=db_note.updated_at,
         )
-        try:
-            return Note(**kwargs)
-        except ValidationError as e:
-            # DB row violates current schema (e.g. literature without
-            # references after the new validator landed). Hydrate via
-            # model_construct so the note remains visible to queries; surface
-            # the violation via the audit-references CLI.
-            logger.warning(
-                "Schema violation hydrating note %s from DB "
-                "(run `slipbox audit-references`): %s",
-                db_note.id,
-                e.errors()[0].get("msg", str(e)),
-            )
-            return Note.model_construct(**kwargs)
+        return _construct_or_repair(kwargs, note_id=db_note.id, source="DB")
 
     def convert_db_notes(self, db_notes: List[DBNote]) -> List[Note]:
         """Convert a list of DBNote objects to domain Notes, skipping conversion errors."""

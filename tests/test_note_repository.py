@@ -317,6 +317,83 @@ def test_rebuild_index_not_triggered_for_files_without_frontmatter_id(note_repos
     mock_rebuild.assert_not_called()
 
 
+def test_rebuild_index_skips_note_that_fails_to_index_and_keeps_the_rest(
+    note_repository,
+):
+    """A note that raises while indexing is rolled back and skipped; the rest of
+    the batch is still committed and the rebuild completes.
+
+    Locks the item-6 invariant: batching a whole batch into one transaction
+    must not let one bad note roll back or abort its siblings.
+    """
+    from unittest.mock import patch
+
+    good_a = note_repository.create(make_note(title="Good A"))
+    poison = note_repository.create(make_note(title="Poison"))
+    good_b = note_repository.create(make_note(title="Good B"))
+
+    real_index = note_repository._index_note_in_session
+
+    def index_but_fail_poison(session, note):
+        if note.id == poison.id:
+            raise RuntimeError("simulated indexing failure for one note")
+        return real_index(session, note)
+
+    with patch.object(
+        note_repository,
+        "_index_note_in_session",
+        side_effect=index_but_fail_poison,
+    ):
+        note_repository.rebuild_index()
+
+    all_ids = {n.id for n in note_repository.get_all()}
+    assert good_a.id in all_ids, "Good note before the failure must survive the rebuild"
+    assert good_b.id in all_ids, "Good note after the failure must survive the rebuild"
+    assert poison.id not in all_ids, "The failing note must be skipped, not indexed"
+
+
+def test_index_note_create_path_dedupes_duplicate_links(note_repository):
+    """The CREATE branch of indexing tolerates duplicate links in the input list
+    via the unique_link_type UNIQUE constraint, landing exactly one row.
+
+    Locks the item-5 behavior: replacing the per-link pre-SELECT with
+    insert-and-tolerate must still leave no duplicate links and the same final
+    rows.
+    """
+    import datetime
+
+    from sqlalchemy import select
+
+    from slipbox_mcp.models.db_models import DBLink
+    from slipbox_mcp.models.schema import Link, LinkType
+
+    target = note_repository.create(make_note(title="Dedup Target"))
+    source = make_note(title="Dedup Source")
+    # Two identical links (same source, target, and type) in the input list.
+    dup = dict(
+        source_id=source.id,
+        target_id=target.id,
+        link_type=LinkType.REFERENCE,
+        created_at=datetime.datetime.now(),
+    )
+    source.links = [Link(**dup, description="first"), Link(**dup, description="second")]
+
+    # Index via the CREATE branch (new note id not yet in the DB).
+    note_repository._index_note(source)
+
+    with note_repository.session_factory() as session:
+        rows = session.scalars(
+            select(DBLink).where(
+                (DBLink.source_id == source.id)
+                & (DBLink.target_id == target.id)
+                & (DBLink.link_type == LinkType.REFERENCE.value)
+            )
+        ).all()
+    assert len(rows) == 1, (
+        f"Expected exactly one link row after deduping, got {len(rows)}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Linking
 # ---------------------------------------------------------------------------
