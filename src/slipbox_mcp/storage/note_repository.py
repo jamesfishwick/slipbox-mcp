@@ -22,7 +22,6 @@ from slipbox_mcp.models.db_models import (
     init_db,
 )
 from slipbox_mcp.models.schema import Note, NoteType, Tag
-from slipbox_mcp.storage.base import Repository
 from slipbox_mcp.storage.markdown_codec import (
     NoteMarkdownCodec,
     _parse_frontmatter_dates,
@@ -83,7 +82,7 @@ _NOTE_EAGER_LOADS = [
 ]
 
 
-class NoteRepository(Repository[Note]):
+class NoteRepository:
     """Repository for note storage and retrieval.
     This implements a dual storage approach:
     1. Notes are stored as Markdown files on disk for human readability and editing

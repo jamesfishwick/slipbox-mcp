@@ -54,8 +54,8 @@ class SearchResult:
 class SearchService:
     """Service for searching notes in the Zettelkasten."""
 
-    def __init__(self, zettel_service: Optional[ZettelService] = None):
-        self.zettel_service = zettel_service or ZettelService()
+    def __init__(self, zettel_service: ZettelService):
+        self.zettel_service = zettel_service
 
     @staticmethod
     def _build_result(

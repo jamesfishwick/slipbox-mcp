@@ -25,10 +25,10 @@ class ClusterService:
 
     def __init__(
         self,
-        zettel_service: Optional[ZettelService] = None,
+        zettel_service: ZettelService,
         report_path: Optional[Path] = None,
     ):
-        self.zettel_service = zettel_service or ZettelService()
+        self.zettel_service = zettel_service
         self.report_path = Path(report_path) if report_path is not None else REPORT_PATH
 
     def build_tag_cooccurrence(self, notes: List[Note]) -> Dict[Tuple[str, str], int]:
