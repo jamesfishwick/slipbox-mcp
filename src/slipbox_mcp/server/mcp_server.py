@@ -6,6 +6,7 @@ from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from slipbox_mcp.config import config
 from slipbox_mcp.server.descriptions import SERVER_INSTRUCTIONS
@@ -62,6 +63,19 @@ class ZettelkastenMcpServer:
     def format_error_response(self, error: Exception) -> str:
         """Format an error response for MCP tool callers."""
         error_id = str(uuid.uuid4())[:8]
+
+        # A duplicate link trips the (source_id, target_id, link_type) UNIQUE
+        # constraint. Translate it to a caller-friendly message here, once, so
+        # every tool that can create a link benefits rather than each catching
+        # the raw IntegrityError itself.
+        if isinstance(error, IntegrityError) and "UNIQUE constraint failed" in str(
+            error
+        ):
+            logger.info("Duplicate link rejected [%s]: %s", error_id, error)
+            return (
+                "A link of this type already exists between these notes. "
+                "Try a different link type."
+            )
 
         # ValidationError must be checked before ValueError: in Pydantic v2 it
         # subclasses ValueError, so a generic str(error) would surface the full
