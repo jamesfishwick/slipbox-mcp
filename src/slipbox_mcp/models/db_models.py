@@ -210,6 +210,18 @@ def init_db() -> "Engine":
             END
         """)
         )
+        # Backfill the FK indexes on databases that predate them. create_all()
+        # above skips existing tables at table granularity, so it never adds an
+        # index to a table that already exists, and rebuild_index uses DELETE
+        # (not DROP TABLE), so the schema survives a reindex. Add them explicitly
+        # here, in the same "patch existing DBs" block as the FTS/trigger
+        # migrations, mirroring the declarative Index() definitions.
+        for index_ddl in (
+            "CREATE INDEX IF NOT EXISTS ix_links_target_id ON links (target_id)",
+            "CREATE INDEX IF NOT EXISTS ix_links_source_id ON links (source_id)",
+            "CREATE INDEX IF NOT EXISTS ix_note_tags_tag_id ON note_tags (tag_id)",
+        ):
+            conn.execute(text(index_ddl))
         conn.commit()
 
     return engine
