@@ -3,6 +3,7 @@
 import json
 import logging
 from collections import defaultdict
+from dataclasses import asdict, fields
 from datetime import datetime
 from itertools import combinations
 from pathlib import Path
@@ -15,10 +16,21 @@ from slipbox_mcp.models.cluster_models import (
     ClusterCandidate,
     ClusterReport,
 )
-from slipbox_mcp.models.schema import Note, NoteType
+from slipbox_mcp.models.schema import LinkType, Note, NoteType
 from slipbox_mcp.services.zettel_service import ZettelService
 
 logger = logging.getLogger(__name__)
+
+# Field names for tolerant load: an unknown key in a saved report (e.g. from a
+# newer version) is dropped rather than crashing the ClusterCandidate constructor.
+_CANDIDATE_FIELDS = {f.name for f in fields(ClusterCandidate)}
+
+
+def _json_default(value: Any) -> str:
+    """json.dumps hook: serialize datetime fields as ISO 8601 strings."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 class ClusterService:
@@ -97,9 +109,14 @@ class ClusterService:
                     count += 1
         return count
 
+    @staticmethod
+    def _all_target_ids(notes: List[Note]) -> Set[str]:
+        """Collect every note ID that any note in the list links to."""
+        return {link.target_id for note in notes for link in note.links}
+
     def count_orphans(self, notes: List[Note]) -> int:
         """Count notes with no links at all (no outgoing or incoming within the cluster)."""
-        all_target_ids = {link.target_id for note in notes for link in note.links}
+        all_target_ids = self._all_target_ids(notes)
         return sum(
             1 for note in notes if not note.links and note.id not in all_target_ids
         )
@@ -186,11 +203,7 @@ class ClusterService:
 
         results.sort(key=lambda x: -x.score)
 
-        # Build target-ID set once for O(n) orphan counting instead of O(n^2).
-        all_target_ids = {link.target_id for n in all_notes for link in n.links}
-        total_orphans = sum(
-            1 for n in all_notes if not n.links and n.id not in all_target_ids
-        )
+        total_orphans = self.count_orphans(all_notes)
 
         return ClusterReport(
             generated_at=datetime.now(),
@@ -204,31 +217,17 @@ class ClusterService:
         )
 
     def save_report(self, report: ClusterReport) -> Path:
-        """Save cluster report to JSON file."""
+        """Save cluster report to JSON file.
+
+        ``dataclasses.asdict`` recurses through the nested ClusterCandidate
+        dataclasses, so the serialized shape stays in lockstep with the models
+        (add a field to either and it round-trips without touching this method).
+        ``_json_default`` handles the datetime fields.
+        """
         self.report_path.parent.mkdir(parents=True, exist_ok=True)
-
-        data = {
-            "generated_at": report.generated_at.isoformat(),
-            "clusters": [
-                {
-                    "id": c.id,
-                    "suggested_title": c.suggested_title,
-                    "tags": c.tags,
-                    "notes": c.notes,
-                    "note_count": c.note_count,
-                    "orphan_count": c.orphan_count,
-                    "internal_links": c.internal_links,
-                    "density": c.density,
-                    "score": c.score,
-                    "newest_date": c.newest_date.isoformat() if c.newest_date else None,
-                }
-                for c in report.clusters
-            ],
-            "stats": report.stats,
-            "dismissed_cluster_ids": report.dismissed_cluster_ids,
-        }
-
-        self.report_path.write_text(json.dumps(data, indent=2))
+        self.report_path.write_text(
+            json.dumps(asdict(report), indent=2, default=_json_default)
+        )
         return self.report_path
 
     def load_report(self) -> Optional[ClusterReport]:
@@ -240,29 +239,86 @@ class ClusterService:
             data = json.loads(self.report_path.read_text())
             return ClusterReport(
                 generated_at=datetime.fromisoformat(data["generated_at"]),
-                clusters=[
-                    ClusterCandidate(
-                        id=c["id"],
-                        suggested_title=c["suggested_title"],
-                        tags=c["tags"],
-                        notes=c["notes"],
-                        note_count=c["note_count"],
-                        orphan_count=c["orphan_count"],
-                        internal_links=c["internal_links"],
-                        density=c["density"],
-                        score=c["score"],
-                        newest_date=datetime.fromisoformat(c["newest_date"])
-                        if c.get("newest_date")
-                        else None,
-                    )
-                    for c in data["clusters"]
-                ],
+                clusters=[self._candidate_from_dict(c) for c in data["clusters"]],
                 stats=data["stats"],
                 dismissed_cluster_ids=data.get("dismissed_cluster_ids", []),
             )
         except Exception as e:
             logger.error("Failed to load cluster report: %s", e)
             return None
+
+    @staticmethod
+    def _candidate_from_dict(data: Dict[str, Any]) -> ClusterCandidate:
+        """Rebuild a ClusterCandidate from its ``asdict`` form.
+
+        Keep only keys that are real fields (derived from the dataclass, so no
+        hardcoded list), which lets a report written by a future version with an
+        extra field still load rather than raising on an unexpected kwarg. Only
+        ``newest_date`` needs parsing back from its ISO string.
+        """
+        kwargs = {k: v for k, v in data.items() if k in _CANDIDATE_FIELDS}
+        newest = kwargs.get("newest_date")
+        kwargs["newest_date"] = datetime.fromisoformat(newest) if newest else None
+        return ClusterCandidate(**kwargs)
+
+    @staticmethod
+    def _render_structure_content(cluster: ClusterCandidate) -> str:
+        """Render the markdown body of a structure note from a cluster."""
+        content = f"Structure note for {len(cluster.notes)} related notes.\n\n"
+        content += (
+            "## Overview\n\nThis cluster emerged from notes sharing these tags: "
+            f"{', '.join(cluster.tags)}.\n\n"
+        )
+        content += "## Member Notes\n\n"
+        for note_info in cluster.notes:
+            content += f"- [[{note_info['id']}]] {note_info['title']}\n"
+        content += (
+            "\n## Synthesis\n\n_TODO: Synthesize key insights from these notes._\n"
+        )
+        return content
+
+    def create_structure_note(
+        self,
+        cluster: ClusterCandidate,
+        title: Optional[str] = None,
+        create_links: bool = True,
+    ) -> Tuple[Note, int]:
+        """Create a structure note for a cluster and wire it to the members.
+
+        Owns the domain logic that used to live in the MCP tool handler: render
+        the body, create the note, link each member (a per-link failure is logged
+        and skipped so one bad member does not abort the whole note), and dismiss
+        the cluster so it stops surfacing as needing structure. Returns the new
+        note and the count of member links actually created.
+        """
+        structure_note = self.zettel_service.create_note(
+            title=title or cluster.suggested_title,
+            content=self._render_structure_content(cluster),
+            note_type=NoteType.STRUCTURE,
+            tags=cluster.tags[:5],
+        )
+
+        links_created = 0
+        if create_links:
+            for note_info in cluster.notes:
+                try:
+                    self.zettel_service.create_link(
+                        source_id=structure_note.id,
+                        target_id=note_info["id"],
+                        link_type=LinkType.REFERENCE,
+                        description="Member of structure note",
+                        bidirectional=True,
+                    )
+                    links_created += 1
+                except Exception as link_error:
+                    logger.warning(
+                        "Failed to link structure note to %s: %s",
+                        note_info["id"],
+                        link_error,
+                    )
+
+        self.dismiss_cluster(cluster.id)
+        return structure_note, links_created
 
     def dismiss_cluster(self, cluster_id: str) -> None:
         """Mark cluster as dismissed; hides it from maintenance suggestions."""

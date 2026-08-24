@@ -880,6 +880,47 @@ class NoteRepository(Repository[Note]):
             db_notes = result.unique().scalars().all()
             return self._convert_db_notes(db_notes)
 
+    def find_similarity_candidates(self, note_id: str) -> List[Note]:
+        """Return notes that could score non-zero in a tag/link similarity
+        comparison against note_id: those sharing a tag, sharing an outgoing link
+        target, or directly linked to or from it. Notes with none of these always
+        score 0, so restricting the scan to candidates avoids loading the whole
+        corpus. Excludes note_id itself.
+        """
+        candidate_sql = text(
+            """
+            SELECT nt2.note_id AS id
+            FROM note_tags nt1 JOIN note_tags nt2 ON nt1.tag_id = nt2.tag_id
+            WHERE nt1.note_id = :id AND nt2.note_id != :id
+            UNION
+            SELECT source_id AS id FROM links WHERE target_id = :id
+            UNION
+            SELECT target_id AS id FROM links WHERE source_id = :id
+            UNION
+            SELECT l2.source_id AS id
+            FROM links l1 JOIN links l2 ON l1.target_id = l2.target_id
+            WHERE l1.source_id = :id AND l2.source_id != :id
+            """
+        )
+        with self.session_factory() as session:
+            candidate_ids = {
+                row.id for row in session.execute(candidate_sql, {"id": note_id}).all()
+            }
+            candidate_ids.discard(note_id)
+            if not candidate_ids:
+                return []
+            db_notes = (
+                session.execute(
+                    select(DBNote)
+                    .where(DBNote.id.in_(candidate_ids))
+                    .options(*_NOTE_EAGER_LOADS)
+                )
+                .unique()
+                .scalars()
+                .all()
+            )
+            return self._convert_db_notes(db_notes)
+
     def get_all_tags(self) -> List[Tag]:
         """Get all tags in the system."""
         with self.session_factory() as session:

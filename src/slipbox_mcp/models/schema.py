@@ -194,8 +194,7 @@ class Note(BaseModel):
         """Add a tag to the note."""
         if isinstance(tag, str):
             tag = Tag(name=tag)
-        tag_names = {t.name for t in self.tags}
-        if tag.name not in tag_names:
+        if tag.name not in self.tag_names():
             self.tags.append(tag)
             self.updated_at = datetime.datetime.now()
 
@@ -243,3 +242,7 @@ class Note(BaseModel):
     def get_linked_note_ids(self) -> Set[str]:
         """Get all note IDs that this note links to."""
         return {link.target_id for link in self.links}
+
+    def tag_names(self) -> Set[str]:
+        """Get the set of tag names on this note."""
+        return {t.name for t in self.tags}

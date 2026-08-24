@@ -63,6 +63,22 @@ class ZettelkastenMcpServer:
         """Format an error response for MCP tool callers."""
         error_id = str(uuid.uuid4())[:8]
 
+        # A duplicate link trips the (source_id, target_id, link_type) UNIQUE
+        # constraint. Translate it to a caller-friendly message here, once, so
+        # every tool that can create a link benefits rather than each catching
+        # it itself. Match on the message text alone (not the exception type),
+        # preserving the pre-refactor breadth: a UNIQUE violation surfaced as any
+        # exception, not only a SQLAlchemy IntegrityError, still gets this. The
+        # "links." scope keeps it from mislabeling a future table's UNIQUE
+        # constraint as a duplicate link.
+        error_text = str(error)
+        if "UNIQUE constraint failed" in error_text and "links." in error_text:
+            logger.info("Duplicate link rejected [%s]: %s", error_id, error)
+            return (
+                "A link of this type already exists between these notes. "
+                "Try a different link type."
+            )
+
         # ValidationError must be checked before ValueError: in Pydantic v2 it
         # subclasses ValueError, so a generic str(error) would surface the full
         # multi-line dump and bury the validator's curated message.

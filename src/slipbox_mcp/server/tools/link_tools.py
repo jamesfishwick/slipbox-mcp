@@ -3,9 +3,8 @@
 import logging
 from typing import Optional
 
-from sqlalchemy import exc as sqlalchemy_exc
-
 from slipbox_mcp.models.schema import LinkType
+from slipbox_mcp.server.tools import tool_error_handler
 from slipbox_mcp.utils import format_tags, parse_enum
 
 logger = logging.getLogger(__name__)
@@ -16,8 +15,10 @@ def register_link_tools(server) -> None:
     mcp = server.mcp
     zettel_service = server.zettel_service
     format_error = server.format_error_response
+    handle = tool_error_handler(format_error)
 
     @mcp.tool(name="slipbox_create_link")
+    @handle
     def slipbox_create_link(
         source_id: str,
         target_id: str,
@@ -51,28 +52,24 @@ def register_link_tools(server) -> None:
             description: Brief explanation of the relationship
             bidirectional: If true, creates inverse link from target to source
         """
-        try:
-            link_type_enum, type_err = parse_enum(link_type, LinkType, "link type")
-            if type_err:
-                return type_err
+        link_type_enum, type_err = parse_enum(link_type, LinkType, "link type")
+        if type_err:
+            return type_err
 
-            source_note, target_note = zettel_service.create_link(
-                source_id=source_id,
-                target_id=target_id,
-                link_type=link_type_enum,
-                description=description,
-                bidirectional=bidirectional,
-            )
-            if bidirectional:
-                return f"Bidirectional link created between {source_id} and {target_id}"
-            else:
-                return f"Link created from {source_id} to {target_id}"
-        except (Exception, sqlalchemy_exc.IntegrityError) as e:
-            if "UNIQUE constraint failed" in str(e):
-                return "A link of this type already exists between these notes. Try a different link type."
-            return format_error(e)
+        source_note, target_note = zettel_service.create_link(
+            source_id=source_id,
+            target_id=target_id,
+            link_type=link_type_enum,
+            description=description,
+            bidirectional=bidirectional,
+        )
+        if bidirectional:
+            return f"Bidirectional link created between {source_id} and {target_id}"
+        else:
+            return f"Link created from {source_id} to {target_id}"
 
     @mcp.tool(name="slipbox_remove_link")
+    @handle
     def slipbox_remove_link(
         source_id: str, target_id: str, bidirectional: bool = False
     ) -> str:
@@ -83,20 +80,18 @@ def register_link_tools(server) -> None:
             target_id: ID of the target note
             bidirectional: If true, removes links in both directions
         """
-        try:
-            source_note, target_note = zettel_service.remove_link(
-                source_id=str(source_id),
-                target_id=str(target_id),
-                bidirectional=bidirectional,
-            )
-            if bidirectional:
-                return f"Bidirectional link removed between {source_id} and {target_id}"
-            else:
-                return f"Link removed from {source_id} to {target_id}"
-        except Exception as e:
-            return format_error(e)
+        source_note, target_note = zettel_service.remove_link(
+            source_id=str(source_id),
+            target_id=str(target_id),
+            bidirectional=bidirectional,
+        )
+        if bidirectional:
+            return f"Bidirectional link removed between {source_id} and {target_id}"
+        else:
+            return f"Link removed from {source_id} to {target_id}"
 
     @mcp.tool(name="slipbox_delete_link")
+    @handle
     def slipbox_delete_link(
         source_id: str,
         target_id: str,
@@ -110,30 +105,26 @@ def register_link_tools(server) -> None:
             source_id: ID of the source note (the note containing the link)
             target_id: ID of the target note (the note being linked to)
         """
-        try:
-            source_note = zettel_service.get_note(str(source_id))
-            if not source_note:
-                return format_error(ValueError(f"Source note not found: {source_id}"))
+        source_note = zettel_service.get_note(str(source_id))
+        if not source_note:
+            return format_error(ValueError(f"Source note not found: {source_id}"))
 
-            target_note = zettel_service.get_note(str(target_id))
-            if not target_note:
-                return format_error(ValueError(f"Target note not found: {target_id}"))
+        target_note = zettel_service.get_note(str(target_id))
+        if not target_note:
+            return format_error(ValueError(f"Target note not found: {target_id}"))
 
-            has_link = any(
-                link.target_id == str(target_id) for link in source_note.links
-            )
-            if not has_link:
-                return f"No link exists from {source_id} to {target_id}"
+        has_link = any(link.target_id == str(target_id) for link in source_note.links)
+        if not has_link:
+            return f"No link exists from {source_id} to {target_id}"
 
-            source_note, _ = zettel_service.remove_link(
-                source_id=str(source_id),
-                target_id=str(target_id),
-            )
-            return f"Link deleted from {source_id} to {target_id}"
-        except Exception as e:
-            return format_error(e)
+        source_note, _ = zettel_service.remove_link(
+            source_id=str(source_id),
+            target_id=str(target_id),
+        )
+        return f"Link deleted from {source_id} to {target_id}"
 
     @mcp.tool(name="slipbox_get_linked_notes")
+    @handle
     def slipbox_get_linked_notes(note_id: str, direction: str = "both") -> str:
         """Get notes linked to or from a specific note.
 
@@ -148,46 +139,44 @@ def register_link_tools(server) -> None:
             note_id: ID of the note to explore from
             direction: One of outgoing/incoming/both (default: both)
         """
-        try:
-            if direction not in ["outgoing", "incoming", "both"]:
-                return f"Invalid direction: {direction}. Use 'outgoing', 'incoming', or 'both'."
-            linked_notes = zettel_service.get_linked_notes(str(note_id), direction)
-            if not linked_notes:
-                return f"No {direction} links found for note {note_id}."
-            output = (
-                f"Found {len(linked_notes)} {direction} linked notes for {note_id}:\n\n"
-            )
-            # The source (hub) note is the same for every row, so fetch it once
-            # rather than re-reading it from disk on each iteration.
-            source_note = (
-                zettel_service.get_note(str(note_id))
-                if direction in ["outgoing", "both"]
-                else None
-            )
-            for i, note in enumerate(linked_notes, 1):
-                output += f"{i}. {note.title} (ID: {note.id})\n"
-                if note.tags:
-                    output += f"   Tags: {format_tags(note.tags)}\n"
-                if source_note:
-                    for link in source_note.links:
-                        if str(link.target_id) == str(note.id):
-                            output += f"   Link type: {link.link_type.value}\n"
-                            if link.description:
-                                output += f"   Description: {link.description}\n"
-                            break
-                if direction in ["incoming", "both"]:
-                    for link in note.links:
-                        if str(link.target_id) == str(note_id):
-                            output += f"   Incoming link type: {link.link_type.value}\n"
-                            if link.description:
-                                output += f"   Description: {link.description}\n"
-                            break
-                output += "\n"
-            return output
-        except Exception as e:
-            return format_error(e)
+        if direction not in ["outgoing", "incoming", "both"]:
+            return f"Invalid direction: {direction}. Use 'outgoing', 'incoming', or 'both'."
+        linked_notes = zettel_service.get_linked_notes(str(note_id), direction)
+        if not linked_notes:
+            return f"No {direction} links found for note {note_id}."
+        output = (
+            f"Found {len(linked_notes)} {direction} linked notes for {note_id}:\n\n"
+        )
+        # The source (hub) note is the same for every row, so fetch it once
+        # rather than re-reading it from disk on each iteration.
+        source_note = (
+            zettel_service.get_note(str(note_id))
+            if direction in ["outgoing", "both"]
+            else None
+        )
+        for i, note in enumerate(linked_notes, 1):
+            output += f"{i}. {note.title} (ID: {note.id})\n"
+            if note.tags:
+                output += f"   Tags: {format_tags(note.tags)}\n"
+            if source_note:
+                for link in source_note.links:
+                    if str(link.target_id) == str(note.id):
+                        output += f"   Link type: {link.link_type.value}\n"
+                        if link.description:
+                            output += f"   Description: {link.description}\n"
+                        break
+            if direction in ["incoming", "both"]:
+                for link in note.links:
+                    if str(link.target_id) == str(note_id):
+                        output += f"   Incoming link type: {link.link_type.value}\n"
+                        if link.description:
+                            output += f"   Description: {link.description}\n"
+                        break
+            output += "\n"
+        return output
 
     @mcp.tool(name="slipbox_get_all_tags")
+    @handle
     def slipbox_get_all_tags() -> str:
         """Get all tags in the Zettelkasten.
 
@@ -195,15 +184,12 @@ def register_link_tools(server) -> None:
         Use this to find existing tags before creating new notes
         to maintain tag consistency across your knowledge base.
         """
-        try:
-            tags = zettel_service.get_all_tags()
-            if not tags:
-                return "No tags found in the Zettelkasten."
+        tags = zettel_service.get_all_tags()
+        if not tags:
+            return "No tags found in the Zettelkasten."
 
-            output = f"Found {len(tags)} tags:\n\n"
-            tags.sort(key=lambda t: t.name.lower())
-            for i, tag in enumerate(tags, 1):
-                output += f"{i}. {tag.name}\n"
-            return output
-        except Exception as e:
-            return format_error(e)
+        output = f"Found {len(tags)} tags:\n\n"
+        tags.sort(key=lambda t: t.name.lower())
+        for i, tag in enumerate(tags, 1):
+            output += f"{i}. {tag.name}\n"
+        return output

@@ -279,6 +279,26 @@ class TestCreateLinkTool(MockServerBase):
         # Assert
         assert "already exists" in result, f"Expected duplicate message, got {result!r}"
 
+    def test_duplicate_link_message_not_gated_on_integrityerror_type(self):
+        """A links UNIQUE violation surfaced as a non-IntegrityError still gets
+        the friendly message. Locks the message-text match (not exception type),
+        preserving pre-refactor breadth after the handler was centralized."""
+        # Arrange: a plain Exception carrying the links UNIQUE message, as could
+        # arise from a re-raise or a raw sqlite3 error escaping SQLAlchemy.
+        self.mock_zettel_service.create_link.side_effect = RuntimeError(
+            "UNIQUE constraint failed: links.source_id, links.target_id"
+        )
+
+        # Act
+        result = self._tool("slipbox_create_link")(
+            source_id=self.SOURCE_ID,
+            target_id=self.TARGET_ID,
+            link_type="extends",
+        )
+
+        # Assert
+        assert "already exists" in result, f"Expected duplicate message, got {result!r}"
+
     def test_invalid_link_type_returns_error(self):
         """An unrecognised link_type string is rejected."""
         # Act
@@ -1188,6 +1208,29 @@ class TestRebuildIndexTool(MockServerBase):
             f"Expected note count {self.NOTE_COUNT} in result, got {result!r}"
         )
 
+    def test_failure_logs_traceback_and_returns_error(self):
+        """A rebuild failure of any shape logs a full traceback (exc_info) and
+        still returns a user-facing error via the decorator. Locks the invariant
+        that the tool's own exc_info logging survives, independent of which
+        branch format_error_response takes for the exception type."""
+        # Arrange: a ValueError-shaped failure, the case format_error_response
+        # would otherwise log without a traceback.
+        self.mock_zettel_service.get_all_notes.return_value = []
+        self.mock_zettel_service.rebuild_index.side_effect = ValueError(
+            "bad frontmatter in note 20990101T000000000000000"
+        )
+
+        # Act
+        with patch("slipbox_mcp.server.tools.search_tools.logger") as mock_logger:
+            result = self._tool("slipbox_rebuild_index")()
+
+        # Assert: user still gets an error string, and the traceback was logged.
+        assert result.startswith("Error:"), f"Expected error string, got {result!r}"
+        mock_logger.error.assert_called_once()
+        assert mock_logger.error.call_args.kwargs.get("exc_info") is True, (
+            "rebuild failure must be logged with exc_info=True for a traceback"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Tool: slipbox_get_cluster_report (happy path)
@@ -1407,7 +1450,7 @@ class TestCreateStructureFromClusterTool(MockServerBase):
             },
         )
 
-    def test_happy_path_creates_structure_note_with_links(self):
+    def test_happy_path_delegates_to_service_and_formats_result(self):
         # Arrange
         CLUSTER_ID = "poetry-craft"
         NOTE_INFOS = [{"id": "n1", "title": "Note 1"}, {"id": "n2", "title": "Note 2"}]
@@ -1416,21 +1459,29 @@ class TestCreateStructureFromClusterTool(MockServerBase):
 
         structure_note = MagicMock()
         structure_note.id = "struct001"
-        self.mock_zettel_service.create_note.return_value = structure_note
-        self.mock_zettel_service.create_link.return_value = (MagicMock(), MagicMock())
+        structure_note.title = "Poetry Craft Knowledge Map"
+        self.mock_cluster_service.create_structure_note.return_value = (
+            structure_note,
+            2,
+        )
 
         # Act
         result = self._tool("slipbox_create_structure_from_cluster")(
             cluster_id=CLUSTER_ID
         )
 
-        # Assert
+        # Assert -- the tool formats the service's result and holds no domain logic.
         assert "Structure note created" in result, (
             f"Expected creation message, got {result!r}"
         )
         assert "struct001" in result, f"Expected structure note ID, got {result!r}"
         assert "2/2 member notes" in result, f"Expected link count, got {result!r}"
-        self.mock_cluster_service.dismiss_cluster.assert_called_once_with(CLUSTER_ID)
+        # It hands the found cluster to the service rather than doing the work itself.
+        self.mock_cluster_service.create_structure_note.assert_called_once()
+        passed_cluster = self.mock_cluster_service.create_structure_note.call_args.args[
+            0
+        ]
+        assert passed_cluster.id == CLUSTER_ID
 
     def test_cluster_not_found_returns_error(self):
         # Arrange
