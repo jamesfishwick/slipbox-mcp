@@ -16,19 +16,9 @@ from pydantic import ValidationError
 
 from slipbox_mcp.models.db_models import DBNote
 from slipbox_mcp.models.schema import Link, LinkType, Note, NoteType, Tag
+from slipbox_mcp.storage.note_id import is_safe_note_id
 
 logger = logging.getLogger(__name__)
-
-
-def _is_safe_note_id(note_id: Any) -> bool:
-    """Return True if note_id is a non-empty, path-safe filename stem.
-
-    Imported lazily from ``note_repository`` to avoid a circular import while
-    keeping a single source of truth for the id-safety rule.
-    """
-    from slipbox_mcp.storage.note_repository import _is_safe_note_id as _impl
-
-    return _impl(note_id)
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +119,7 @@ class NoteMarkdownCodec:
         note_id = metadata.get("id")
         if not note_id:
             return None
-        if not _is_safe_note_id(note_id):
+        if not is_safe_note_id(note_id):
             # The id is not an accepted stem: either a path-traversal attempt
             # (``../../etc/x``, ``/etc/x``) or merely a legacy id using chars
             # outside [A-Za-z0-9_-] (e.g. a dot or space from before the id was

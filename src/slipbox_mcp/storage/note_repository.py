@@ -4,7 +4,6 @@ import datetime
 import json
 import logging
 import os
-import re
 import threading
 from pathlib import Path
 from typing import Any, List, Optional, Union
@@ -30,14 +29,17 @@ from slipbox_mcp.storage.markdown_codec import (
     _parse_frontmatter_tags,
     _parse_links_section,
 )
+from slipbox_mcp.storage.note_id import is_safe_note_id as _is_safe_note_id
 from slipbox_mcp.utils import atomic_write_text
 
-# Re-exported for backward compatibility: these markdown parsing helpers moved
-# into markdown_codec.py (issue #59), but tests still import them from this
-# module. Keeping the names bound here preserves those imports.
+# Re-exported for backward compatibility: the markdown parsing helpers moved into
+# markdown_codec.py and the id-safety rule into note_id.py (issue #59), but tests
+# still import them from this module. Keeping the names bound here preserves those
+# imports.
 __all__ = [
     "NoteRepository",
     "ReferrerSweepError",
+    "_is_safe_note_id",
     "_parse_frontmatter_dates",
     "_parse_frontmatter_tags",
     "_parse_links_section",
@@ -70,20 +72,6 @@ class ReferrerSweepError(Exception):
             f"still carry dead links and will reappear on rebuild: {detail}. "
             f"Run `slipbox prune-links --fix` to clean them."
         )
-
-
-# Note IDs become filenames (``{id}.md``). Constrain them to a path-safe
-# alphabet so a crafted id (``../../etc/x``, ``/etc/x``) cannot escape the
-# notes dir. This mirrors the validator on Note.id exactly -- same alphabet AND
-# the same 1..255 length bound -- and is repeated here so the filesystem layer
-# is safe even for ids that bypassed model validation (e.g. Note.model_construct
-# on the schema-violation hydration path).
-_NOTE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,255}$")
-
-
-def _is_safe_note_id(note_id: Any) -> bool:
-    """Return True if note_id is a non-empty, path-safe filename stem."""
-    return isinstance(note_id, str) and bool(_NOTE_ID_PATTERN.fullmatch(note_id))
 
 
 # Eager-load options applied to every DBNote query to avoid N+1 queries on
