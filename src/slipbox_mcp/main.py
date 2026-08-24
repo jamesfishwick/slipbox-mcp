@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-from slipbox_mcp.config import config
+from slipbox_mcp.config import config, ensure_private_dir
 from slipbox_mcp.models.db_models import init_db
 from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
 from slipbox_mcp.utils import setup_logging
@@ -75,10 +75,10 @@ def main() -> None:
     _warn_renamed_env_vars()
     logger = logging.getLogger(__name__)
 
-    notes_dir = config.get_absolute_path(config.notes_dir)
-    notes_dir.mkdir(parents=True, exist_ok=True)
-    db_dir = config.get_absolute_path(config.database_path).parent
-    db_dir.mkdir(parents=True, exist_ok=True)
+    # Data dirs (notes + SQLite index) can hold private material; create them
+    # owner-only (0o700) rather than at the mercy of the process umask.
+    ensure_private_dir(config.get_absolute_path(config.notes_dir))
+    ensure_private_dir(config.get_absolute_path(config.database_path).parent)
 
     try:
         logger.info("Using SQLite database: %s", config.get_db_url())
