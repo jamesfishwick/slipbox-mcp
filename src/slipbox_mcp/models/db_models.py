@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Engine,
     ForeignKey,
+    Index,
     Integer,
     String,
     Table,
@@ -32,6 +33,9 @@ note_tags = Table(
     Base.metadata,
     Column("note_id", String(255), ForeignKey("notes.id"), primary_key=True),
     Column("tag_id", Integer, ForeignKey("tags.id"), primary_key=True),
+    # The composite PK indexes note_id-prefixed lookups; add a standalone index
+    # on tag_id so reverse joins (find_by_tag: tag -> notes) don't full-scan.
+    Index("ix_note_tags_tag_id", "tag_id"),
 )
 
 
@@ -132,6 +136,12 @@ class DBLink(Base):
         UniqueConstraint(
             "source_id", "target_id", "link_type", name="unique_link_type"
         ),
+        # SQLite auto-indexes UNIQUE but not foreign keys. The unique constraint
+        # above covers source_id-prefixed lookups; target_id alone has none, so
+        # incoming-link traversal, orphan detection, centrality, and every delete
+        # full-scan links without these. source_id gets an explicit index too.
+        Index("ix_links_target_id", "target_id"),
+        Index("ix_links_source_id", "source_id"),
     )
 
     def __repr__(self) -> str:
