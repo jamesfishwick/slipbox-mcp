@@ -1,9 +1,13 @@
 """MCP resource registrations."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
 
 
-def register_resources(server) -> None:
+def register_resources(server: "ZettelkastenMcpServer") -> None:
     """Register all MCP resources on the given server."""
     mcp = server.mcp
     cluster_service = server.cluster_service

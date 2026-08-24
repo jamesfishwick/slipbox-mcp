@@ -1,5 +1,7 @@
 """MCP prompt registrations for knowledge workflows."""
 
+from typing import TYPE_CHECKING
+
 from slipbox_mcp.server.descriptions import (
     PROMPT_ANALYZE_NOTE,
     PROMPT_CLUSTER_MAINTENANCE,
@@ -11,8 +13,11 @@ from slipbox_mcp.server.descriptions import (
     PROMPT_KNOWLEDGE_SYNTHESIS,
 )
 
+if TYPE_CHECKING:
+    from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
 
-def register_prompts(server) -> None:
+
+def register_prompts(server: "ZettelkastenMcpServer") -> None:
     """Register all MCP prompts on the given server."""
     mcp = server.mcp
     cluster_service = server.cluster_service

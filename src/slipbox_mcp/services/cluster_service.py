@@ -7,7 +7,7 @@ from dataclasses import asdict, fields
 from datetime import datetime
 from itertools import combinations
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
 from slipbox_mcp.models.cluster_models import (
     CO_OCCURRENCE_THRESHOLD,
@@ -46,7 +46,7 @@ class ClusterService:
 
     def build_tag_cooccurrence(self, notes: List[Note]) -> Dict[Tuple[str, str], int]:
         """Build matrix of tag pairs that appear together on notes."""
-        cooccurrence = defaultdict(int)
+        cooccurrence: DefaultDict[Tuple[str, str], int] = defaultdict(int)
         for note in notes:
             tag_names = sorted(note.tag_names())
             for tag_a, tag_b in combinations(tag_names, 2):
@@ -73,6 +73,9 @@ class ClusterService:
                 tag_to_cluster[tag_a] = new_cluster
                 tag_to_cluster[tag_b] = new_cluster
             elif cluster_a is None:
+                # Not both None (handled above) and cluster_a is None, so
+                # cluster_b must be a real set here.
+                assert cluster_b is not None
                 cluster_b.add(tag_a)
                 tag_to_cluster[tag_a] = cluster_b
             elif cluster_b is None:

@@ -33,7 +33,7 @@ from slipbox_mcp.storage.note_repository import NoteRepository  # noqa: E402
 from slipbox_mcp.utils import atomic_write_text  # noqa: E402
 
 
-def cmd_status(args):
+def cmd_status(args: argparse.Namespace) -> None:
     """Show Zettelkasten status."""
     try:
         zettel = ZettelService()
@@ -63,7 +63,7 @@ def cmd_status(args):
         sys.exit(1)
 
 
-def cmd_search(args):
+def cmd_search(args: argparse.Namespace) -> None:
     """Search notes."""
     try:
         zettel = ZettelService()
@@ -81,7 +81,7 @@ def cmd_search(args):
         sys.exit(1)
 
 
-def cmd_clusters(args):
+def cmd_clusters(args: argparse.Namespace) -> None:
     """Show clusters needing structure notes."""
     try:
         zettel = ZettelService()
@@ -107,7 +107,7 @@ def cmd_clusters(args):
         sys.exit(1)
 
 
-def cmd_orphans(args):
+def cmd_orphans(args: argparse.Namespace) -> None:
     """List orphaned notes."""
     try:
         zettel = ZettelService()
@@ -126,7 +126,7 @@ def cmd_orphans(args):
         sys.exit(1)
 
 
-def cmd_rebuild(args):
+def cmd_rebuild(args: argparse.Namespace) -> None:
     """Rebuild the index."""
     try:
         repo = NoteRepository()
@@ -146,7 +146,7 @@ def cmd_rebuild(args):
         sys.exit(1)
 
 
-def cmd_export(args):
+def cmd_export(args: argparse.Namespace) -> None:
     """Export a note to stdout."""
     try:
         zettel = ZettelService()
@@ -231,7 +231,7 @@ def _rewrite_type_to_permanent(content: str) -> str:
     return "---\n" + new_block + content[end_marker:]
 
 
-def cmd_audit_references(args):
+def cmd_audit_references(args: argparse.Namespace) -> None:
     """Audit literature notes for missing references.
 
     Without --fix, lists offenders. With --fix downgrade, rewrites their
@@ -316,7 +316,7 @@ def cmd_audit_references(args):
         sys.exit(1)
 
 
-def cmd_prune_links(args):
+def cmd_prune_links(args: argparse.Namespace) -> None:
     """Find links pointing at deleted notes; optionally remove them.
 
     Without --fix, lists every dangling link (source -> missing target).
@@ -364,14 +364,14 @@ def cmd_prune_links(args):
         sys.exit(1)
 
 
-def cmd_tags(args):
+def cmd_tags(args: argparse.Namespace) -> None:
     """List all tags."""
     try:
         zettel = ZettelService()
         notes = zettel.get_all_notes()
 
         # Count notes per tag
-        tag_counts = {}
+        tag_counts: dict[str, int] = {}
         for note in notes:
             for tag in note.tags:
                 tag_counts[tag.name] = tag_counts.get(tag.name, 0) + 1
@@ -385,7 +385,7 @@ def cmd_tags(args):
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog="slipbox", description="Zettelkasten CLI for maintenance and inspection"
     )

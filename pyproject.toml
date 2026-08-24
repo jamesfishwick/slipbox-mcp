@@ -57,6 +57,7 @@ dev = [
     "ruff>=0.6.0",
     "mypy>=1.0.0",
     "pyyaml>=6.0",  # used directly by scripts/build_skills.py
+    "types-PyYAML",  # stubs for mypy
 ]
 
 [project.scripts]
@@ -102,6 +103,12 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+
+# frontmatter (python-frontmatter) ships no type stubs or py.typed marker, and
+# yaml stubs (types-PyYAML) may not always be installed in every environment.
+[[tool.mypy.overrides]]
+module = ["frontmatter", "yaml"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "evals/tool_contracts"]

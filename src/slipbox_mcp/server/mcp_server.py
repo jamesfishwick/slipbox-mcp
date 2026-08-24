@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class ZettelkastenMcpServer:
     """MCP server for Zettelkasten."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.mcp = FastMCP(config.server_name, instructions=SERVER_INSTRUCTIONS)
         self.zettel_service = ZettelService()
         self.search_service = SearchService(self.zettel_service)

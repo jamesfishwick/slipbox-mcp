@@ -18,7 +18,19 @@ jobs:
       - run: uv venv --python 3.13 && uv pip install -e ".[dev]"
       - run: uv run ruff check src/ evals/ tests/ scripts/
       - run: uv run ruff format --check src/ evals/ tests/ scripts/
-      - run: uv run pytest -q
+      - run: uv run mypy src/
+      # Coverage floor set to the CI baseline. CI installs unlocked (latest)
+      # deps, which exercise ~8pts fewer defensive/version-gated branches than a
+      # locked local run (77% vs 85%), so the floor tracks the CI number, not the
+      # local one. Raise it toward CI coverage as tests are added.
+      - run: uv run pytest -q --cov=slipbox_mcp --cov-report=term-missing --cov-fail-under=75
+      # Dependency CVE scan. Non-blocking for now: the locked deps carry a
+      # backlog of advisories (mcp, starlette, and others) whose fixes are major
+      # version bumps out of scope here. Dependabot (.github/dependabot.yml)
+      # drives those upgrades; make this blocking once the backlog is cleared.
+      - name: Audit dependencies for known vulnerabilities
+        continue-on-error: true
+        run: uv run --with pip-audit pip-audit
       - name: Skills are regenerated from the prompt templates (no drift)
         run: |
           uv run python scripts/build_skills.py
