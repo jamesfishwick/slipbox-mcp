@@ -6,7 +6,6 @@ from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import ValidationError
-from sqlalchemy.exc import IntegrityError
 
 from slipbox_mcp.config import config
 from slipbox_mcp.server.descriptions import SERVER_INSTRUCTIONS
@@ -67,10 +66,13 @@ class ZettelkastenMcpServer:
         # A duplicate link trips the (source_id, target_id, link_type) UNIQUE
         # constraint. Translate it to a caller-friendly message here, once, so
         # every tool that can create a link benefits rather than each catching
-        # the raw IntegrityError itself.
-        if isinstance(error, IntegrityError) and "UNIQUE constraint failed" in str(
-            error
-        ):
+        # it itself. Match on the message text alone (not the exception type),
+        # preserving the pre-refactor breadth: a UNIQUE violation surfaced as any
+        # exception, not only a SQLAlchemy IntegrityError, still gets this. The
+        # "links." scope keeps it from mislabeling a future table's UNIQUE
+        # constraint as a duplicate link.
+        error_text = str(error)
+        if "UNIQUE constraint failed" in error_text and "links." in error_text:
             logger.info("Duplicate link rejected [%s]: %s", error_id, error)
             return (
                 "A link of this type already exists between these notes. "

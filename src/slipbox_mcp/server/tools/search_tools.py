@@ -238,9 +238,17 @@ def register_search_tools(server) -> None:
         Use this if notes were edited outside the MCP server or if the
         database seems out of sync with the filesystem.
         """
-        note_count_before = len(zettel_service.get_all_notes())
-        zettel_service.rebuild_index()
-        note_count_after = len(zettel_service.get_all_notes())
+        # Rebuild re-parses every markdown file, so a failure here (bad
+        # frontmatter, a Note failing re-validation) is worth a full traceback.
+        # format_error_response logs some error shapes without exc_info, so log
+        # the trace here before re-raising to the decorator for the user reply.
+        try:
+            note_count_before = len(zettel_service.get_all_notes())
+            zettel_service.rebuild_index()
+            note_count_after = len(zettel_service.get_all_notes())
+        except Exception:
+            logger.error("Failed to rebuild index", exc_info=True)
+            raise
         return (
             f"Database index rebuilt successfully.\n"
             f"Notes processed: {note_count_after}\n"

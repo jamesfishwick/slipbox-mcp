@@ -279,6 +279,26 @@ class TestCreateLinkTool(MockServerBase):
         # Assert
         assert "already exists" in result, f"Expected duplicate message, got {result!r}"
 
+    def test_duplicate_link_message_not_gated_on_integrityerror_type(self):
+        """A links UNIQUE violation surfaced as a non-IntegrityError still gets
+        the friendly message. Locks the message-text match (not exception type),
+        preserving pre-refactor breadth after the handler was centralized."""
+        # Arrange: a plain Exception carrying the links UNIQUE message, as could
+        # arise from a re-raise or a raw sqlite3 error escaping SQLAlchemy.
+        self.mock_zettel_service.create_link.side_effect = RuntimeError(
+            "UNIQUE constraint failed: links.source_id, links.target_id"
+        )
+
+        # Act
+        result = self._tool("slipbox_create_link")(
+            source_id=self.SOURCE_ID,
+            target_id=self.TARGET_ID,
+            link_type="extends",
+        )
+
+        # Assert
+        assert "already exists" in result, f"Expected duplicate message, got {result!r}"
+
     def test_invalid_link_type_returns_error(self):
         """An unrecognised link_type string is rejected."""
         # Act
