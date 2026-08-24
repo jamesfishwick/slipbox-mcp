@@ -42,6 +42,27 @@ def test_search_by_text_returns_ranked_results(zettel_service, search_service):
     assert all(r.score > 0 for r in results)
 
 
+def test_search_by_text_hydrates_without_per_hit_file_reads(
+    zettel_service, search_service
+):
+    """Regression (gh#56): search_by_text must hydrate all hits from a single
+    batched DB query, never a per-hit repository.get() file read."""
+    for i in range(5):
+        zettel_service.create_note(
+            title=f"Concurrency Note {i}",
+            content="concurrency and parallelism in distributed systems.",
+            tags=["cs"],
+        )
+
+    repository = zettel_service.repository
+    with patch.object(repository, "get", wraps=repository.get) as spy_get:
+        results = search_service.search_by_text("concurrency")
+
+    assert len(results) == 5
+    assert all(r.note.content for r in results)
+    spy_get.assert_not_called()
+
+
 def test_search_by_text_empty_query(search_service):
     """Empty query must return empty list."""
     assert search_service.search_by_text("") == []

@@ -125,17 +125,43 @@ class SearchService:
             return []
 
         rows = self._run_fts5_query(fts_query)
+        if not rows:
+            return []
+
+        # Hydrate every hit with a single batched DB query instead of one file
+        # read per hit. Mirrors find_central_notes / search_combined: the FTS
+        # index is DB-derived, so DB content is authoritative for what matched.
+        ordered_ids = [row.id for row in rows]
+        with repository.session_factory() as session:
+            db_notes_by_id = {
+                db_note.id: db_note
+                for db_note in session.execute(
+                    select(DBNote)
+                    .where(DBNote.id.in_(ordered_ids))
+                    .options(*_NOTE_EAGER_LOADS)
+                )
+                .unique()
+                .scalars()
+                .all()
+            }
 
         results = []
         for row in rows:
-            note = repository.get(row.id)
-            if note is None:
+            db_note = db_notes_by_id.get(row.id)
+            if db_note is None:
+                # An FTS hit with no matching notes row is a referential-integrity
+                # gap (index ahead of the table); skip it, as find_central_notes does.
+                logger.warning(
+                    "search_by_text: note '%s' matched in FTS index but missing "
+                    "from notes table (referential integrity violation); skipping",
+                    row.id,
+                )
                 continue
             # bm25() returns negative float; negate so higher = better
             score = -row.bm25_score
             results.append(
                 SearchResult(
-                    note=note,
+                    note=repository._db_note_to_note(db_note),
                     score=score,
                     matched_terms=set(query.split()),
                     matched_context=f"Content: ...{row.matched_context}...",
