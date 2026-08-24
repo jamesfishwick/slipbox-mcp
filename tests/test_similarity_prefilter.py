@@ -45,6 +45,56 @@ def test_find_similar_notes_prefilters_instead_of_full_scan(zettel_service):
     assert all("Disc" not in n.title for n, _ in results)
 
 
+def test_shared_outgoing_target_only_is_a_candidate(zettel_service):
+    """The trickiest candidate class: a note whose ONLY tie to the source is a
+    shared outgoing-link target (source -> X, other -> X), with no shared tag and
+    no direct link. It must still be scored (covered by the links self-join)."""
+    repo = zettel_service.repository
+    source = zettel_service.create_note("Source", "content", tags=["alpha"])
+    target = zettel_service.create_note("Target", "content", tags=[])
+    co_linker = zettel_service.create_note("CoLinker", "content", tags=["beta"])
+    zettel_service.create_link(source.id, target.id, LinkType.REFERENCE)
+    zettel_service.create_link(co_linker.id, target.id, LinkType.REFERENCE)
+
+    candidate_ids = {n.id for n in repo.find_similarity_candidates(source.id)}
+    assert co_linker.id in candidate_ids
+
+    similar_ids = {
+        n.id for n, _ in zettel_service.find_similar_notes(source.id, threshold=0.05)
+    }
+    assert co_linker.id in similar_ids
+
+
+def test_prefilter_matches_full_scan_for_positive_threshold(zettel_service):
+    """The prefiltered result must equal the full-corpus scan (same notes AND
+    same scores) for threshold > 0 -- across every candidate class."""
+    repo = zettel_service.repository
+    source = zettel_service.create_note("Source", "body", tags=["alpha", "beta"])
+    zettel_service.create_note("TagShare", "body", tags=["alpha"])
+    target = zettel_service.create_note("Target", "body", tags=[])
+    linker = zettel_service.create_note("Linker", "body", tags=[])
+    co_linker = zettel_service.create_note("CoLink", "body", tags=["gamma"])
+    for i in range(3):
+        zettel_service.create_note(f"Disc {i}", "unrelated", tags=[f"z{i}"])
+    zettel_service.create_link(source.id, target.id, LinkType.REFERENCE)
+    zettel_service.create_link(linker.id, source.id, LinkType.REFERENCE)
+    zettel_service.create_link(co_linker.id, target.id, LinkType.REFERENCE)
+
+    prefiltered = zettel_service.find_similar_notes(source.id, threshold=0.05)
+
+    # Force the service to score the whole corpus, then compare.
+    with patch.object(
+        repo, "find_similarity_candidates", side_effect=lambda _id: repo.get_all()
+    ):
+        baseline = zettel_service.find_similar_notes(source.id, threshold=0.05)
+
+    def scored(results):
+        return {(n.id, round(s, 9)) for n, s in results}
+
+    assert scored(prefiltered) == scored(baseline)
+    assert prefiltered  # non-empty: candidate classes actually produced results
+
+
 def test_find_similar_notes_threshold_zero_uses_full_corpus(zettel_service):
     source = zettel_service.create_note("Source", "content", tags=["alpha"])
     disconnected = zettel_service.create_note("Disc", "content", tags=["zzz"])
