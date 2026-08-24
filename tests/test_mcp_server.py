@@ -1208,6 +1208,29 @@ class TestRebuildIndexTool(MockServerBase):
             f"Expected note count {self.NOTE_COUNT} in result, got {result!r}"
         )
 
+    def test_failure_logs_traceback_and_returns_error(self):
+        """A rebuild failure of any shape logs a full traceback (exc_info) and
+        still returns a user-facing error via the decorator. Locks the invariant
+        that the tool's own exc_info logging survives, independent of which
+        branch format_error_response takes for the exception type."""
+        # Arrange: a ValueError-shaped failure, the case format_error_response
+        # would otherwise log without a traceback.
+        self.mock_zettel_service.get_all_notes.return_value = []
+        self.mock_zettel_service.rebuild_index.side_effect = ValueError(
+            "bad frontmatter in note 20990101T000000000000000"
+        )
+
+        # Act
+        with patch("slipbox_mcp.server.tools.search_tools.logger") as mock_logger:
+            result = self._tool("slipbox_rebuild_index")()
+
+        # Assert: user still gets an error string, and the traceback was logged.
+        assert result.startswith("Error:"), f"Expected error string, got {result!r}"
+        mock_logger.error.assert_called_once()
+        assert mock_logger.error.call_args.kwargs.get("exc_info") is True, (
+            "rebuild failure must be logged with exc_info=True for a traceback"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Tool: slipbox_get_cluster_report (happy path)
