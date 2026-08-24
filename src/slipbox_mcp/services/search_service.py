@@ -5,13 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Set, Tuple, Union
 
-from sqlalchemy import select, text
-from sqlalchemy.exc import OperationalError
-
-from slipbox_mcp.models.db_models import DBNote, DBTag
 from slipbox_mcp.models.schema import Note, NoteType
 from slipbox_mcp.services.zettel_service import ZettelService
-from slipbox_mcp.storage.note_repository import _NOTE_EAGER_LOADS
 
 logger = logging.getLogger(__name__)
 
@@ -80,42 +75,11 @@ class SearchService:
     def _run_fts5_query(self, fts_query: str) -> list:
         """Execute an FTS5 MATCH query and return raw result rows.
 
-        Returns list of rows with (id, bm25_score, matched_context).
+        Thin wrapper over the repository, kept as a seam so tests can patch
+        it. Returns list of rows with (id, bm25_score, matched_context).
         Returns [] on FTS5 syntax errors. Re-raises on missing tables.
         """
-        repository = self.zettel_service.repository
-        sql = text("""
-            SELECT
-                n.id,
-                bm25(notes_fts) AS bm25_score,
-                snippet(notes_fts, 1, '', '', '...', 8) AS matched_context
-            FROM notes_fts
-            JOIN notes n ON notes_fts.rowid = n.rowid
-            WHERE notes_fts MATCH :query
-            ORDER BY bm25(notes_fts)
-        """)
-        with repository.session_factory() as session:
-            try:
-                return list(session.execute(sql, {"query": fts_query}).fetchall())
-            except OperationalError as e:
-                err = str(e).lower()
-                if "no such table" in err:
-                    if "notes_fts" in err:
-                        logger.error(
-                            "FTS5 table 'notes_fts' missing -- run slipbox_rebuild_index: %s",
-                            e,
-                        )
-                    else:
-                        logger.error(
-                            "Required table missing from database schema: %s", e
-                        )
-                    raise
-                if "fts5" in err or (
-                    "unterminated string" in err and "notes_fts" in err
-                ):
-                    logger.warning("FTS5 query syntax error for %r: %s", fts_query, e)
-                    return []
-                raise
+        return self.zettel_service.repository.run_fts_match(fts_query)
 
     def search_by_text(
         self, query: str, include_content: bool = True, include_title: bool = True
@@ -152,23 +116,12 @@ class SearchService:
         # intact DB row is returned from the index rather than raising IOError.
         # On-disk corruption is surfaced by audit tooling, not by search.
         ordered_ids = [row.id for row in rows]
-        with repository.session_factory() as session:
-            db_notes_by_id = {
-                db_note.id: db_note
-                for db_note in session.execute(
-                    select(DBNote)
-                    .where(DBNote.id.in_(ordered_ids))
-                    .options(*_NOTE_EAGER_LOADS)
-                )
-                .unique()
-                .scalars()
-                .all()
-            }
+        db_notes_by_id = repository.get_notes_by_ids(ordered_ids)
 
         results = []
         for row in rows:
-            db_note = db_notes_by_id.get(row.id)
-            if db_note is None:
+            note = db_notes_by_id.get(row.id)
+            if note is None:
                 # db_note is None only via a cross-transaction race: the FTS read
                 # above (a separate transaction) matched the note, but it was
                 # deleted before this batched hydrate query ran. notes_fts is an
@@ -186,7 +139,7 @@ class SearchService:
             score = -row.bm25_score
             results.append(
                 self._build_result(
-                    repository._db_note_to_note(db_note),
+                    note,
                     score=score,
                     matched_terms=set(query.split()),
                     matched_context=f"Content: ...{row.matched_context}...",
@@ -220,20 +173,11 @@ class SearchService:
         use_updated: bool = False,
     ) -> List[Note]:
         """Find notes created or updated within a date range."""
-        date_col = DBNote.updated_at if use_updated else DBNote.created_at
-        repository = self.zettel_service.repository
-
-        with repository.session_factory() as session:
-            query = select(DBNote).options(*_NOTE_EAGER_LOADS)
-            if start_date:
-                query = query.where(date_col >= start_date)
-            if end_date:
-                query = query.where(date_col <= end_date)
-            query = query.order_by(date_col.desc())
-
-            result = session.execute(query)
-            db_notes = result.unique().scalars().all()
-            return [repository._db_note_to_note(db_note) for db_note in db_notes]
+        return self.zettel_service.repository.find_by_date_range(
+            start_date=start_date,
+            end_date=end_date,
+            use_updated=use_updated,
+        )
 
     def find_similar_notes(self, note_id: str) -> List[Tuple[Note, float]]:
         """Find notes similar to the given note based on shared tags and links."""
@@ -250,28 +194,20 @@ class SearchService:
         """Perform a combined search: SQL pre-filter by metadata, FTS5 for text ranking."""
         repository = self.zettel_service.repository
 
-        with repository.session_factory() as session:
-            query = select(DBNote).options(*_NOTE_EAGER_LOADS)
-            if note_type:
-                query = query.where(DBNote.note_type == note_type.value)
-            if start_date:
-                query = query.where(DBNote.created_at >= start_date)
-            if end_date:
-                query = query.where(DBNote.created_at <= end_date)
-            if tags:
-                query = query.where(DBNote.tags.any(DBTag.name.in_(tags)))
+        candidate_ids = repository.find_metadata_candidates(
+            note_type=note_type,
+            tags=tags,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
-            db_notes = session.execute(query).unique().scalars().all()
-            candidate_ids = {db_note.id: db_note for db_note in db_notes}
+        # Treat a missing or whitespace-only query_text as "no text filter":
+        # return the metadata-matched candidates rather than running an empty
+        # MATCH (which would swallow a misleading FTS5 syntax error to []).
+        if not query_text or not query_text.strip():
+            return [self._build_result(n) for n in candidate_ids.values()]
 
-            # Treat a missing or whitespace-only query_text as "no text filter":
-            # return the metadata-matched candidates rather than running an empty
-            # MATCH (which would swallow a misleading FTS5 syntax error to []).
-            if not query_text or not query_text.strip():
-                notes = [repository._db_note_to_note(n) for n in db_notes]
-                return [self._build_result(n) for n in notes]
-
-            fts_query = _build_fts_match(query_text)
+        fts_query = _build_fts_match(query_text)
 
         fts_rows = self._run_fts5_query(fts_query)
 
@@ -279,7 +215,7 @@ class SearchService:
         for row in fts_rows:
             if row.id not in candidate_ids:
                 continue
-            note = repository._db_note_to_note(candidate_ids[row.id])
+            note = candidate_ids[row.id]
             score = -row.bm25_score
             results.append(
                 self._build_result(
