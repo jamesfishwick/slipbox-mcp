@@ -1,14 +1,13 @@
 """Service for detecting emergent knowledge clusters in the Zettelkasten."""
 
-import json
 import logging
 from collections import defaultdict
-from dataclasses import asdict, fields
 from datetime import datetime
 from itertools import combinations
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
+from slipbox_mcp.config import ensure_private_dir
 from slipbox_mcp.models.cluster_models import (
     CO_OCCURRENCE_THRESHOLD,
     MIN_CLUSTER_SIZE,
@@ -21,32 +20,21 @@ from slipbox_mcp.services.zettel_service import ZettelService
 
 logger = logging.getLogger(__name__)
 
-# Field names for tolerant load: an unknown key in a saved report (e.g. from a
-# newer version) is dropped rather than crashing the ClusterCandidate constructor.
-_CANDIDATE_FIELDS = {f.name for f in fields(ClusterCandidate)}
-
-
-def _json_default(value: Any) -> str:
-    """json.dumps hook: serialize datetime fields as ISO 8601 strings."""
-    if isinstance(value, datetime):
-        return value.isoformat()
-    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
-
 
 class ClusterService:
     """Service for detecting and managing knowledge clusters."""
 
     def __init__(
         self,
-        zettel_service: Optional[ZettelService] = None,
+        zettel_service: ZettelService,
         report_path: Optional[Path] = None,
     ):
-        self.zettel_service = zettel_service or ZettelService()
+        self.zettel_service = zettel_service
         self.report_path = Path(report_path) if report_path is not None else REPORT_PATH
 
     def build_tag_cooccurrence(self, notes: List[Note]) -> Dict[Tuple[str, str], int]:
         """Build matrix of tag pairs that appear together on notes."""
-        cooccurrence = defaultdict(int)
+        cooccurrence: DefaultDict[Tuple[str, str], int] = defaultdict(int)
         for note in notes:
             tag_names = sorted(note.tag_names())
             for tag_a, tag_b in combinations(tag_names, 2):
@@ -73,6 +61,9 @@ class ClusterService:
                 tag_to_cluster[tag_a] = new_cluster
                 tag_to_cluster[tag_b] = new_cluster
             elif cluster_a is None:
+                # Not both None (handled above) and cluster_a is None, so
+                # cluster_b must be a real set here.
+                assert cluster_b is not None
                 cluster_b.add(tag_a)
                 tag_to_cluster[tag_a] = cluster_b
             elif cluster_b is None:
@@ -219,47 +210,29 @@ class ClusterService:
     def save_report(self, report: ClusterReport) -> Path:
         """Save cluster report to JSON file.
 
-        ``dataclasses.asdict`` recurses through the nested ClusterCandidate
-        dataclasses, so the serialized shape stays in lockstep with the models
-        (add a field to either and it round-trips without touching this method).
-        ``_json_default`` handles the datetime fields.
+        The Pydantic models own their own serialization, so datetime fields and
+        the nested ClusterCandidate list round-trip without a custom encoder;
+        adding a field to either model round-trips without touching this method.
         """
-        self.report_path.parent.mkdir(parents=True, exist_ok=True)
-        self.report_path.write_text(
-            json.dumps(asdict(report), indent=2, default=_json_default)
-        )
+        # The report is derived from private notes; keep its dir owner-only.
+        ensure_private_dir(self.report_path.parent)
+        self.report_path.write_text(report.model_dump_json(indent=2))
         return self.report_path
 
     def load_report(self) -> Optional[ClusterReport]:
-        """Load cluster report from JSON file."""
+        """Load cluster report from JSON file.
+
+        ``model_validate_json`` parses ISO datetimes and the nested candidates,
+        and (via ``extra="ignore"``) drops unknown keys from a newer version.
+        """
         if not self.report_path.exists():
             return None
 
         try:
-            data = json.loads(self.report_path.read_text())
-            return ClusterReport(
-                generated_at=datetime.fromisoformat(data["generated_at"]),
-                clusters=[self._candidate_from_dict(c) for c in data["clusters"]],
-                stats=data["stats"],
-                dismissed_cluster_ids=data.get("dismissed_cluster_ids", []),
-            )
+            return ClusterReport.model_validate_json(self.report_path.read_text())
         except Exception as e:
             logger.error("Failed to load cluster report: %s", e)
             return None
-
-    @staticmethod
-    def _candidate_from_dict(data: Dict[str, Any]) -> ClusterCandidate:
-        """Rebuild a ClusterCandidate from its ``asdict`` form.
-
-        Keep only keys that are real fields (derived from the dataclass, so no
-        hardcoded list), which lets a report written by a future version with an
-        extra field still load rather than raising on an unexpected kwarg. Only
-        ``newest_date`` needs parsing back from its ISO string.
-        """
-        kwargs = {k: v for k, v in data.items() if k in _CANDIDATE_FIELDS}
-        newest = kwargs.get("newest_date")
-        kwargs["newest_date"] = datetime.fromisoformat(newest) if newest else None
-        return ClusterCandidate(**kwargs)
 
     @staticmethod
     def _render_structure_content(cluster: ClusterCandidate) -> str:

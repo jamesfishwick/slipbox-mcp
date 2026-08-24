@@ -6,7 +6,7 @@ import sys
 import tempfile
 from enum import Enum
 from pathlib import Path
-from typing import Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 E = TypeVar("E", bound=Enum)
 
@@ -34,13 +34,13 @@ def atomic_write_text(path: Path, text: str) -> None:
         raise
 
 
-def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
+def setup_logging(level: str = "INFO", log_file: Optional[str] = None) -> None:
     """Set up logging configuration."""
     numeric_level = getattr(logging, level.upper(), None)
     if not isinstance(numeric_level, int):
         numeric_level = logging.INFO
 
-    log_config = {
+    log_config: dict[str, Any] = {
         "level": numeric_level,
         "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         "datefmt": "%Y-%m-%d %H:%M:%S",

@@ -1,21 +1,18 @@
 """Repository for note storage and retrieval."""
 
 import datetime
-import json
 import logging
 import os
-import re
 import threading
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import frontmatter
-from pydantic import ValidationError
 from sqlalchemy import and_, delete, func, or_, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session, joinedload
 
-from slipbox_mcp.config import config
+from slipbox_mcp.config import config, ensure_private_dir
 from slipbox_mcp.models.db_models import (
     DBLink,
     DBNote,
@@ -23,9 +20,28 @@ from slipbox_mcp.models.db_models import (
     get_session_factory,
     init_db,
 )
-from slipbox_mcp.models.schema import Link, LinkType, Note, NoteType, Tag
-from slipbox_mcp.storage.base import Repository
+from slipbox_mcp.models.schema import Note, NoteType, Tag
+from slipbox_mcp.storage.markdown_codec import (
+    NoteMarkdownCodec,
+    _parse_frontmatter_dates,
+    _parse_frontmatter_tags,
+    _parse_links_section,
+)
+from slipbox_mcp.storage.note_id import is_safe_note_id as _is_safe_note_id
 from slipbox_mcp.utils import atomic_write_text
+
+# Re-exported for backward compatibility: the markdown parsing helpers moved into
+# markdown_codec.py and the id-safety rule into note_id.py (issue #59), but tests
+# still import them from this module. Keeping the names bound here preserves those
+# imports.
+__all__ = [
+    "NoteRepository",
+    "ReferrerSweepError",
+    "_is_safe_note_id",
+    "_parse_frontmatter_dates",
+    "_parse_frontmatter_tags",
+    "_parse_links_section",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -56,103 +72,6 @@ class ReferrerSweepError(Exception):
         )
 
 
-# Note IDs become filenames (``{id}.md``). Constrain them to a path-safe
-# alphabet so a crafted id (``../../etc/x``, ``/etc/x``) cannot escape the
-# notes dir. This mirrors the validator on Note.id exactly -- same alphabet AND
-# the same 1..255 length bound -- and is repeated here so the filesystem layer
-# is safe even for ids that bypassed model validation (e.g. Note.model_construct
-# on the schema-violation hydration path).
-_NOTE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,255}$")
-
-
-def _is_safe_note_id(note_id: Any) -> bool:
-    """Return True if note_id is a non-empty, path-safe filename stem."""
-    return isinstance(note_id, str) and bool(_NOTE_ID_PATTERN.fullmatch(note_id))
-
-
-# ---------------------------------------------------------------------------
-# Markdown parsing helpers (module-level, no instance state needed)
-# ---------------------------------------------------------------------------
-
-
-def _parse_frontmatter_tags(raw: Any) -> list[Tag]:
-    """Parse tags from frontmatter value (str, list, or None)."""
-    if isinstance(raw, str):
-        tag_names = [t.strip() for t in raw.split(",") if t.strip()]
-    elif isinstance(raw, list):
-        tag_names = [str(t).strip() for t in raw if str(t).strip()]
-    else:
-        return []
-    return [Tag(name=name) for name in tag_names]
-
-
-def _parse_links_section(content: str, source_id: str) -> list[Link]:
-    """Parse the ``## Links`` block from note content."""
-    links: list[Link] = []
-    in_links = False
-    for line in content.split("\n"):
-        stripped = line.strip()
-        if stripped.startswith("## Links"):
-            in_links = True
-            continue
-        if in_links and stripped.startswith("## "):
-            in_links = False
-            continue
-        if in_links and stripped.startswith("- "):
-            try:
-                if "[[" in stripped and "]]" in stripped:
-                    parts = stripped.split("[[", 1)
-                    link_type_str = parts[0].strip()
-                    if link_type_str.startswith("- "):
-                        link_type_str = link_type_str[2:].strip()
-                    id_and_desc = parts[1].split("]]", 1)
-                    target_id = id_and_desc[0].strip()
-                    description = None
-                    if len(id_and_desc) > 1:
-                        description = id_and_desc[1].strip()
-                    try:
-                        link_type = LinkType(link_type_str)
-                    except ValueError:
-                        link_type = LinkType.REFERENCE
-                    links.append(
-                        Link(
-                            source_id=source_id,
-                            target_id=target_id,
-                            link_type=link_type,
-                            description=description,
-                            created_at=datetime.datetime.now(),
-                        )
-                    )
-            except Exception as e:
-                logger.error("Error parsing link: %s - %s", line, e)
-    return links
-
-
-def _coerce_frontmatter_datetime(value: Any) -> Optional[datetime.datetime]:
-    """Coerce a frontmatter date value into a datetime.
-
-    PyYAML auto-parses unquoted ISO-8601 timestamps into datetime objects,
-    while quoted values arrive as strings. Accept both so a hand-edited or
-    externally-generated note doesn't break indexing.
-    """
-    if isinstance(value, datetime.datetime):
-        return value
-    if isinstance(value, str) and value:
-        return datetime.datetime.fromisoformat(value)
-    return None
-
-
-def _parse_frontmatter_dates(
-    metadata: dict[str, Any],
-) -> tuple[datetime.datetime, datetime.datetime]:
-    """Parse created/updated datetimes from frontmatter metadata."""
-    created_at = (
-        _coerce_frontmatter_datetime(metadata.get("created")) or datetime.datetime.now()
-    )
-    updated_at = _coerce_frontmatter_datetime(metadata.get("updated")) or created_at
-    return created_at, updated_at
-
-
 # Eager-load options applied to every DBNote query to avoid N+1 queries on
 # tags, outgoing links, and incoming links.
 _NOTE_EAGER_LOADS = [
@@ -162,7 +81,7 @@ _NOTE_EAGER_LOADS = [
 ]
 
 
-class NoteRepository(Repository[Note]):
+class NoteRepository:
     """Repository for note storage and retrieval.
     This implements a dual storage approach:
     1. Notes are stored as Markdown files on disk for human readability and editing
@@ -177,7 +96,11 @@ class NoteRepository(Repository[Note]):
             else config.get_absolute_path(config.notes_dir)
         )
 
-        self.notes_dir.mkdir(parents=True, exist_ok=True)
+        # Notes can hold private material; create the tree owner-only (0o700)
+        # rather than at the mercy of the process umask.
+        ensure_private_dir(self.notes_dir)
+
+        self.codec = NoteMarkdownCodec()
 
         self.engine = init_db()
         self.session_factory = get_session_factory(self.engine)
@@ -273,8 +196,18 @@ class NoteRepository(Repository[Note]):
                 except Exception as e:
                     logger.error("Error processing file %s: %s", file_path, e)
 
-            for note in notes:
-                self._index_note(note)
+            # Index the whole batch in one transaction: one commit per batch
+            # instead of per note. Each note is wrapped in a SAVEPOINT so a
+            # single bad/unparseable note is rolled back and skipped without
+            # discarding the rest of the batch or aborting the rebuild.
+            with self.session_factory() as session:
+                for note in notes:
+                    try:
+                        with session.begin_nested():
+                            self._index_note_in_session(session, note)
+                    except Exception as e:
+                        logger.error("Error indexing note %s: %s", note.id, e)
+                session.commit()
 
         # Rebuild FTS index to ensure consistency after bulk delete + re-insert
         with self.session_factory() as session:
@@ -282,150 +215,128 @@ class NoteRepository(Repository[Note]):
             session.commit()
 
     def _parse_note_from_markdown(self, content: str) -> Optional[Note]:
-        """Parse a note from markdown content."""
-        post = frontmatter.loads(content)
-        metadata = post.metadata
+        """Parse a note from markdown content.
 
-        note_id = metadata.get("id")
-        if not note_id:
-            return None
-        if not _is_safe_note_id(note_id):
-            # The id is not an accepted stem: either a path-traversal attempt
-            # (``../../etc/x``, ``/etc/x``) or merely a legacy id using chars
-            # outside [A-Za-z0-9_-] (e.g. a dot or space from before the id was
-            # constrained). Skip it rather than let it reach the model_construct
-            # fallback below, which would bypass the id validator and make a
-            # traversal id writable. Skipping is loud and actionable so a benign
-            # legacy note is not lost silently -- rename its id to re-index it.
-            logger.warning(
-                "Skipping note %s: id %r is not an accepted stem "
-                "(allowed: [A-Za-z0-9_-], 1-255 chars). If this is a legacy "
-                "note, rename its frontmatter id to re-index it.",
-                metadata.get("title", "<untitled>"),
-                note_id,
-            )
-            return None
-
-        title = metadata.get("title")
-        if not title:
-            for line in post.content.strip().split("\n"):
-                if line.startswith("# "):
-                    title = line[2:].strip()
-                    break
-        if not title:
-            raise ValueError("Note title missing from frontmatter or content")
-
-        note_type_str = metadata.get("type", NoteType.PERMANENT.value)
-        try:
-            note_type = NoteType(note_type_str)
-        except ValueError:
-            note_type = NoteType.PERMANENT
-
-        tags = _parse_frontmatter_tags(metadata.get("tags", ""))
-        links = _parse_links_section(post.content, source_id=note_id)
-        created_at, updated_at = _parse_frontmatter_dates(metadata)
-
-        refs_raw = metadata.get("references", [])
-        if isinstance(refs_raw, list):
-            references = [str(r) for r in refs_raw if str(r).strip()]
-        elif isinstance(refs_raw, str):
-            references = [r.strip() for r in refs_raw.split("\n") if r.strip()]
-        else:
-            references = []
-
-        kwargs = dict(
-            id=note_id,
-            title=title,
-            content=post.content,
-            note_type=note_type,
-            tags=tags,
-            links=links,
-            references=references,
-            created_at=created_at,
-            updated_at=updated_at,
-            metadata={
-                k: v
-                for k, v in metadata.items()
-                if k
-                not in [
-                    "id",
-                    "title",
-                    "type",
-                    "tags",
-                    "created",
-                    "updated",
-                    "references",
-                ]
-            },
-        )
-        try:
-            return Note(**kwargs)
-        except ValidationError as e:
-            # Existing on-disk note violates current schema (e.g. literature
-            # without references after the new validator landed). Hydrate via
-            # model_construct so the note remains visible to queries; surface
-            # the violation via the audit-references CLI.
-            logger.warning(
-                "Schema violation hydrating note %s from markdown "
-                "(run `slipbox audit-references`): %s",
-                note_id,
-                e.errors()[0].get("msg", str(e)),
-            )
-            return Note.model_construct(**kwargs)
+        Thin delegation to :class:`NoteMarkdownCodec`; retained under the
+        original name so existing callers and tests keep working.
+        """
+        return self.codec.parse(content)
 
     def _db_note_to_note(self, db_note: DBNote) -> Note:
         """Convert a DBNote (with eager-loaded relationships) to a domain Note.
 
-        Avoids per-note file I/O by using data already loaded from the database.
-        Requires that db_note.tags, db_note.outgoing_links, and
-        db_note.incoming_links have been eager-loaded in the calling query.
+        Thin delegation to :class:`NoteMarkdownCodec`; retained under the
+        original name so existing callers and tests keep working.
         """
-        tags = [Tag(name=t.name) for t in db_note.tags]
-        links = [
-            Link(
-                source_id=lnk.source_id,
-                target_id=lnk.target_id,
-                link_type=LinkType(lnk.link_type),
-                description=lnk.description,
-                created_at=lnk.created_at,
-            )
-            for lnk in db_note.outgoing_links
-        ]
-        kwargs = dict(
-            id=db_note.id,
-            title=db_note.title,
-            content=db_note.content,
-            note_type=NoteType(db_note.note_type),
-            tags=tags,
-            links=links,
-            references=db_note.references,
-            created_at=db_note.created_at,
-            updated_at=db_note.updated_at,
-        )
-        try:
-            return Note(**kwargs)
-        except ValidationError as e:
-            # DB row violates current schema (e.g. literature without
-            # references after the new validator landed). Hydrate via
-            # model_construct so the note remains visible to queries; surface
-            # the violation via the audit-references CLI.
-            logger.warning(
-                "Schema violation hydrating note %s from DB "
-                "(run `slipbox audit-references`): %s",
-                db_note.id,
-                e.errors()[0].get("msg", str(e)),
-            )
-            return Note.model_construct(**kwargs)
+        return self.codec.db_note_to_note(db_note)
 
     def _convert_db_notes(self, db_notes: List[DBNote]) -> List[Note]:
-        """Convert a list of DBNote objects to domain Notes, skipping conversion errors."""
-        notes = []
-        for db_note in db_notes:
+        """Convert a list of DBNote objects to domain Notes, skipping conversion errors.
+
+        Thin delegation to :class:`NoteMarkdownCodec`; retained under the
+        original name so existing callers and tests keep working.
+        """
+        return self.codec.convert_db_notes(db_notes)
+
+    def run_fts_match(self, fts_query: str) -> List[Any]:
+        """Execute an FTS5 MATCH query and return raw result rows.
+
+        Returns list of rows with (id, bm25_score, matched_context).
+        Returns [] on FTS5 syntax errors. Re-raises on missing tables.
+        """
+        sql = text("""
+            SELECT
+                n.id,
+                bm25(notes_fts) AS bm25_score,
+                snippet(notes_fts, 1, '', '', '...', 8) AS matched_context
+            FROM notes_fts
+            JOIN notes n ON notes_fts.rowid = n.rowid
+            WHERE notes_fts MATCH :query
+            ORDER BY bm25(notes_fts)
+        """)
+        with self.session_factory() as session:
             try:
-                notes.append(self._db_note_to_note(db_note))
-            except Exception as e:
-                logger.error("Error converting note %s: %s", db_note.id, e)
-        return notes
+                return list(session.execute(sql, {"query": fts_query}).fetchall())
+            except OperationalError as e:
+                err = str(e).lower()
+                if "no such table" in err:
+                    if "notes_fts" in err:
+                        logger.error(
+                            "FTS5 table 'notes_fts' missing -- run slipbox_rebuild_index: %s",
+                            e,
+                        )
+                    else:
+                        logger.error(
+                            "Required table missing from database schema: %s", e
+                        )
+                    raise
+                if "fts5" in err or (
+                    "unterminated string" in err and "notes_fts" in err
+                ):
+                    logger.warning("FTS5 query syntax error for %r: %s", fts_query, e)
+                    return []
+                raise
+
+    def get_notes_by_ids(self, ids: List[str]) -> Dict[str, Note]:
+        """Batch-hydrate notes by id into domain Notes keyed by id.
+
+        Returns an empty dict for an empty id list rather than running an
+        empty IN clause.
+        """
+        if not ids:
+            return {}
+        with self.session_factory() as session:
+            db_notes = (
+                session.execute(
+                    select(DBNote).where(DBNote.id.in_(ids)).options(*_NOTE_EAGER_LOADS)
+                )
+                .unique()
+                .scalars()
+                .all()
+            )
+            return {db_note.id: self._db_note_to_note(db_note) for db_note in db_notes}
+
+    def find_by_date_range(
+        self,
+        start_date: Optional[datetime.datetime] = None,
+        end_date: Optional[datetime.datetime] = None,
+        use_updated: bool = False,
+    ) -> List[Note]:
+        """Find notes created or updated within a date range."""
+        date_col = DBNote.updated_at if use_updated else DBNote.created_at
+        with self.session_factory() as session:
+            query = select(DBNote).options(*_NOTE_EAGER_LOADS)
+            if start_date:
+                query = query.where(date_col >= start_date)
+            if end_date:
+                query = query.where(date_col <= end_date)
+            query = query.order_by(date_col.desc())
+
+            result = session.execute(query)
+            db_notes = result.unique().scalars().all()
+            return [self._db_note_to_note(db_note) for db_note in db_notes]
+
+    def find_metadata_candidates(
+        self,
+        note_type: Optional[NoteType] = None,
+        tags: Optional[List[str]] = None,
+        start_date: Optional[datetime.datetime] = None,
+        end_date: Optional[datetime.datetime] = None,
+    ) -> Dict[str, Note]:
+        """Pre-filter notes by metadata, returning domain Notes keyed by id."""
+        with self.session_factory() as session:
+            query = select(DBNote).options(*_NOTE_EAGER_LOADS)
+            if note_type:
+                query = query.where(DBNote.note_type == note_type.value)
+            if start_date:
+                query = query.where(DBNote.created_at >= start_date)
+            if end_date:
+                query = query.where(DBNote.created_at <= end_date)
+            if tags:
+                query = query.where(DBNote.tags.any(DBTag.name.in_(tags)))
+
+            db_notes = session.execute(query).unique().scalars().all()
+            return {db_note.id: self._db_note_to_note(db_note) for db_note in db_notes}
 
     def _get_or_create_tag(self, session: Session, tag_name: str) -> DBTag:
         """Return the DBTag with the given name, creating it if absent.
@@ -450,105 +361,88 @@ class NoteRepository(Repository[Note]):
         return db_tag
 
     def _index_note(self, note: Note) -> None:
-        """Index a note in the database."""
+        """Index a single note in its own session/transaction.
+
+        Thin wrapper over :meth:`_index_note_in_session` for the one-note-at-a-time
+        callers (create/update); ``rebuild_index`` instead shares one session
+        across a whole batch.
+        """
         with self.session_factory() as session:
-            db_note = session.scalar(select(DBNote).where(DBNote.id == note.id))
-            if db_note:
-                db_note.title = note.title
-                db_note.content = note.content
-                db_note.note_type = note.note_type.value
-                db_note.references = note.references
-                db_note.updated_at = note.updated_at
-                # Clear existing links and tags to rebuild them
-                session.execute(delete(DBLink).where(DBLink.source_id == note.id))
-                db_note.tags.clear()
-            else:
-                db_note = DBNote(
-                    id=note.id,
-                    title=note.title,
-                    content=note.content,
-                    note_type=note.note_type.value,
-                    references_json=json.dumps(note.references),
-                    created_at=note.created_at,
-                    updated_at=note.updated_at,
-                )
-                session.add(db_note)
-
-            session.flush()  # Flush to get the note ID
-
-            for tag in note.tags:
-                db_note.tags.append(self._get_or_create_tag(session, tag.name))
-
-            for link in note.links:
-                existing_link = session.scalar(
-                    select(DBLink).where(
-                        (DBLink.source_id == link.source_id)
-                        & (DBLink.target_id == link.target_id)
-                        & (DBLink.link_type == link.link_type.value)
-                    )
-                )
-
-                if not existing_link:
-                    db_link = DBLink(
-                        source_id=link.source_id,
-                        target_id=link.target_id,
-                        link_type=link.link_type.value,
-                        description=link.description,
-                        created_at=link.created_at,
-                    )
-                    session.add(db_link)
-
+            self._index_note_in_session(session, note)
             session.commit()
 
-    def note_to_markdown(self, note: Note) -> str:
-        """Convert a note to markdown with frontmatter."""
-        metadata = {
-            "id": note.id,
-            "title": note.title,
-            "type": note.note_type.value,
-            "tags": [tag.name for tag in note.tags],
-            "created": note.created_at.isoformat(),
-            "updated": note.updated_at.isoformat(),
-        }
-        if note.references:
-            metadata["references"] = note.references
-        metadata.update(note.metadata)
+    def _index_note_in_session(self, session: Any, note: Note) -> None:
+        """Index a note into the given session, without committing.
 
-        # Avoid duplicate title heading.
-        title_heading = f"# {note.title}"
-        if note.content.strip().startswith(title_heading):
-            content = note.content
+        The caller owns the transaction boundary (commit/rollback). This lets
+        ``rebuild_index`` amortize one commit over a whole batch while
+        ``_index_note`` keeps its per-note commit.
+
+        ``session`` is typed ``Any`` to match the rest of this module: the
+        shared ``session_factory`` is an unparametrized ``sessionmaker``, so
+        every ``with self.session_factory() as session`` block already yields
+        an untyped session. Tightening it here to ``Session`` would surface the
+        SQLAlchemy legacy-``Column`` assignment gap that the rest of the file
+        sidesteps the same way.
+        """
+        db_note = session.scalar(select(DBNote).where(DBNote.id == note.id))
+        if db_note:
+            db_note.title = note.title
+            db_note.content = note.content
+            db_note.note_type = note.note_type.value
+            db_note.references = note.references
+            db_note.updated_at = note.updated_at
+            # Clear existing links and tags to rebuild them
+            session.execute(delete(DBLink).where(DBLink.source_id == note.id))
+            db_note.tags.clear()
         else:
-            content = f"{title_heading}\n\n{note.content}"
+            db_note = DBNote(
+                id=note.id,
+                title=note.title,
+                content=note.content,
+                note_type=note.note_type.value,
+                created_at=note.created_at,
+                updated_at=note.updated_at,
+            )
+            # Encode references through the same property setter the update
+            # paths use, so both paths serialize references exactly one way.
+            db_note.references = note.references
+            session.add(db_note)
 
-        # Strip existing Links section before rewriting.
-        content_parts = []
-        skip_section = False
-        for line in content.split("\n"):
-            if line.strip() == "## Links":
-                skip_section = True
-                continue
-            elif skip_section and line.startswith("## "):
-                skip_section = False
+        session.flush()  # Flush to get the note ID
 
-            if not skip_section:
-                content_parts.append(line)
+        for tag in note.tags:
+            db_note.tags.append(self._get_or_create_tag(session, tag.name))
 
-        content = "\n".join(content_parts).rstrip()
+        for link in note.links:
+            # Insert-and-tolerate: the unique_link_type UNIQUE constraint on
+            # (source_id, target_id, link_type) already rejects duplicates,
+            # so skip the per-link pre-SELECT and let a duplicate trip the
+            # constraint. A SAVEPOINT scopes the rollback to this one link so
+            # a duplicate doesn't discard the note or its earlier links.
+            db_link = DBLink(
+                source_id=link.source_id,
+                target_id=link.target_id,
+                link_type=link.link_type.value,
+                description=link.description,
+                created_at=link.created_at,
+            )
+            try:
+                with session.begin_nested():
+                    session.add(db_link)
+                    session.flush()
+            except IntegrityError:
+                # Duplicate link: the SAVEPOINT rolled back just this insert,
+                # leaving the note and earlier links intact.
+                pass
 
-        # Deduplicates links by target+type key.
-        if note.links:
-            unique_links = {}
-            for link in note.links:
-                key = f"{link.target_id}:{link.link_type.value}"
-                unique_links[key] = link
-            content += "\n\n## Links\n"
-            for link in unique_links.values():
-                desc = f" {link.description}" if link.description else ""
-                content += f"- {link.link_type.value} [[{link.target_id}]]{desc}\n"
+    def note_to_markdown(self, note: Note) -> str:
+        """Convert a note to markdown with frontmatter.
 
-        post = frontmatter.Post(content, **metadata)
-        return frontmatter.dumps(post)
+        Thin delegation to :class:`NoteMarkdownCodec`; retained under the
+        original name so existing callers and tests keep working.
+        """
+        return self.codec.note_to_markdown(note)
 
     def _note_path(self, note_id: str) -> Path:
         """Resolve the markdown path for a note id, refusing any escape.

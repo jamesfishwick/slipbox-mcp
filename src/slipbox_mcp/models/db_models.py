@@ -3,6 +3,7 @@
 import datetime
 import json
 import logging
+from typing import cast
 
 from sqlalchemy import (
     Column,
@@ -19,14 +20,21 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    relationship,
+    sessionmaker,
+)
 
 from slipbox_mcp.config import config
 from slipbox_mcp.models.schema import LinkType, NoteType
 
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
+
 
 note_tags = Table(
     "note_tags",
@@ -56,7 +64,7 @@ class DBNote(Base):
     @property
     def references(self) -> list:
         """Deserialize references from JSON storage."""
-        raw = self.references_json or "[]"
+        raw: str = cast(str, self.references_json) or "[]"
         try:
             value = json.loads(raw)
         except (ValueError, TypeError) as e:
@@ -80,7 +88,9 @@ class DBNote(Base):
     @references.setter
     def references(self, value: list) -> None:
         """Serialize references to JSON storage."""
-        self.references_json = json.dumps(value or [])
+        # Legacy Column-style attribute: mypy types it Column[str], so a plain
+        # str assignment needs a cast (the SQLAlchemy mypy plugin is not enabled).
+        self.references_json = cast(Column, json.dumps(value or []))
 
     tags = relationship("DBTag", secondary=note_tags, back_populates="notes")
     outgoing_links = relationship(
@@ -227,7 +237,7 @@ def init_db() -> "Engine":
     return engine
 
 
-def get_session_factory(engine=None):
+def get_session_factory(engine: "Engine | None" = None) -> sessionmaker:
     """Get a session factory for the database."""
     if engine is None:
         engine = create_engine(config.get_db_url())

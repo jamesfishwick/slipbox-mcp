@@ -1,10 +1,12 @@
 """Tests for the MCP server implementation."""
 
+import re
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from slipbox_mcp.models.schema import LinkType, NoteType
 from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
+from slipbox_mcp.services import Services
 from slipbox_mcp.utils import parse_refs
 
 # ---------------------------------------------------------------------------
@@ -15,8 +17,8 @@ from slipbox_mcp.utils import parse_refs
 class MockServerBase:
     """Shared setup/teardown for tests that need a fully-mocked MCP server.
 
-    Patches FastMCP, ZettelService, SearchService, and ClusterService so that
-    server construction is fast and side-effect-free.  Tool functions registered
+    Patches FastMCP and the ``build_services`` factory so that server
+    construction is fast and side-effect-free.  Tool functions registered
     with the mock are captured in ``self.registered_tools`` for direct invocation.
     """
 
@@ -37,19 +39,18 @@ class MockServerBase:
         self.mock_search_service = MagicMock()
         self.mock_cluster_service = MagicMock()
 
+        mock_services = Services(
+            repository=MagicMock(),
+            zettel=self.mock_zettel_service,
+            search=self.mock_search_service,
+            cluster=self.mock_cluster_service,
+        )
+
         self._patchers = [
             patch("slipbox_mcp.server.mcp_server.FastMCP", return_value=self.mock_mcp),
             patch(
-                "slipbox_mcp.server.mcp_server.ZettelService",
-                return_value=self.mock_zettel_service,
-            ),
-            patch(
-                "slipbox_mcp.server.mcp_server.SearchService",
-                return_value=self.mock_search_service,
-            ),
-            patch(
-                "slipbox_mcp.server.mcp_server.ClusterService",
-                return_value=self.mock_cluster_service,
+                "slipbox_mcp.server.mcp_server.build_services",
+                return_value=mock_services,
             ),
         ]
         # _patchers[0] patches FastMCP; keep its mock so tests can assert how
@@ -387,17 +388,43 @@ class TestErrorHandling(MockServerBase):
             f"Expected 'Error: Invalid input' in result, got {result!r}"
         )
 
-    def test_io_error_is_formatted(self):
-        result = self.server.format_error_response(IOError("File not found"))
-        assert "Error: File not found" in result, (
-            f"Expected 'Error: File not found' in result, got {result!r}"
+    def test_io_error_returns_generic_message_with_error_id(self):
+        """Filesystem errors must not leak their message (which carries absolute
+        paths) to the caller; the caller gets a generic message plus a
+        correlation id, and the full detail is logged instead."""
+        secret_path = "/Users/someone/private/data/notes/secret.md"
+        result = self.server.format_error_response(
+            IOError(f"Failed to write note to {secret_path}: disk full")
+        )
+        assert result.startswith("Error:"), f"Expected error string, got {result!r}"
+        assert "file system error" in result, (
+            f"Expected a generic file-system message, got {result!r}"
+        )
+        assert secret_path not in result, (
+            f"Absolute path leaked to caller in {result!r}"
+        )
+        # A correlation id (uuid4 hex prefix) must be present for operators.
+        match = re.search(r"error id when reporting the issue: ([0-9a-f]+)", result)
+        assert match is not None, f"Expected an error id in {result!r}"
+        assert len(match.group(1)) >= 6, (
+            f"Expected a non-trivial error id in {result!r}"
         )
 
-    def test_generic_exception_is_formatted(self):
-        result = self.server.format_error_response(Exception("Something went wrong"))
-        assert "Error: Something went wrong" in result, (
-            f"Expected 'Error: Something went wrong' in result, got {result!r}"
+    def test_generic_exception_returns_generic_message_with_error_id(self):
+        """Unexpected errors also return a generic message plus a correlation id
+        rather than the raw exception text, which may embed internal detail."""
+        result = self.server.format_error_response(
+            Exception("boom at /Users/someone/private/thing")
         )
+        assert result.startswith("Error:"), f"Expected error string, got {result!r}"
+        assert "unexpected error" in result, (
+            f"Expected a generic unexpected-error message, got {result!r}"
+        )
+        assert "/Users/someone/private" not in result, (
+            f"Internal detail leaked to caller in {result!r}"
+        )
+        match = re.search(r"error id when reporting the issue: ([0-9a-f]+)", result)
+        assert match is not None, f"Expected an error id in {result!r}"
 
     def test_validation_error_returns_curated_message(self):
         """ValidationError should surface the validator's curated message,
@@ -1557,19 +1584,18 @@ class MockServerWithPromptsBase(MockServerBase):
         self.mock_search_service = MagicMock()
         self.mock_cluster_service = MagicMock()
 
+        mock_services = Services(
+            repository=MagicMock(),
+            zettel=self.mock_zettel_service,
+            search=self.mock_search_service,
+            cluster=self.mock_cluster_service,
+        )
+
         self._patchers = [
             patch("slipbox_mcp.server.mcp_server.FastMCP", return_value=self.mock_mcp),
             patch(
-                "slipbox_mcp.server.mcp_server.ZettelService",
-                return_value=self.mock_zettel_service,
-            ),
-            patch(
-                "slipbox_mcp.server.mcp_server.SearchService",
-                return_value=self.mock_search_service,
-            ),
-            patch(
-                "slipbox_mcp.server.mcp_server.ClusterService",
-                return_value=self.mock_cluster_service,
+                "slipbox_mcp.server.mcp_server.build_services",
+                return_value=mock_services,
             ),
         ]
         for p in self._patchers:

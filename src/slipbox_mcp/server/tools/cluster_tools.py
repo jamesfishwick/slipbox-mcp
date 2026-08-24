@@ -1,9 +1,10 @@
 """Cluster analysis and structure note tools."""
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from slipbox_mcp.formatting import format_cluster_summary
+from slipbox_mcp.models.cluster_models import ClusterReport
 from slipbox_mcp.server.descriptions import (
     SLIPBOX_CREATE_STRUCTURE_FROM_CLUSTER,
     SLIPBOX_DISMISS_CLUSTER,
@@ -12,10 +13,13 @@ from slipbox_mcp.server.descriptions import (
 )
 from slipbox_mcp.server.tools import tool_error_handler
 
+if TYPE_CHECKING:
+    from slipbox_mcp.server.mcp_server import ZettelkastenMcpServer
+
 logger = logging.getLogger(__name__)
 
 
-def register_cluster_tools(server) -> None:
+def register_cluster_tools(server: "ZettelkastenMcpServer") -> None:
     """Register cluster-related MCP tools."""
     mcp = server.mcp
     cluster_service = server.cluster_service
@@ -41,14 +45,17 @@ def register_cluster_tools(server) -> None:
                 limit,
             )
             return "Error: limit must be a positive integer."
+        report: ClusterReport
         if refresh:
             report = cluster_service.detect_clusters()
             cluster_service.save_report(report)
         else:
-            report = cluster_service.load_report()
-            if not report:
+            loaded = cluster_service.load_report()
+            if loaded is None:
                 report = cluster_service.detect_clusters()
                 cluster_service.save_report(report)
+            else:
+                report = loaded
 
         clusters = [c for c in report.clusters if c.score >= min_score][:limit]
 

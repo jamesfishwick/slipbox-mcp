@@ -42,7 +42,9 @@ This puts a `slipbox-mcp` launcher on your PATH (in `~/.local/bin`). That single
 
 ### 2. Pick a Data Directory
 
-One variable, `SLIPBOX_BASE_DIR`, configures everything: notes land in `<base>/data/notes` and the SQLite index in `<base>/data/db/zettelkasten.db`. The server creates these on first run.
+One variable, `SLIPBOX_BASE_DIR`, configures everything: notes land in `<base>/data/notes` and the SQLite index in `<base>/data/db/zettelkasten.db`. The server creates these on first run with owner-only (`0700`) permissions.
+
+Point `SLIPBOX_BASE_DIR` (or the individual `SLIPBOX_NOTES_DIR` / `SLIPBOX_DATABASE_PATH` paths below) at a dedicated data directory you control, not a shared or system location. These paths are used as-is: the server manages the notes tree and index under them, and it treats the notes directory as the source of truth when it rebuilds the index.
 
 ```bash
 # Example: use any absolute path you like

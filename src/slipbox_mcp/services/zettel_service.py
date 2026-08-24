@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from slipbox_mcp.models.schema import LinkType, Note, NoteType, Tag
 from slipbox_mcp.services.exceptions import NoteNotFoundError
+from slipbox_mcp.storage.markdown_codec import NoteMarkdownCodec
 from slipbox_mcp.storage.note_repository import NoteRepository
 
 logger = logging.getLogger(__name__)
@@ -14,8 +15,11 @@ logger = logging.getLogger(__name__)
 class ZettelService:
     """Service for managing Zettelkasten notes."""
 
-    def __init__(self, repository: Optional[NoteRepository] = None):
-        self.repository = repository or NoteRepository()
+    def __init__(self, repository: NoteRepository):
+        self.repository = repository
+        # Render notes through the markdown codec (the serializer) directly,
+        # rather than reaching into the repository's persistence layer for it.
+        self.codec = NoteMarkdownCodec()
 
     def _get_or_raise(self, note_id: str, label: str = "Note") -> Note:
         """Fetch a note by ID or raise NoteNotFoundError if it does not exist."""
@@ -219,7 +223,7 @@ class ZettelService:
 
         if format.lower() == "markdown":
             try:
-                return self.repository.note_to_markdown(note)
+                return self.codec.note_to_markdown(note)
             except Exception as e:
                 raise ValueError(
                     f"Failed to serialize note {note_id} to markdown: {e}"

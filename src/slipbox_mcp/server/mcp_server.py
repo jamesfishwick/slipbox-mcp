@@ -9,9 +9,7 @@ from pydantic import ValidationError
 
 from slipbox_mcp.config import config
 from slipbox_mcp.server.descriptions import SERVER_INSTRUCTIONS
-from slipbox_mcp.services.cluster_service import ClusterService
-from slipbox_mcp.services.search_service import SearchService
-from slipbox_mcp.services.zettel_service import ZettelService
+from slipbox_mcp.services import build_services
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +17,12 @@ logger = logging.getLogger(__name__)
 class ZettelkastenMcpServer:
     """MCP server for Zettelkasten."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.mcp = FastMCP(config.server_name, instructions=SERVER_INSTRUCTIONS)
-        self.zettel_service = ZettelService()
-        self.search_service = SearchService(self.zettel_service)
-        self.cluster_service = ClusterService(self.zettel_service)
+        services = build_services()
+        self.zettel_service = services.zettel
+        self.search_service = services.search
+        self.cluster_service = services.cluster
         self.initialize()
         self._register_tools()
         self._register_resources()
@@ -89,14 +88,27 @@ class ZettelkastenMcpServer:
                 return f"Error: {errors[0]['msg']}"
             return f"Error: {error}"
         elif isinstance(error, ValueError):
+            # ValueError messages are curated validator text, not raw paths, so
+            # they are safe to surface to the caller.
             logger.error("Validation error [%s]: %s", error_id, error)
             return f"Error: {error}"
         elif isinstance(error, (IOError, OSError)):
+            # Filesystem errors carry absolute paths in their message; return a
+            # generic response plus a correlation id and log the full detail so
+            # operators can look it up without leaking paths to the caller.
             logger.error("File system error [%s]: %s", error_id, error, exc_info=True)
-            return f"Error: {error}"
+            return (
+                f"Error: a file system error occurred while handling the request. "
+                f"Reference this error id when reporting the issue: {error_id}"
+            )
         else:
+            # Unexpected errors may embed internal detail (paths, stack context);
+            # keep the same generic-message + correlation-id contract.
             logger.error("Unexpected error [%s]: %s", error_id, error, exc_info=True)
-            return f"Error: {error}"
+            return (
+                f"Error: an unexpected error occurred while handling the request. "
+                f"Reference this error id when reporting the issue: {error_id}"
+            )
 
     def _register_tools(self) -> None:
         """Register MCP tools."""
