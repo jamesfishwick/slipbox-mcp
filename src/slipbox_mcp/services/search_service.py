@@ -129,8 +129,13 @@ class SearchService:
             return []
 
         # Hydrate every hit with a single batched DB query instead of one file
-        # read per hit. Mirrors find_central_notes / search_combined: the FTS
-        # index is DB-derived, so DB content is authoritative for what matched.
+        # read per hit -- the same batching pattern find_central_notes and
+        # search_combined use. The FTS index is DB-derived (an external-content
+        # table kept in lockstep with notes by triggers), so DB content is
+        # authoritative for what matched. Unlike the old repository.get() path
+        # this never reads the backing file, so a corrupt-on-disk note with an
+        # intact DB row is returned from the index rather than raising IOError.
+        # On-disk corruption is surfaced by audit tooling, not by search.
         ordered_ids = [row.id for row in rows]
         with repository.session_factory() as session:
             db_notes_by_id = {
@@ -149,11 +154,16 @@ class SearchService:
         for row in rows:
             db_note = db_notes_by_id.get(row.id)
             if db_note is None:
-                # An FTS hit with no matching notes row is a referential-integrity
-                # gap (index ahead of the table); skip it, as find_central_notes does.
+                # db_note is None only via a cross-transaction race: the FTS read
+                # above (a separate transaction) matched the note, but it was
+                # deleted before this batched hydrate query ran. notes_fts is an
+                # external-content index kept in lockstep with notes by triggers,
+                # so this is a TOCTOU gap between the two reads, not index-vs-table
+                # drift. Skip it, mirroring the defensive skip in find_central_notes.
                 logger.warning(
-                    "search_by_text: note '%s' matched in FTS index but missing "
-                    "from notes table (referential integrity violation); skipping",
+                    "search_by_text: note '%s' matched the FTS index but was gone "
+                    "from the notes table at hydrate time (deleted between the FTS "
+                    "read and this query); skipping",
                     row.id,
                 )
                 continue

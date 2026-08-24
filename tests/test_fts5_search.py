@@ -1,11 +1,13 @@
 """Tests for FTS5-backed search_by_text."""
 
+import logging
+from collections import namedtuple
 from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import OperationalError
 
-from slipbox_mcp.models.schema import NoteType
+from slipbox_mcp.models.schema import LinkType, NoteType
 from slipbox_mcp.services.search_service import SearchService
 
 
@@ -46,21 +48,48 @@ def test_search_by_text_hydrates_without_per_hit_file_reads(
     zettel_service, search_service
 ):
     """Regression (gh#56): search_by_text must hydrate all hits from a single
-    batched DB query, never a per-hit repository.get() file read."""
-    for i in range(5):
+    batched DB query, never a per-hit repository.get() file read -- and the
+    DB-sourced note must carry the tags and links the old file path supplied."""
+    notes = [
         zettel_service.create_note(
             title=f"Concurrency Note {i}",
             content="concurrency and parallelism in distributed systems.",
             tags=["cs"],
         )
+        for i in range(5)
+    ]
+    # Link note 0 -> note 1 so a result must carry an eager-loaded outgoing link.
+    zettel_service.create_link(notes[0].id, notes[1].id, LinkType.REFERENCE)
 
     repository = zettel_service.repository
     with patch.object(repository, "get", wraps=repository.get) as spy_get:
         results = search_service.search_by_text("concurrency")
 
-    assert len(results) == 5
-    assert all(r.note.content for r in results)
+    # The whole point of the fix: no per-hit file read.
     spy_get.assert_not_called()
+
+    assert len(results) == 5
+    # Content is mapped correctly, not merely truthy -- guards against an
+    # id->note mapping bug that returns the right count with swapped bodies.
+    assert all("concurrency and parallelism" in r.note.content for r in results)
+    # Tags and links are hydrated from the DB via the eager-load, not the file.
+    assert all("cs" in [t.name for t in r.note.tags] for r in results)
+    source_result = next(r for r in results if r.note.id == notes[0].id)
+    assert any(link.target_id == notes[1].id for link in source_result.note.links)
+
+
+def test_search_by_text_skips_fts_hit_missing_from_notes_table(search_service, caplog):
+    """A note deleted between the FTS read and the batched hydrate query yields
+    an FTS row with no DB row; search_by_text must skip it and log a warning
+    rather than dereference None."""
+    Row = namedtuple("Row", ["id", "bm25_score", "matched_context"])
+    ghost = Row(id="ghostnote", bm25_score=-1.0, matched_context="x")
+    with patch.object(search_service, "_run_fts5_query", return_value=[ghost]):
+        with caplog.at_level(logging.WARNING):
+            results = search_service.search_by_text("anything")
+
+    assert results == []
+    assert "ghostnote" in caplog.text
 
 
 def test_search_by_text_empty_query(search_service):
