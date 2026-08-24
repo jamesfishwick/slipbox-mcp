@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.1](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.5.0...v1.5.1) (2026-08-24)
+
+
+### Performance Improvements
+
+* add missing SQLite indexes on link and tag FK columns ([#76](https://github.com/jamesfishwick/slipbox-mcp/issues/76)) ([8db6674](https://github.com/jamesfishwick/slipbox-mcp/commit/8db6674c51faee028e51685162d36d21883669ed))
+* pre-filter find_similar_notes candidates instead of scanning the corpus ([#77](https://github.com/jamesfishwick/slipbox-mcp/issues/77)) ([3bd4699](https://github.com/jamesfishwick/slipbox-mcp/commit/3bd469966d912734f565401c542adf9221af273a))
+* remove per-hit N+1 in search_by_text ([#70](https://github.com/jamesfishwick/slipbox-mcp/issues/70)) ([dab26ed](https://github.com/jamesfishwick/slipbox-mcp/commit/dab26ed11c20a6b70bb536f6758041ad25b79ebd))
+
 ## [1.5.0](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.4.0...v1.5.0) (2026-06-28)
 
 
