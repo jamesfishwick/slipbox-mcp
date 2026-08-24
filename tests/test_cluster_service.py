@@ -8,6 +8,7 @@ from slipbox_mcp.models.schema import LinkType, NoteType
 from slipbox_mcp.services.cluster_service import (
     CO_OCCURRENCE_THRESHOLD,
     MIN_CLUSTER_SIZE,
+    ClusterCandidate,
     ClusterReport,
     ClusterService,
 )
@@ -516,3 +517,81 @@ class TestSuggestTitle:
         assert title == "Machine Learning Knowledge Map", (
             f"Hyphens must be replaced with spaces, got '{title}'"
         )
+
+
+# ---------------------------------------------------------------------------
+# create_structure_note (domain logic moved out of the MCP tool handler)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateStructureNote:
+    """create_structure_note owns the structure-note domain logic."""
+
+    def _cluster(self, note_infos):
+        return ClusterCandidate(
+            id="c1",
+            suggested_title="Alpha Knowledge Map",
+            tags=["alpha", "beta"],
+            notes=note_infos,
+            note_count=len(note_infos),
+            orphan_count=0,
+            internal_links=0,
+            density=0.0,
+            score=0.8,
+        )
+
+    def _service(self, tmp_path):
+        zettel = MagicMock()
+        created = MagicMock()
+        created.id = "struct1"
+        created.title = "Alpha Knowledge Map"
+        zettel.create_note.return_value = created
+        zettel.create_link.return_value = (MagicMock(), MagicMock())
+        service = ClusterService(zettel_service=zettel, report_path=tmp_path / "r.json")
+        return service, zettel, created
+
+    def test_creates_structure_note_and_links_each_member(self, tmp_path):
+        service, zettel, created = self._service(tmp_path)
+        cluster = self._cluster(
+            [{"id": "n1", "title": "N1"}, {"id": "n2", "title": "N2"}]
+        )
+
+        note, links = service.create_structure_note(cluster)
+
+        assert note is created
+        assert links == 2
+        kwargs = zettel.create_note.call_args.kwargs
+        assert kwargs["note_type"] == NoteType.STRUCTURE
+        assert kwargs["tags"] == ["alpha", "beta"]
+        assert "[[n1]] N1" in kwargs["content"]
+        assert "## Synthesis" in kwargs["content"]
+        assert zettel.create_link.call_count == 2
+        link_kwargs = zettel.create_link.call_args.kwargs
+        assert link_kwargs["link_type"] == LinkType.REFERENCE
+        assert link_kwargs["bidirectional"] is True
+
+    def test_title_override_and_create_links_false(self, tmp_path):
+        service, zettel, _ = self._service(tmp_path)
+        cluster = self._cluster([{"id": "n1", "title": "N1"}])
+
+        _, links = service.create_structure_note(
+            cluster, title="Custom Title", create_links=False
+        )
+
+        assert links == 0
+        zettel.create_link.assert_not_called()
+        assert zettel.create_note.call_args.kwargs["title"] == "Custom Title"
+
+    def test_a_failed_member_link_does_not_abort_the_rest(self, tmp_path):
+        service, zettel, _ = self._service(tmp_path)
+        zettel.create_link.side_effect = [
+            Exception("boom"),
+            (MagicMock(), MagicMock()),
+        ]
+        cluster = self._cluster(
+            [{"id": "n1", "title": "N1"}, {"id": "n2", "title": "N2"}]
+        )
+
+        _, links = service.create_structure_note(cluster)
+
+        assert links == 1, "a failed member link must not abort the others"
