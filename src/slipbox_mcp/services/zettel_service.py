@@ -246,7 +246,7 @@ class ZettelService:
         all_notes = self.repository.get_all()
         results = []
 
-        note_tags = {tag.name for tag in note.tags}
+        note_tags = note.tag_names()
         note_links = {link.target_id for link in note.links}
 
         incoming_notes = self.repository.find_linked_notes(note_id, "incoming")
@@ -256,7 +256,7 @@ class ZettelService:
             if other_note.id == note_id:
                 continue
 
-            other_tags = {tag.name for tag in other_note.tags}
+            other_tags = other_note.tag_names()
             tag_overlap = len(note_tags.intersection(other_tags))
 
             other_links = {link.target_id for link in other_note.links}

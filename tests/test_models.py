@@ -88,6 +88,16 @@ class TestNoteModel:
         note.remove_tag("nonexistent")
         assert len(note.tags) == 2, "Removing nonexistent tag should be a no-op"
 
+    def test_tag_names_returns_tag_name_set(self):
+        """tag_names exposes the note's tag names without model objects."""
+        note = Note(
+            title="Tag Names",
+            content="Testing tag name extraction.",
+            tags=[Tag(name="initial"), Tag(name="example")],
+        )
+
+        assert note.tag_names() == {"initial", "example"}
+
     def test_literature_note_requires_references(self):
         """Literature notes must have at least one reference."""
         with pytest.raises(ValidationError) as exc_info:

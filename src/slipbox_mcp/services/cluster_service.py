@@ -36,7 +36,7 @@ class ClusterService:
         """Build matrix of tag pairs that appear together on notes."""
         cooccurrence = defaultdict(int)
         for note in notes:
-            tag_names = sorted([tag.name for tag in note.tags])
+            tag_names = sorted(note.tag_names())
             for tag_a, tag_b in combinations(tag_names, 2):
                 cooccurrence[(tag_a, tag_b)] += 1
 
@@ -76,13 +76,13 @@ class ClusterService:
 
     def get_cluster_notes(self, all_notes: List[Note], tags: Set[str]) -> List[Note]:
         """Get notes that have at least 2 tags from the cluster."""
-        return [n for n in all_notes if len(set(t.name for t in n.tags) & tags) >= 2]
+        return [n for n in all_notes if len(n.tag_names() & tags) >= 2]
 
     def has_structure_note(self, all_notes: List[Note], tags: Set[str]) -> bool:
         """Check if a structure note already covers this cluster."""
         for note in all_notes:
             if note.note_type == NoteType.STRUCTURE:
-                note_tags = set(t.name for t in note.tags)
+                note_tags = note.tag_names()
                 if len(note_tags & tags) >= 2:
                     return True
         return False

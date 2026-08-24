@@ -199,6 +199,10 @@ class Note(BaseModel):
             self.tags.append(tag)
             self.updated_at = datetime.datetime.now()
 
+    def tag_names(self) -> set[str]:
+        """Return the names of all tags on the note."""
+        return {tag.name for tag in self.tags}
+
     def remove_tag(self, tag: Union[str, Tag]) -> None:
         """Remove a tag from the note."""
         tag_name = tag.name if isinstance(tag, Tag) else tag
