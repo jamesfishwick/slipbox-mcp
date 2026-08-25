@@ -1856,3 +1856,49 @@ class TestPromptInputRoundTrip(MockServerWithPromptsBase):
                 f"Prompt '{name}' did not interpolate its input argument; "
                 "sentinel missing from rendered output"
             )
+
+
+# ---------------------------------------------------------------------------
+# tool_error_handler decorator (FastMCP schema-preservation contract)
+# ---------------------------------------------------------------------------
+
+
+class TestToolErrorHandler:
+    """tool_error_handler must preserve the wrapped handler's introspectable
+    signature and docstring (which FastMCP reads to build the tool schema) and
+    route exceptions through the injected formatter."""
+
+    def _handle(self):
+        from slipbox_mcp.server.tools import tool_error_handler
+
+        return tool_error_handler(lambda e: f"formatted: {e}")
+
+    def test_wraps_preserves_signature_and_docstring(self):
+        import inspect
+
+        @self._handle()
+        def sample(alpha: int, beta: str = "x") -> str:
+            """Sample docstring."""
+            return f"{alpha}{beta}"
+
+        # These are exactly what FastMCP introspects to build the tool schema.
+        assert sample.__name__ == "sample"
+        assert sample.__doc__ == "Sample docstring."
+        sig = inspect.signature(sample)
+        assert list(sig.parameters) == ["alpha", "beta"]
+        assert sig.parameters["alpha"].annotation is int
+        assert sig.parameters["beta"].default == "x"
+
+    def test_happy_path_passes_through(self):
+        @self._handle()
+        def sample(value: int) -> str:
+            return f"ok {value}"
+
+        assert sample(3) == "ok 3"
+
+    def test_exception_is_routed_through_formatter(self):
+        @self._handle()
+        def sample() -> str:
+            raise ValueError("boom")
+
+        assert sample() == "formatted: boom"
