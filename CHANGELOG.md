@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.5.1...v1.5.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* **deps:** pin mcp to &lt;2 for v1 fastmcp API ([c4c9d22](https://github.com/jamesfishwick/slipbox-mcp/commit/c4c9d225971f618d64ff610a6413bd7608a5ae4b))
+
 ## [1.5.1](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.5.0...v1.5.1) (2026-08-24)
 
 

@@ -7,4 +7,4 @@ to form a network of knowledge.
 This version uses synchronous operations.
 """
 
-__version__ = "1.5.1"  # x-release-please-version
+__version__ = "1.5.2"  # x-release-please-version
