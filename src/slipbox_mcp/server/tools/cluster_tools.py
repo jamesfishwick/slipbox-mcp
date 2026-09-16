@@ -46,16 +46,11 @@ def register_cluster_tools(server: "ZettelkastenMcpServer") -> None:
             )
             return "Error: limit must be a positive integer."
         report: ClusterReport
-        if refresh:
-            report = cluster_service.detect_clusters()
-            cluster_service.save_report(report)
+        loaded = cluster_service.load_report()
+        if refresh or loaded is None:
+            report = cluster_service.refresh_report(previous=loaded)
         else:
-            loaded = cluster_service.load_report()
-            if loaded is None:
-                report = cluster_service.detect_clusters()
-                cluster_service.save_report(report)
-            else:
-                report = loaded
+            report = loaded
 
         clusters = [c for c in report.clusters if c.score >= min_score][:limit]
 
@@ -103,11 +98,10 @@ def register_cluster_tools(server: "ZettelkastenMcpServer") -> None:
     @mcp.tool(name="slipbox_refresh_clusters", description=SLIPBOX_REFRESH_CLUSTERS)
     @handle
     def slipbox_refresh_clusters() -> str:
-        report = cluster_service.detect_clusters()
-        path = cluster_service.save_report(report)
+        report = cluster_service.refresh_report()
 
         output = "Cluster analysis complete.\n"
-        output += f"Report saved to: {path}\n\n"
+        output += f"Report saved to: {cluster_service.report_path}\n\n"
         output += "Stats:\n"
         output += f"  Total notes: {report.stats['total_notes']}\n"
         output += f"  Orphaned notes: {report.stats['total_orphans']}\n"

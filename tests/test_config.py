@@ -2,6 +2,7 @@
 
 import os
 import stat
+from pathlib import Path
 
 import pytest
 
@@ -82,3 +83,59 @@ def test_ensure_private_dir_is_idempotent(tmp_path):
     ensure_private_dir(target)
     ensure_private_dir(target)
     assert target.is_dir()
+
+
+# ---------------------------------------------------------------------------
+# Cluster report path
+# ---------------------------------------------------------------------------
+
+
+def _config(**overrides):
+    from slipbox_mcp.config import ZettelkastenConfig
+
+    fields = {"base_dir": "/vault", "cluster_report_path": None}
+    fields.update(overrides)
+    return ZettelkastenConfig(**fields)
+
+
+def test_cluster_report_defaults_next_to_relative_database():
+    cfg = _config(database_path="data/db/zettelkasten.db")
+    assert cfg.get_cluster_report_path() == (
+        Path("/vault/data/db/cluster-analysis.json")
+    )
+
+
+def test_cluster_report_follows_absolute_database_path():
+    """Two vaults with different databases never share a report."""
+    a = _config(database_path="/a/db/z.db").get_cluster_report_path()
+    b = _config(database_path="/b/db/z.db").get_cluster_report_path()
+    assert a == Path("/a/db/cluster-analysis.json")
+    assert b == Path("/b/db/cluster-analysis.json")
+
+
+def test_cluster_report_override_absolute():
+    cfg = _config(database_path="data/db/z.db", cluster_report_path="/elsewhere/r.json")
+    assert cfg.get_cluster_report_path() == Path("/elsewhere/r.json")
+
+
+def test_cluster_report_override_relative_resolves_against_base_dir():
+    cfg = _config(cluster_report_path="reports/r.json")
+    assert cfg.get_cluster_report_path() == Path("/vault/reports/r.json")
+
+
+@pytest.mark.parametrize("raw", [None, ""])
+def test_cluster_report_env_unset_or_empty_means_default(monkeypatch, raw):
+    from slipbox_mcp.config import ZettelkastenConfig
+
+    if raw is None:
+        monkeypatch.delenv("SLIPBOX_CLUSTER_REPORT_PATH", raising=False)
+    else:
+        monkeypatch.setenv("SLIPBOX_CLUSTER_REPORT_PATH", raw)
+    assert ZettelkastenConfig().cluster_report_path is None
+
+
+def test_cluster_report_env_var_is_read(monkeypatch, tmp_path):
+    from slipbox_mcp.config import ZettelkastenConfig
+
+    monkeypatch.setenv("SLIPBOX_CLUSTER_REPORT_PATH", str(tmp_path / "r.json"))
+    assert ZettelkastenConfig().get_cluster_report_path() == tmp_path / "r.json"

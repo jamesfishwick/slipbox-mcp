@@ -651,3 +651,180 @@ class TestCreateStructureNote:
         _, links = service.create_structure_note(cluster)
 
         assert links == 1, "a failed member link must not abort the others"
+
+
+# ---------------------------------------------------------------------------
+# Per-vault report path, legacy adoption, dismissal carry-forward
+# ---------------------------------------------------------------------------
+
+
+def _report(member_ids, dismissed=None):
+    from datetime import datetime
+
+    return ClusterReport(
+        generated_at=datetime(2026, 1, 1),
+        clusters=[
+            ClusterCandidate(
+                id="alpha-beta",
+                suggested_title="Alpha Beta",
+                tags=["alpha", "beta"],
+                notes=[{"id": i, "title": i} for i in member_ids],
+                note_count=len(member_ids),
+                orphan_count=0,
+                internal_links=0,
+                density=0.0,
+                score=0.5,
+            )
+        ]
+        if member_ids
+        else [],
+        stats={
+            "total_notes": len(member_ids),
+            "total_orphans": 0,
+            "clusters_detected": 1,
+            "clusters_needing_structure": 1,
+        },
+        dismissed_cluster_ids=dismissed or [],
+    )
+
+
+def _vault(existing_ids):
+    """A zettel service whose get_note resolves only *existing_ids*."""
+    zettel = MagicMock()
+    zettel.get_note.side_effect = lambda i: MagicMock() if i in existing_ids else None
+    return zettel
+
+
+class TestDefaultReportPath:
+    def test_defaults_to_config_path_beside_database(self, monkeypatch, tmp_path):
+        from slipbox_mcp.services import cluster_service as module
+
+        monkeypatch.setattr(module.config, "base_dir", tmp_path)
+        monkeypatch.setattr(module.config, "database_path", tmp_path / "db" / "z.db")
+        monkeypatch.setattr(module.config, "cluster_report_path", None)
+
+        service = ClusterService(MagicMock())
+
+        assert service.report_path == tmp_path / "db" / "cluster-analysis.json"
+
+
+class TestLegacyAdoption:
+    def _write_legacy(self, tmp_path, report):
+        legacy = tmp_path / "legacy" / "cluster-analysis.json"
+        legacy.parent.mkdir()
+        legacy.write_text(report.model_dump_json())
+        return legacy
+
+    def test_adopts_matching_report_with_dismissals(self, tmp_path):
+        legacy = self._write_legacy(
+            tmp_path, _report(["n1", "n2", "n3"], dismissed=["old-cluster"])
+        )
+        service = ClusterService(
+            _vault({"n1", "n2", "n3"}),
+            report_path=tmp_path / "vault" / "r.json",
+            legacy_report_path=legacy,
+        )
+
+        loaded = service.load_report()
+
+        assert loaded is not None
+        assert loaded.dismissed_cluster_ids == ["old-cluster"]
+        assert service.report_path.exists(), "adopted report must be saved per vault"
+        assert legacy.exists(), "legacy file must be left for other vaults"
+
+    def test_adopts_when_majority_match_despite_deleted_notes(self, tmp_path):
+        legacy = self._write_legacy(tmp_path, _report(["n1", "n2", "n3"]))
+        service = ClusterService(
+            _vault({"n1", "n2"}),
+            report_path=tmp_path / "r.json",
+            legacy_report_path=legacy,
+        )
+        assert service.load_report() is not None
+
+    def test_skips_report_from_another_vault(self, tmp_path):
+        legacy = self._write_legacy(
+            tmp_path, _report(["x1", "x2", "x3"], dismissed=["theirs"])
+        )
+        service = ClusterService(
+            _vault({"n1"}), report_path=tmp_path / "r.json", legacy_report_path=legacy
+        )
+
+        assert service.load_report() is None
+        assert not service.report_path.exists()
+
+    def test_half_matching_is_not_enough(self, tmp_path):
+        legacy = self._write_legacy(tmp_path, _report(["n1", "x1"]))
+        service = ClusterService(
+            _vault({"n1"}), report_path=tmp_path / "r.json", legacy_report_path=legacy
+        )
+        assert service.load_report() is None
+
+    def test_report_without_members_gives_no_evidence(self, tmp_path):
+        legacy = self._write_legacy(tmp_path, _report([], dismissed=["d"]))
+        service = ClusterService(
+            _vault(set()), report_path=tmp_path / "r.json", legacy_report_path=legacy
+        )
+        assert service.load_report() is None
+
+    def test_unreadable_legacy_report_is_ignored(self, tmp_path):
+        legacy = tmp_path / "legacy.json"
+        legacy.write_text("{not json")
+        service = ClusterService(
+            _vault({"n1"}), report_path=tmp_path / "r.json", legacy_report_path=legacy
+        )
+        assert service.load_report() is None
+
+    def test_existing_vault_report_is_never_replaced(self, tmp_path):
+        legacy = self._write_legacy(tmp_path, _report(["n1"], dismissed=["legacy"]))
+        own = tmp_path / "r.json"
+        own.write_text(_report(["n1"], dismissed=["mine"]).model_dump_json())
+        zettel = _vault({"n1"})
+        service = ClusterService(zettel, report_path=own, legacy_report_path=legacy)
+
+        assert service.load_report().dismissed_cluster_ids == ["mine"]
+        zettel.get_note.assert_not_called()
+
+    def test_disabled_without_legacy_path(self, tmp_path):
+        zettel = _vault({"n1"})
+        service = ClusterService(zettel, report_path=tmp_path / "r.json")
+        assert service.load_report() is None
+        zettel.get_note.assert_not_called()
+
+    def test_checks_legacy_only_once_per_service(self, tmp_path):
+        legacy = self._write_legacy(tmp_path, _report(["x1"]))
+        zettel = _vault(set())
+        service = ClusterService(
+            zettel, report_path=tmp_path / "r.json", legacy_report_path=legacy
+        )
+
+        service.load_report()
+        service.load_report()
+
+        assert zettel.get_note.call_count == 1
+
+
+class TestRefreshReport:
+    def test_carries_dismissals_forward(self, tmp_path):
+        service = ClusterService(MagicMock(), report_path=tmp_path / "r.json")
+        service.save_report(_report(["n1"], dismissed=["keep-me"]))
+        service.detect_clusters = MagicMock(return_value=_report(["n2"]))
+
+        refreshed = service.refresh_report()
+
+        assert refreshed.dismissed_cluster_ids == ["keep-me"]
+        assert service.load_report().dismissed_cluster_ids == ["keep-me"]
+
+    def test_uses_previous_when_given(self, tmp_path):
+        service = ClusterService(MagicMock(), report_path=tmp_path / "r.json")
+        service.detect_clusters = MagicMock(return_value=_report(["n2"]))
+
+        refreshed = service.refresh_report(previous=_report([], dismissed=["given"]))
+
+        assert refreshed.dismissed_cluster_ids == ["given"]
+
+    def test_first_report_has_no_dismissals(self, tmp_path):
+        service = ClusterService(MagicMock(), report_path=tmp_path / "r.json")
+        service.detect_clusters = MagicMock(return_value=_report(["n1"]))
+
+        assert service.refresh_report().dismissed_cluster_ids == []
+        assert (tmp_path / "r.json").exists()

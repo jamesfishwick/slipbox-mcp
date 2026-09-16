@@ -3,6 +3,7 @@
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, ValidationError
@@ -10,6 +11,8 @@ from pydantic import BaseModel, Field, ValidationError
 from slipbox_mcp import __version__
 
 load_dotenv()
+
+CLUSTER_REPORT_FILENAME = "cluster-analysis.json"
 
 
 def _expand_path(raw: str) -> Path:
@@ -21,6 +24,11 @@ def _expand_path(raw: str) -> Path:
             "Use a full absolute path instead of a tilde shortcut."
         )
     return Path(expanded)
+
+
+def _optional_path(raw: Optional[str]) -> Optional[Path]:
+    """Expand an optional path env var; unset or empty means no override."""
+    return _expand_path(raw) if raw else None
 
 
 def ensure_private_dir(path: Path) -> Path:
@@ -69,6 +77,9 @@ class ZettelkastenConfig(BaseModel):
             os.getenv("SLIPBOX_DATABASE_PATH", "data/db/zettelkasten.db")
         )
     )
+    cluster_report_path: Optional[Path] = Field(
+        default_factory=lambda: _optional_path(os.getenv("SLIPBOX_CLUSTER_REPORT_PATH"))
+    )
     server_name: str = Field(default=os.getenv("SLIPBOX_SERVER_NAME", "slipbox-mcp"))
     server_version: str = Field(default=__version__)
     id_date_format: str = Field(default="%Y%m%dT%H%M%S")
@@ -78,6 +89,19 @@ class ZettelkastenConfig(BaseModel):
         if path.is_absolute():
             return path
         return self.base_dir / path
+
+    def get_cluster_report_path(self) -> Path:
+        """Resolve where this vault's cluster report lives.
+
+        Defaults to ``cluster-analysis.json`` beside the SQLite index, so the
+        report follows the vault instead of being shared by every vault on the
+        machine. ``SLIPBOX_CLUSTER_REPORT_PATH`` overrides it.
+        """
+        if self.cluster_report_path is not None:
+            return self.get_absolute_path(self.cluster_report_path)
+        return (
+            self.get_absolute_path(self.database_path).parent / CLUSTER_REPORT_FILENAME
+        )
 
     def get_db_url(self) -> str:
         """Get the database URL for SQLite."""

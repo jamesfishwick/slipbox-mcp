@@ -1319,6 +1319,19 @@ class TestGetClusterReportTool(MockServerBase):
             f"Expected no-clusters message, got {result!r}"
         )
 
+    def test_refresh_regenerates_through_refresh_report(self):
+        """refresh=True must keep dismissals, so it goes through refresh_report."""
+        old = self._make_report_with_clusters()
+        new = self._make_report_with_clusters()
+        self.mock_cluster_service.load_report.return_value = old
+        self.mock_cluster_service.refresh_report.return_value = new
+
+        result = self._tool("slipbox_get_cluster_report")(refresh=True, min_score=0.5)
+
+        self.mock_cluster_service.refresh_report.assert_called_once_with(previous=old)
+        self.mock_cluster_service.detect_clusters.assert_not_called()
+        assert "Poetry & Craft" in result
+
 
 # ---------------------------------------------------------------------------
 # Tool: slipbox_refresh_clusters
@@ -1353,8 +1366,8 @@ class TestRefreshClustersTool(MockServerBase):
                 "clusters_needing_structure": 1,
             },
         )
-        self.mock_cluster_service.detect_clusters.return_value = report
-        self.mock_cluster_service.save_report.return_value = "/tmp/report.json"
+        self.mock_cluster_service.refresh_report.return_value = report
+        self.mock_cluster_service.report_path = "/tmp/report.json"
 
         # Act
         result = self._tool("slipbox_refresh_clusters")()
@@ -1363,8 +1376,11 @@ class TestRefreshClustersTool(MockServerBase):
         assert "Cluster analysis complete" in result, (
             f"Expected success header, got {result!r}"
         )
+        assert "/tmp/report.json" in result, f"Expected report path, got {result!r}"
         assert "20" in result, f"Expected total notes count, got {result!r}"
         assert "Test Cluster" in result, f"Expected top cluster name, got {result!r}"
+        # Regenerating must go through refresh_report so dismissals survive.
+        self.mock_cluster_service.detect_clusters.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

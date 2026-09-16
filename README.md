@@ -98,6 +98,8 @@ Instead of `SLIPBOX_BASE_DIR`, set absolute paths individually. Optional `SLIPBO
 }
 ```
 
+The cluster report is written beside the database as `cluster-analysis.json`. Set `SLIPBOX_CLUSTER_REPORT_PATH` to an absolute path to put it elsewhere.
+
 </details>
 
 ### 4. Restart and Verify
@@ -248,7 +250,7 @@ source .venv/bin/activate
 python scripts/detect_clusters.py
 ```
 
-Output saved to `~/.local/share/mcp/slipbox/cluster-analysis.json`.
+Output saved to `cluster-analysis.json` next to the SQLite index (for example `<base>/data/db/cluster-analysis.json`), or to `SLIPBOX_CLUSTER_REPORT_PATH` when set.
 
 ### Uninstall Cluster Detection
 
@@ -584,9 +586,11 @@ If you previously used `ZETTELKASTEN_NOTES_DIR`, `ZETTELKASTEN_DATABASE_PATH`, o
 
 The server logs a warning if old names are detected, but does not migrate them automatically.
 
-### Cluster report path is not configurable
+### Cluster report moved next to each vault's index
 
-The cluster analysis report always writes to `~/.local/share/mcp/slipbox/cluster-analysis.json`, regardless of `SLIPBOX_BASE_DIR` or `SLIPBOX_NOTES_DIR`. If you use non-default paths, the cluster report will still be in the default location.
+Older releases wrote one cluster report for every vault on the machine, at `~/.local/share/mcp/slipbox/cluster-analysis.json`. Each vault now keeps its own `cluster-analysis.json` beside its SQLite index, so separate vaults no longer share clusters or dismissals. Set `SLIPBOX_CLUSTER_REPORT_PATH` to put it somewhere else.
+
+The first time a vault has no report of its own, it checks the old shared file. It adopts that report, dismissals included, only if most of the notes listed in its clusters exist in the vault. Otherwise the vault starts fresh. The old file is never modified or deleted, so you can remove it yourself once each vault has its own report.
 
 ### Install scripts are macOS-only
 

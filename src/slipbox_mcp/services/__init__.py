@@ -2,6 +2,9 @@
 
 from typing import NamedTuple, Optional
 
+from slipbox_mcp.models.cluster_models import (
+    LEGACY_REPORT_PATH,
+)
 from slipbox_mcp.models.cluster_models import (  # noqa: F401
     ClusterCandidate as ClusterCandidate,
 )
@@ -35,5 +38,5 @@ def build_services(repository: Optional[NoteRepository] = None) -> Services:
     repo = repository or NoteRepository()
     zettel = ZettelService(repo)
     search = SearchService(zettel)
-    cluster = ClusterService(zettel)
+    cluster = ClusterService(zettel, legacy_report_path=LEGACY_REPORT_PATH)
     return Services(repository=repo, zettel=zettel, search=search, cluster=cluster)

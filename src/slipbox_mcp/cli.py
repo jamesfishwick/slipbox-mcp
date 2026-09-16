@@ -128,8 +128,7 @@ def cmd_rebuild(args: argparse.Namespace) -> None:
 
         if args.clusters:
             print("Refreshing clusters...")
-            report = services.cluster.detect_clusters()
-            services.cluster.save_report(report)
+            report = services.cluster.refresh_report()
             print(f"Found {report.stats['clusters_needing_structure']} clusters.")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
