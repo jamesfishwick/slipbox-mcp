@@ -203,6 +203,31 @@ The legend across the top maps each color to a link type (extends, refines, supp
 
 ## Optional: Automatic Cluster Detection
 
+The background helpers below require a repository checkout and its own Python
+environment; `pipx install` and `uv tool install` install the server but do not
+put these scripts in your working directory. Set up the helpers once:
+
+```bash
+git clone https://github.com/jamesfishwick/slipbox-mcp.git
+cd slipbox-mcp
+uv sync
+cp .env.example .env
+```
+
+Edit the checkout's `.env` to use the same absolute data paths as your MCP
+client. For example, for a client whose `SLIPBOX_BASE_DIR` is
+`/Users/yourname/.local/share/mcp/slipbox`:
+
+```dotenv
+SLIPBOX_BASE_DIR=/Users/yourname/.local/share/mcp/slipbox
+SLIPBOX_NOTES_DIR=/Users/yourname/.local/share/mcp/slipbox/data/notes
+SLIPBOX_DATABASE_PATH=/Users/yourname/.local/share/mcp/slipbox/data/db/zettelkasten.db
+SLIPBOX_LOG_LEVEL=INFO
+```
+
+Run the following commands from this checkout. Keep it in place while the
+background jobs are installed: their LaunchAgents use its absolute paths.
+
 Cluster analysis scans all notes and computes similarity scores. Running it daily (6am) pre-computes results so `slipbox_get_cluster_report()` returns instantly. Without scheduling, cluster detection runs on-demand, which is slower for large collections.
 
 Run manually after bulk imports, major reorganization, or when you want immediate results.
@@ -216,7 +241,7 @@ chmod +x scripts/install-cluster-detection.sh
 
 The installer detects your Python/venv path, generates the LaunchAgent plist, and loads it.
 
-### Manual Test (File Watcher)
+### Manual Test (Cluster Detection)
 
 ```bash
 source .venv/bin/activate
@@ -242,6 +267,9 @@ The file watcher runs as a background daemon, monitoring your notes directory an
 Use it if you frequently edit notes in Obsidian while also using Claude.
 
 ### Install File Watcher (macOS)
+
+Complete the [helper setup](#optional-automatic-cluster-detection) above first,
+and create a note through your MCP client so the notes directory exists.
 
 ```bash
 chmod +x scripts/install-file-watcher.sh

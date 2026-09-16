@@ -302,6 +302,6 @@ class NoteMarkdownCodec:
                 desc = f" {link.description}" if link.description else ""
                 content += f"- {link.link_type.value} [[{link.target_id}]]{desc}\n"
 
-        post = frontmatter.Post(content, **metadata)
-        # frontmatter has no type stubs, so dumps() is typed Any; it returns str.
+        post = frontmatter.Post(content)
+        post.metadata.update(metadata)
         return str(frontmatter.dumps(post))

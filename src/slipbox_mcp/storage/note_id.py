@@ -12,11 +12,11 @@ This is a dependency-free leaf module so both ``note_repository`` and
 """
 
 import re
-from typing import Any
+from typing import TypeGuard
 
 _NOTE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,255}$")
 
 
-def is_safe_note_id(note_id: Any) -> bool:
+def is_safe_note_id(note_id: object) -> TypeGuard[str]:
     """Return True if note_id is a non-empty, path-safe filename stem."""
     return isinstance(note_id, str) and bool(_NOTE_ID_PATTERN.fullmatch(note_id))

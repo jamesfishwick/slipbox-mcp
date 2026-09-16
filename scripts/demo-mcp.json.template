@@ -3,7 +3,7 @@
     "slipbox-mcp": {
       "command": "uv",
       "args": ["run", "python", "-m", "slipbox_mcp.main"],
-      "cwd": "/Users/jamesfishwick/Workspace/slipbox-mcp",
+      "cwd": "REPO_ROOT_PLACEHOLDER",
       "env": {
         "SLIPBOX_BASE_DIR": "FIXTURE_DIR_PLACEHOLDER",
         "SLIPBOX_LOG_LEVEL": "WARNING"

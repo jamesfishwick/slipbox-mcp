@@ -91,8 +91,8 @@ def main():
 
             # Match by checking if the old content starts similarly,
             # or if the preceding text contains keywords from the prompt file.
-            prompt_file = Path(
-                f"/Users/jamesfishwick/Workspace/slipbox-mcp/scripts/demo-prompts/{name}.txt"
+            prompt_file = (
+                Path(__file__).resolve().parents[1] / "demo-prompts" / f"{name}.txt"
             )
             if prompt_file.exists():
                 prompt_keywords = prompt_file.read_text()[:100].lower()
