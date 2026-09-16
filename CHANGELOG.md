@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.3](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.5.2...v1.5.3) (2026-09-16)
+
+
+### Bug Fixes
+
+* import cluster stats TypedDict for py3.10+ ([#94](https://github.com/jamesfishwick/slipbox-mcp/issues/94)) ([a7719df](https://github.com/jamesfishwick/slipbox-mcp/commit/a7719df5944d12283f661c175efd9fe66cb398b0))
+
 ## [1.5.2](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.5.1...v1.5.2) (2026-09-16)
 
 
