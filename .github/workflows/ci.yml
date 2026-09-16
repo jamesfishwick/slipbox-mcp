@@ -15,13 +15,17 @@ jobs:
       matrix:
         # Every version in requires-python and the classifiers.
         python-version: ["3.10", "3.11", "3.12", "3.13"]
+    env:
+      # Applies to every uv command in the job. Without it, `uv run` falls
+      # back to .python-version (3.13) and rebuilds the venv without extras.
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - uses: astral-sh/setup-uv@v4
-      - run: uv sync --python ${{ matrix.python-version }} --all-extras --locked
+      - run: uv sync --all-extras --locked
       # Keep the coverage floor at the established CI baseline.
       - run: uv run pytest -q --cov=slipbox_mcp --cov-report=term-missing --cov-fail-under=75
 
