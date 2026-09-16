@@ -19,7 +19,12 @@ build/
 # Environment variables
 .env
 .env.*
+*.env
 !.env.example
+
+# Local secrets
+.secrets
+*.secrets
 
 # IDE specific files
 .idea/
@@ -38,12 +43,21 @@ logs/
 
 # Testing
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .pytest_cache/
+.tox/
+.nox/
+
+# Lint and type-check caches
+.mypy_cache/
+.ruff_cache/
 
 # Local configuration
 config.local.json
 claude_desktop_config.json
+.mcp.json
 
 # Temporary files
 *.tmp
@@ -59,6 +73,20 @@ repomix-output.xml
 /data
 src/data/
 
+# Local SQLite indexes and their journal files (including custom locations)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
 # Claude Code local settings
 .claude/
 
@@ -70,6 +98,9 @@ src/data/
 
 # Local TODO notes
 docs/TODO/
+
+# Local launch drafts and pitch exports
+/pitch/
 
 # Specify
 .specify/
