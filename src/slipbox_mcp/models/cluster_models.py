@@ -2,9 +2,12 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, TypedDict
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# Pydantic cannot build a schema from typing.TypedDict before Python 3.12.
+from typing_extensions import TypedDict
 
 MIN_CLUSTER_SIZE = 5
 CO_OCCURRENCE_THRESHOLD = 3
