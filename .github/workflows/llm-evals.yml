@@ -4,22 +4,29 @@ name: LLM Evals
 # self-hosted runner, so it never triggers automatically — a path-based trigger
 # can't tell a real prompt change from a cosmetic reformat, and would queue
 # (or bill) on incidental edits. Run it deliberately instead:
-#   - add the `run-llm-evals` label to a PR (re-runs on each push while labeled), or
+#   - add the `run-llm-evals` label to a PR from a branch in this repository
+#     (runs once per labeling; remove and re-add the label to run again), or
 #   - trigger it manually from the Actions tab (workflow_dispatch).
 # For a quick local check without the runner: `pytest evals/llm/ -v`.
+#
+# Security: the job executes the PR's code on the self-hosted runner, with
+# claude running under --dangerously-skip-permissions. Fork PRs never run here,
+# and a push does not re-run it, so every run follows a deliberate label on
+# code a maintainer has seen.
 
 on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, labeled]
+    types: [labeled]
 
 jobs:
   llm-evals:
     # Skipped (no runner allocated) unless explicitly requested.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      contains(github.event.pull_request.labels.*.name, 'run-llm-evals')
+      (github.event.label.name == 'run-llm-evals' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: self-hosted
     timeout-minutes: 20
     steps:
