@@ -205,9 +205,7 @@ The legend across the top maps each color to a link type (extends, refines, supp
 
 ## Optional: Automatic Cluster Detection
 
-The background helpers below require a repository checkout and its own Python
-environment; `pipx install` and `uv tool install` install the server but do not
-put these scripts in your working directory. Set up the helpers once:
+The background helpers below require a repository checkout and its own Python environment; `pipx install` and `uv tool install` install the server but do not put these scripts in your working directory. Set up the helpers once:
 
 ```bash
 git clone https://github.com/jamesfishwick/slipbox-mcp.git
@@ -216,9 +214,7 @@ uv sync
 cp .env.example .env
 ```
 
-Edit the checkout's `.env` to use the same absolute data paths as your MCP
-client. For example, for a client whose `SLIPBOX_BASE_DIR` is
-`/Users/yourname/.local/share/mcp/slipbox`:
+Edit the checkout's `.env` to use the same absolute data paths as your MCP client. For example, for a client whose `SLIPBOX_BASE_DIR` is `/Users/yourname/.local/share/mcp/slipbox`:
 
 ```dotenv
 SLIPBOX_BASE_DIR=/Users/yourname/.local/share/mcp/slipbox
@@ -227,8 +223,7 @@ SLIPBOX_DATABASE_PATH=/Users/yourname/.local/share/mcp/slipbox/data/db/zettelkas
 SLIPBOX_LOG_LEVEL=INFO
 ```
 
-Run the following commands from this checkout. Keep it in place while the
-background jobs are installed: their LaunchAgents use its absolute paths.
+Run the following commands from this checkout. Keep it in place while the background jobs are installed: their LaunchAgents use its absolute paths.
 
 Cluster analysis scans all notes and computes similarity scores. Running it daily (6am) pre-computes results so `slipbox_get_cluster_report()` returns instantly. Without scheduling, cluster detection runs on-demand, which is slower for large collections.
 
@@ -270,8 +265,7 @@ Use it if you frequently edit notes in Obsidian while also using Claude.
 
 ### Install File Watcher (macOS)
 
-Complete the [helper setup](#optional-automatic-cluster-detection) above first,
-and create a note through your MCP client so the notes directory exists.
+Complete the [helper setup](#optional-automatic-cluster-detection) above first, and create a note through your MCP client so the notes directory exists.
 
 ```bash
 chmod +x scripts/install-file-watcher.sh
@@ -764,8 +758,8 @@ Three things to know first: namespace isolation is a tag convention, not enforce
 
 ## Documentation
 
-| Doc                                                            | What's in it                                                                                 |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Doc                                                                                                                   | What's in it                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | [Quick Reference](https://github.com/jamesfishwick/slipbox-mcp/blob/main/docs/QUICK_REFERENCE.md)                     | Note ID format, the five note types, and a one-page cheat sheet for the method.              |
 | [Manual Zettelkasten Guide](https://github.com/jamesfishwick/slipbox-mcp/blob/main/docs/MANUAL_ZETTELKASTEN_GUIDE.md) | Running the same workflow by hand in Obsidian, no agent involved.                            |
 | [Link Format](https://github.com/jamesfishwick/slipbox-mcp/blob/main/docs/LINK_FORMAT.md)                             | How Slipbox's links map to `[[wikilinks]]` and other editors' formats.                       |
@@ -784,6 +778,10 @@ See [ROADMAP.md](https://github.com/jamesfishwick/slipbox-mcp/blob/main/ROADMAP.
 ## Sponsor
 
 If slipbox-mcp is useful to you, consider [sponsoring the project](https://github.com/sponsors/jamesfishwick).
+
+## Acknowledgments
+
+Slipbox started as a fork of [zettelkasten-mcp](https://github.com/entanglr/zettelkasten-mcp) by Peter J. Herrel ([@diggy](https://github.com/diggy)) and [Entanglr](https://github.com/entanglr). It has since been largely rewritten and extended, but its core data model still comes from that project: the note types, typed links and their inverses, and timestamp-based note IDs. Thanks to them for the foundation.
 
 ## License
 
