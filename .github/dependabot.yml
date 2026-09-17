@@ -10,6 +10,11 @@ updates:
       python-deps:
         patterns:
           - "*"
+    ignore:
+      # Deliberately pinned to mcp<2: the server uses the v1 FastMCP API.
+      # Lift this when the server is ported to v2.
+      - dependency-name: "mcp"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions used in the workflows.
   - package-ecosystem: "github-actions"

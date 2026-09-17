@@ -51,7 +51,6 @@ __pycache__/* binary
 /.vscode export-ignore
 /.idea export-ignore
 /pyproject.toml !export-ignore
-/setup.py !export-ignore
 /setup.cfg !export-ignore
 
 # Jupyter notebooks
