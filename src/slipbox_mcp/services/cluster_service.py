@@ -7,11 +7,10 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
-from slipbox_mcp.config import ensure_private_dir
+from slipbox_mcp.config import config, ensure_private_dir
 from slipbox_mcp.models.cluster_models import (
     CO_OCCURRENCE_THRESHOLD,
     MIN_CLUSTER_SIZE,
-    REPORT_PATH,
     ClusterCandidate,
     ClusterReport,
 )
@@ -28,9 +27,26 @@ class ClusterService:
         self,
         zettel_service: ZettelService,
         report_path: Optional[Path] = None,
+        legacy_report_path: Optional[Path] = None,
     ):
+        """
+        Args:
+            report_path: Where this vault's report lives. Defaults to
+                ``config.get_cluster_report_path()``, resolved now.
+            legacy_report_path: The old machine-wide report to adopt when this
+                vault has none yet and the report matches this vault's notes.
+                ``None`` disables adoption.
+        """
         self.zettel_service = zettel_service
-        self.report_path = Path(report_path) if report_path is not None else REPORT_PATH
+        self.report_path = (
+            Path(report_path)
+            if report_path is not None
+            else config.get_cluster_report_path()
+        )
+        self.legacy_report_path = (
+            Path(legacy_report_path) if legacy_report_path is not None else None
+        )
+        self._legacy_checked = False
 
     def build_tag_cooccurrence(self, notes: List[Note]) -> Dict[Tuple[str, str], int]:
         """Build matrix of tag pairs that appear together on notes."""
@@ -219,6 +235,21 @@ class ClusterService:
         self.report_path.write_text(report.model_dump_json(indent=2))
         return self.report_path
 
+    def refresh_report(self, previous: Optional[ClusterReport] = None) -> ClusterReport:
+        """Detect clusters and save the report, keeping existing dismissals.
+
+        Dismissals are user decisions stored only in the report, so every
+        regeneration must carry them forward. Pass ``previous`` when the caller
+        already loaded it; otherwise it is loaded here.
+        """
+        if previous is None:
+            previous = self.load_report()
+        report = self.detect_clusters()
+        if previous:
+            report.dismissed_cluster_ids = previous.dismissed_cluster_ids
+        self.save_report(report)
+        return report
+
     def load_report(self) -> Optional[ClusterReport]:
         """Load cluster report from JSON file.
 
@@ -226,13 +257,70 @@ class ClusterService:
         and (via ``extra="ignore"``) drops unknown keys from a newer version.
         """
         if not self.report_path.exists():
-            return None
+            self._adopt_legacy_report()
+            if not self.report_path.exists():
+                return None
 
         try:
             return ClusterReport.model_validate_json(self.report_path.read_text())
         except Exception as e:
             logger.error("Failed to load cluster report: %s", e)
             return None
+
+    def _adopt_legacy_report(self) -> None:
+        """Copy the old machine-wide report into this vault if it belongs here.
+
+        The legacy file records no vault, so ownership is inferred from its
+        cluster members: note IDs are creation timestamps down to the
+        microsecond, so a majority of them resolving in this vault is strong
+        evidence the report was built from it. A report with no members gives
+        no evidence and is not adopted. The legacy file is never modified,
+        because other vaults may still need to check it.
+        """
+        if self._legacy_checked:
+            return
+        self._legacy_checked = True
+
+        legacy = self.legacy_report_path
+        if legacy is None or legacy == self.report_path or not legacy.exists():
+            return
+
+        try:
+            report = ClusterReport.model_validate_json(legacy.read_text())
+        except Exception as e:
+            logger.warning(
+                "Ignoring unreadable legacy cluster report %s: %s", legacy, e
+            )
+            return
+
+        member_ids = {
+            note["id"]
+            for cluster in report.clusters
+            for note in cluster.notes
+            if note.get("id")
+        }
+        found = sum(
+            1 for note_id in member_ids if self.zettel_service.get_note(note_id)
+        )
+        if not member_ids or found * 2 <= len(member_ids):
+            logger.info(
+                "Not adopting legacy cluster report %s: %d of %d member notes "
+                "exist in this vault",
+                legacy,
+                found,
+                len(member_ids),
+            )
+            return
+
+        self.save_report(report)
+        logger.info(
+            "Adopted legacy cluster report %s into %s (%d of %d member notes "
+            "matched; legacy file left in place)",
+            legacy,
+            self.report_path,
+            found,
+            len(member_ids),
+        )
 
     @staticmethod
     def _render_structure_content(cluster: ClusterCandidate) -> str:

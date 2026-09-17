@@ -49,11 +49,7 @@ class ZettelkastenMcpServer:
 
             if should_refresh:
                 logger.info("Refreshing stale cluster report...")
-                new_report = self.cluster_service.detect_clusters()
-                # Preserve dismissed clusters from old report
-                if report:
-                    new_report.dismissed_cluster_ids = report.dismissed_cluster_ids
-                self.cluster_service.save_report(new_report)
+                new_report = self.cluster_service.refresh_report(previous=report)
                 logger.info("Cluster report refreshed: %s", new_report.stats)
         except Exception as e:
             logger.warning("Failed to refresh clusters on startup: %s", e)

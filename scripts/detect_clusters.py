@@ -5,18 +5,15 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from slipbox_mcp.services.cluster_service import ClusterService
-from slipbox_mcp.services.zettel_service import ZettelService
+from slipbox_mcp.services import build_services
 
 
 def main():
     print("Starting cluster detection...")
-    zettel_service = ZettelService()
-    cluster_service = ClusterService(zettel_service)
-    report = cluster_service.detect_clusters()
-    path = cluster_service.save_report(report)
+    cluster_service = build_services().cluster
+    report = cluster_service.refresh_report()
 
-    print(f"Report saved to: {path}")
+    print(f"Report saved to: {cluster_service.report_path}")
     print(f"Total notes: {report.stats['total_notes']}")
     print(f"Orphaned notes: {report.stats['total_orphans']}")
     print(f"Clusters needing structure: {report.stats['clusters_needing_structure']}")

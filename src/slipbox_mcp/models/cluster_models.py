@@ -11,7 +11,12 @@ from typing_extensions import TypedDict
 
 MIN_CLUSTER_SIZE = 5
 CO_OCCURRENCE_THRESHOLD = 3
-REPORT_PATH = Path("~/.local/share/mcp/slipbox/cluster-analysis.json").expanduser()
+# Where every vault on the machine shared one report before reports moved next
+# to each vault's index. Only read now, to carry an existing report (and its
+# dismissals) over to the vault it matches.
+LEGACY_REPORT_PATH = Path(
+    "~/.local/share/mcp/slipbox/cluster-analysis.json"
+).expanduser()
 
 
 class ClusterStats(TypedDict):

@@ -135,7 +135,8 @@ Analyzes all notes for emergent clusters based on:
 - Connection patterns (notes that link to each other)
 - Structure note coverage (which clusters already have structure notes)
 
-Results saved to ~/.local/share/mcp/slipbox/cluster-analysis.json\
+Results saved to cluster-analysis.json next to the vault's SQLite index
+(or SLIPBOX_CLUSTER_REPORT_PATH when set)\
 """
 
 SLIPBOX_DISMISS_CLUSTER = """\
