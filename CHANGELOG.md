@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.4](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.5.3...v1.5.4) (2026-09-17)
+
+
+### Bug Fixes
+
+* store cluster reports per vault ([#96](https://github.com/jamesfishwick/slipbox-mcp/issues/96)) ([29eb1a3](https://github.com/jamesfishwick/slipbox-mcp/commit/29eb1a301407766b489c366bd73185c168d22b4c))
+
 ## [1.5.3](https://github.com/jamesfishwick/slipbox-mcp/compare/v1.5.2...v1.5.3) (2026-09-16)
 
 
