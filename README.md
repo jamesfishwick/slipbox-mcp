@@ -1,12 +1,12 @@
 # Slipbox MCP Server
 
-![Slipbox](assets/images/1f5c3-fe0f_ascii.png)
+![Slipbox](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/images/1f5c3-fe0f_ascii.png)
 
 Give your AI assistant an active role in managing your knowledge. Slipbox is an [MCP server](https://modelcontextprotocol.io/) that turns any MCP-compatible agent into a Zettelkasten partner -- creating atomic notes, forming semantic links, detecting emergent clusters, and synthesizing insights from your existing knowledge.
 
 Your ideas in, structured knowledge out. The agent handles the formatting, linking, and integration.
 
-New to the method? Start with [_Introduction to the Zettelkasten Method_](https://zettelkasten.de/introduction/) for the why behind atomic notes and linked thinking. To see how Slipbox primes your agent with that method, read the [server instructions](src/slipbox_mcp/server/descriptions.py) it ships automatically on connect.
+New to the method? Start with [_Introduction to the Zettelkasten Method_](https://zettelkasten.de/introduction/) for the why behind atomic notes and linked thinking. To see how Slipbox primes your agent with that method, read the [server instructions](https://github.com/jamesfishwick/slipbox-mcp/blob/main/src/slipbox_mcp/server/descriptions.py) it ships automatically on connect.
 
 Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude Code, OpenCode, Copilot, or anything that speaks MCP).
 
@@ -20,7 +20,7 @@ Built and tested with Claude. Works with any MCP client (Claude Desktop, Claude 
 
 Python 3.10+ | macOS or Linux
 
-![Direct idea capture: your raw thinking in, a formatted atomic note with tags and links out](assets/recordings/04-idea-capture.gif)
+![Direct idea capture: your raw thinking in, a formatted atomic note with tags and links out](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/04-idea-capture.gif)
 
 ## Walkthrough
 
@@ -125,67 +125,67 @@ The hero above is the core loop. Here's the rest of what the agent does.
 
 The agent reads the `slipbox://maintenance-status` resource at session start and surfaces clusters that need organizing.
 
-![Proactive Maintenance](assets/recordings/01-maintenance.gif)
+![Proactive Maintenance](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/01-maintenance.gif)
 
 ### Full-Text Search
 
 BM25-ranked search across notes via `slipbox_search_notes`.
 
-![FTS5 Search](assets/recordings/02-search.gif)
+![FTS5 Search](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/02-search.gif)
 
 ### Knowledge Graph: Central Notes
 
 `slipbox_find_central_notes` surfaces the structural anchors of the graph -- the notes everything else orbits.
 
-![Central Notes](assets/recordings/03-central-notes.gif)
+![Central Notes](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/03-central-notes.gif)
 
 ### Note Analysis
 
 The `analyze_note` prompt evaluates atomicity, finds real connections in the existing graph, suggests tags, and rewrites for clarity.
 
-![Note Analysis](assets/recordings/05-analyze-note.gif)
+![Note Analysis](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/05-analyze-note.gif)
 
 ### Source Decomposition
 
 The `knowledge_creation` prompt splits an article into atomic literature notes with proper citation and links.
 
-![Source Decomposition](assets/recordings/06-source-decomposition.gif)
+![Source Decomposition](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/06-source-decomposition.gif)
 
 ### Cluster Detection
 
 `slipbox_get_cluster_report` finds groups of co-occurring tags that lack a structure note. Scored by size, orphan ratio, link density, and recency.
 
-![Cluster Report](assets/recordings/07-cluster-report.gif)
+![Cluster Report](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/07-cluster-report.gif)
 
 ### Structure Note Creation
 
 `slipbox_create_structure_from_cluster` scaffolds a structure note, links all member notes, and dismisses the cluster.
 
-![Structure Note](assets/recordings/08-structure-note.gif)
+![Structure Note](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/08-structure-note.gif)
 
 ### Orphaned Notes
 
 `slipbox_find_orphaned_notes` surfaces unintegrated knowledge -- candidates for connection or deletion.
 
-![Orphans](assets/recordings/10-orphans.gif)
+![Orphans](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/10-orphans.gif)
 
 ### Similar Notes
 
 `slipbox_find_similar_notes` computes similarity from shared tags, common links, and content overlap.
 
-![Similar Notes](assets/recordings/11-similar-notes.gif)
+![Similar Notes](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/11-similar-notes.gif)
 
 ### Graph Traversal
 
 `slipbox_get_linked_notes` shows typed links from a hub note, grouped by link type.
 
-![Linked Notes](assets/recordings/12-linked-notes.gif)
+![Linked Notes](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/12-linked-notes.gif)
 
 ### Knowledge Synthesis
 
 The `knowledge_synthesis` prompt finds bridges between unconnected areas and proposes synthesis notes from your existing knowledge.
 
-![Knowledge Synthesis](assets/recordings/17-knowledge-synthesis.gif)
+![Knowledge Synthesis](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/recordings/17-knowledge-synthesis.gif)
 
 ### Zero Lock-In: Plain Files in Obsidian
 
@@ -193,11 +193,11 @@ Notes are plain markdown. Open the vault in Obsidian and everything works -- ren
 
 For a graph that renders the _typed_ links in color (supports, extends, refines, ...) rather than Obsidian's untyped built-in graph, install the companion plugin **[Slipbox Semantic Graph](https://github.com/jamesfishwick/obsidian-slipbox-graph)** -- a force-directed view with human-readable titles and color-coded semantic link types. Install it manually from the [0.1.0 release](https://github.com/jamesfishwick/obsidian-slipbox-graph/releases/tag/0.1.0): copy `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/slipbox-graph/`, then enable it in Settings → Community plugins. (Once it's accepted into the official directory, you'll also be able to install it via Settings → Community plugins → Browse → search "Slipbox Semantic Graph".) It reads the same frontmatter `id` and `## Links` section the server writes, so no extra configuration is needed. Open the view with the **Open semantic graph** command (Command Palette) or the **git-fork** ribbon icon.
 
-![Slipbox Semantic Graph: the full vault, with typed links color-coded by relationship](assets/screenshots/obsidian-graph.png)
+![Slipbox Semantic Graph: the full vault, with typed links color-coded by relationship](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/screenshots/obsidian-graph.png)
 
 The legend across the top maps each color to a link type (extends, refines, supports, contradicts, questions, related). Focus a structure note and its constellation comes into view. Here, `Contract Testing Knowledge Map` with its member notes orbiting it:
 
-![Slipbox Semantic Graph: a structure note and its member-note constellation](assets/screenshots/obsidian-graph-structure-note.png)
+![Slipbox Semantic Graph: a structure note and its member-note constellation](https://raw.githubusercontent.com/jamesfishwick/slipbox-mcp/main/assets/screenshots/obsidian-graph-structure-note.png)
 
 </details>
 
@@ -309,7 +309,7 @@ tail -f ~/.local/share/mcp/slipbox/watcher.log
 
 ## Recommended System Prompt
 
-Slipbox ships a baseline automatically: every client receives the [server instructions](src/slipbox_mcp/server/descriptions.py) on connect, covering how to use the tools well -- note types, link semantics, quality standards, and core workflows like search-before-create. You don't add those yourself.
+Slipbox ships a baseline automatically: every client receives the [server instructions](https://github.com/jamesfishwick/slipbox-mcp/blob/main/src/slipbox_mcp/server/descriptions.py) on connect, covering how to use the tools well -- note types, link semantics, quality standards, and core workflows like search-before-create. You don't add those yourself.
 
 `docs/SYSTEM_PROMPT.md` is the **opt-in** layer on top: the autonomy and initiative directives a server shouldn't assert on its own. Add it to your agent's preferences or system prompt to enable:
 
@@ -760,26 +760,26 @@ An untested hypothesis, not a recommended setup. Everything above helps an agent
 
 The model has no memory between sessions, so the slipbox is the only channel one session leaves for the next. It writes briefings for a cold successor (a failure and why, a recurring constraint, a correction, a hard-won fact), tags them `agent-memory`, and searches that tag before acting. The bet is that a _connected_ memory beats a flat rules file, because you retrieve it by traversal.
 
-Three things to know first: namespace isolation is a tag convention, not enforced, so run it against a separate slipbox instance; "memory" is a misnomer, since nothing persists but the notes themselves; and the growth discipline is the unproven part, so expect sprawl on the first run. Full write-up and caveats: [Slipbox as Agent Self-Memory](docs/SYSTEM_PROMPT.md#experimental-slipbox-as-agent-self-memory).
+Three things to know first: namespace isolation is a tag convention, not enforced, so run it against a separate slipbox instance; "memory" is a misnomer, since nothing persists but the notes themselves; and the growth discipline is the unproven part, so expect sprawl on the first run. Full write-up and caveats: [Slipbox as Agent Self-Memory](https://github.com/jamesfishwick/slipbox-mcp/blob/main/docs/SYSTEM_PROMPT.md#experimental-slipbox-as-agent-self-memory).
 
 ## Documentation
 
 | Doc                                                            | What's in it                                                                                 |
 | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [Quick Reference](docs/QUICK_REFERENCE.md)                     | Note ID format, the five note types, and a one-page cheat sheet for the method.              |
-| [Manual Zettelkasten Guide](docs/MANUAL_ZETTELKASTEN_GUIDE.md) | Running the same workflow by hand in Obsidian, no agent involved.                            |
-| [Link Format](docs/LINK_FORMAT.md)                             | How Slipbox's links map to `[[wikilinks]]` and other editors' formats.                       |
-| [Ecosystem Compatibility](docs/ECOSYSTEM_COMPATIBILITY.md)     | Which other tools can read and write the same vault.                                         |
-| [System Prompt](docs/SYSTEM_PROMPT.md)                         | The opt-in autonomy layer: auto-capture, cluster detection, and the agent-memory experiment. |
-| [Demo](demo.md)                                                | A worked session showing the tools in use.                                                   |
+| [Quick Reference](https://github.com/jamesfishwick/slipbox-mcp/blob/main/docs/QUICK_REFERENCE.md)                     | Note ID format, the five note types, and a one-page cheat sheet for the method.              |
+| [Manual Zettelkasten Guide](https://github.com/jamesfishwick/slipbox-mcp/blob/main/docs/MANUAL_ZETTELKASTEN_GUIDE.md) | Running the same workflow by hand in Obsidian, no agent involved.                            |
+| [Link Format](https://github.com/jamesfishwick/slipbox-mcp/blob/main/docs/LINK_FORMAT.md)                             | How Slipbox's links map to `[[wikilinks]]` and other editors' formats.                       |
+| [Ecosystem Compatibility](https://github.com/jamesfishwick/slipbox-mcp/blob/main/docs/ECOSYSTEM_COMPATIBILITY.md)     | Which other tools can read and write the same vault.                                         |
+| [System Prompt](https://github.com/jamesfishwick/slipbox-mcp/blob/main/docs/SYSTEM_PROMPT.md)                         | The opt-in autonomy layer: auto-capture, cluster detection, and the agent-memory experiment. |
+| [Demo](https://github.com/jamesfishwick/slipbox-mcp/blob/main/demo.md)                                                | A worked session showing the tools in use.                                                   |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, coding standards, and how to submit changes.
+See [CONTRIBUTING.md](https://github.com/jamesfishwick/slipbox-mcp/blob/main/CONTRIBUTING.md) for setup instructions, coding standards, and how to submit changes.
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for planned features and future direction.
+See [ROADMAP.md](https://github.com/jamesfishwick/slipbox-mcp/blob/main/ROADMAP.md) for planned features and future direction.
 
 ## Sponsor
 
